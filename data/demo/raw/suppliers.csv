@@ -1,0 +1,9 @@
+supplier_number,name,active,business_timestamp,data_origin,source_record_id
+TRIKES0001,"Trikes, Inc.",true,2026-09-12T23:59:00+08:00,source,1498
+VISTARO0001,Vista Road Bikes,true,2026-09-12T23:59:00+08:00,source,1538
+GREENLA0001,Green Lake Bike Company,true,2026-09-12T23:59:00+08:00,source,1546
+SIGNATUR0001,Signature Cycles,true,2026-09-12T23:59:00+08:00,source,1588
+SPORTFA0001,Sport Fan Co.,true,2026-09-12T23:59:00+08:00,source,1632
+INTEGRAT0001,Integrated Sport Products,true,2026-09-12T23:59:00+08:00,source,1636
+VICTORY0001,Victory Bikes,true,2026-09-12T23:59:00+08:00,source,1652
+PROFESSI0001,Professional Athletic Consultants,true,2026-09-12T23:59:00+08:00,source,1684

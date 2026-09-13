@@ -1,0 +1,10 @@
+{
+  "affected_skus": [
+    "WB-H098",
+    "PK-7098",
+    "TT-M928"
+  ],
+  "backlog_orders": 100,
+  "inventory_rule": "35% of the AdventureWorks reorder point for affected SKUs",
+  "warehouse_staff_capacity": 2
+}
