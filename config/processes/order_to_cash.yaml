@@ -1,0 +1,14 @@
+process_id: order_to_cash
+version: 1
+nodes:
+  - id: credit_review
+    resource: sales_staff
+    processing_time_hours: 4
+  - id: pick_and_pack
+    resource: warehouse_staff
+    processing_time_hours: 8
+  - id: invoiced
+    resource: finance_staff
+    processing_time_hours: 2
+parameters:
+  customer_payment_delay_hours: 168

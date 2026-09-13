@@ -361,7 +361,7 @@ class ActualStateService:
                 "item",
                 ItemRow,
                 "sku",
-                ("sku", "name", "standard_cost", "list_price", "reorder_point", "active")
+                ("id", "sku", "name", "standard_cost", "list_price", "reorder_point", "active")
                 + lineage_fields,
             ),
             (
@@ -418,6 +418,22 @@ class ActualStateService:
                             "data": {field: getattr(row, field) for field in fields},
                         }
                     )
+            # A simulation must receive all pending-obligation facts through the
+            # detached snapshot.  Keep the imported order payload beside the
+            # business object rather than making the simulator query Actual State.
+            event_statement = select(BusinessEventRow)
+            if as_of_time is not None:
+                event_statement = event_statement.where(
+                    BusinessEventRow.business_timestamp <= as_of_time
+                )
+            order_payloads = {
+                row.object_id: json.loads(_canonical_json(row.payload))
+                for row in session.scalars(event_statement).all()
+                if row.object_type in {"sales_order", "purchase_order"}
+            }
+            for record in records:
+                if record["record_type"] == "business_object":
+                    record["data"]["details"] = order_payloads.get(record["data"]["id"], {})
         records.sort(key=lambda value: (value["record_type"], value["record_key"]))
         return cast(list[dict[str, Any]], json.loads(_canonical_json(records)))
 

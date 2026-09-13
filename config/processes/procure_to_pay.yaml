@@ -1,0 +1,14 @@
+process_id: procure_to_pay
+version: 1
+nodes:
+  - id: purchase_order_placed
+    resource: purchasing_staff
+    processing_time_hours: 2
+  - id: goods_received
+    resource: warehouse_staff
+    processing_time_hours: 4
+  - id: supplier_invoice_recorded
+    resource: finance_staff
+    processing_time_hours: 2
+parameters:
+  supplier_payment_terms_hours: 336
