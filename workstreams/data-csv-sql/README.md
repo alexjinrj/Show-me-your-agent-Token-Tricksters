@@ -35,6 +35,26 @@ Actual State and create immutable snapshots for simulation.
 `load_snapshot(snapshot_id) -> SnapshotBundle` is the only Actual State input to
 the SimPy workstream. Simulation must not write back through this interface.
 
+## Implemented data source
+
+The demo extract uses Microsoft's fictitious AdventureWorks OLTP install-script
+CSVs under the repository's MIT license. It is rebuilt deterministically by
+`scripts/build_demo_data.py`; `data/demo/raw/SOURCE_MANIFEST.json` records the
+upstream URLs, hashes, transformations, row counts, and provenance boundary.
+
+The source provides customer, vendor, product, inventory, sales-order, and
+purchase-order relationships. Singapore/SGD rebasing, process status, resource
+capacity, opening balances, and the required exception are explicitly labelled
+`derived` or `synthetic`, never as source facts.
+
+Run the slice with:
+
+```bash
+uv sync --dev
+uv run pytest
+uv run python scripts/seed_demo_data.py --database actual_state.db
+```
+
 ## Out of Scope
 
 XLSX/JSON parsing, AI-assisted mapping, fuzzy entity matching, public APIs, UI,

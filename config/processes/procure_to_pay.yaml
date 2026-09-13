@@ -1,0 +1,87 @@
+process_id: procure_to_pay
+version: 1
+label: Procure to Pay
+initial_node_id: reorder_triggered
+terminal_node_ids:
+  - supplier_paid
+nodes:
+  - id: reorder_triggered
+    label: Reorder Triggered
+    resource: inventory_planner
+    processing_time_hours: 0.5
+    events_on_entry: [reorder_triggered]
+    events_on_exit: [purchase_requisition_approved]
+    operational_metrics: [inventory_quantity, exception_count, backlog_count]
+    next:
+      - target: purchase_order_placed
+        guard: reorder_approved
+
+  - id: purchase_order_placed
+    label: Purchase Order Placed
+    resource: purchasing_staff
+    processing_time_hours: 1.0
+    events_on_entry: [purchase_order_placed]
+    events_on_exit: [purchase_order_sent]
+    operational_metrics: [object_count, total_quantity, total_monetary_value]
+    next:
+      - target: supplier_lead_time
+        guard: purchase_order_approved
+
+  - id: supplier_lead_time
+    label: Supplier Lead Time
+    resource: supplier_capacity
+    processing_time_hours: 120.0
+    events_on_entry: [supplier_delivery_scheduled]
+    events_on_exit: [supplier_delivery_arrived]
+    operational_metrics: [backlog_count, average_waiting_time, exception_count]
+    next:
+      - target: goods_received
+        guard: supplier_delivery_received
+
+  - id: goods_received
+    label: Goods Received
+    resource: warehouse_staff
+    processing_time_hours: 1.0
+    events_on_entry: [goods_received]
+    events_on_exit: [supplier_invoice_requested]
+    operational_metrics: [inventory_quantity, total_quantity, resource_utilization]
+    financial_effects:
+      - event: goods_received
+        debit_account: inventory
+        credit_account: goods_received_not_invoiced
+        amount_basis: inventory_cost
+    next:
+      - target: supplier_invoice_recorded
+        guard: supplier_invoice_matched
+
+  - id: supplier_invoice_recorded
+    label: Supplier Invoice Recorded
+    resource: finance_staff
+    processing_time_hours: 0.5
+    events_on_entry: [supplier_invoice_recorded]
+    events_on_exit: [supplier_payment_scheduled]
+    operational_metrics: [accounts_payable, total_monetary_value]
+    financial_effects:
+      - event: supplier_invoice_recorded
+        debit_account: goods_received_not_invoiced
+        credit_account: accounts_payable
+        amount_basis: supplier_invoice_amount
+    next:
+      - target: supplier_paid
+        guard: supplier_payment_due
+
+  - id: supplier_paid
+    label: Supplier Paid
+    resource: finance_staff
+    processing_time_hours: 0.25
+    events_on_entry: [supplier_paid]
+    events_on_exit: [procure_to_pay_completed]
+    operational_metrics: [cash, accounts_payable, object_count]
+    financial_effects:
+      - event: supplier_paid
+        debit_account: accounts_payable
+        credit_account: cash
+        amount_basis: payment_amount
+    next: []
+parameters:
+  supplier_payment_terms_hours: 336

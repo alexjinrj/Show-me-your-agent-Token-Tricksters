@@ -31,6 +31,50 @@ deterministic 30-day Order-to-Cash and Procure-to-Pay simulation.
   backlog, wait time, fulfilment, utilization, stockouts, inventory, revenue,
   COGS, gross profit, receivables, payables, and cash.
 
+## Implemented Boundary
+
+`business_coordinator.simulation.run_simulation` is the deterministic public
+entry point. It accepts only a frozen `SnapshotBundle`, scenario events, a
+horizon, and a seed. It creates and disposes a new SimPy environment, shared
+resource pools, inventory containers, and mutable financial state for every
+call. No database session or ORM object is accepted by the engine.
+
+The snapshot contains detached order details needed to reconstruct pending
+obligations. `SimulationService` persists simulation sessions, independent
+forks, scenario events, run metadata, result summaries, traces, and balanced
+accounting impacts. Persistence occurs after the detached run and never writes
+`business_events` or materialized Actual State.
+
+Process timing is versioned in:
+
+- `config/processes/order_to_cash.yaml`
+- `config/processes/procure_to_pay.yaml`
+
+Supported first-slice events are `order_arrival`,
+`resource_capacity_changed`, and `supplier_delivery_delayed`; negative delivery
+day deltas represent expedited delivery. Convenience constructors provide the
+required warehouse-worker and next-supplier-delivery alternatives.
+
+The supplied demo data has no open purchase order for the three embedded
+backlog SKUs. Consequently, expediting its next open delivery is visible in the
+trace and inventory timing but does not improve that backlog. This is an
+evidence-limited result of the fixture, not a simulated causal claim.
+
+## Verification
+
+Run from the repository root:
+
+```text
+uv run ruff check .
+uv run mypy src
+uv run pytest -q
+```
+
+The test suite covers deep-copy isolation, reproducibility, Actual State hash
+immutability, session forking, shared capacity and inventory, scenario traces,
+balanced journal impacts, result persistence, comparison, and the complete
+CSV-to-snapshot-to-simulation path.
+
 ## Out of Scope
 
 Agent reasoning, LangGraph, tool wrappers, FastAPI, Streamlit, ERPNext, and any
