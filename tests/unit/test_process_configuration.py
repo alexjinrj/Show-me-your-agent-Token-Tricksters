@@ -62,13 +62,13 @@ def test_configuration_hashes_are_stable() -> None:
     )
     assert hash_process_catalog(first) == hash_process_catalog(second)
     assert hash_process_definition(first["order_to_cash"]) == (
-        "3963e075bb28f686b9e1430d7514c752fef71e149b98c8bc5ec8e3bd53740cbe"
+        "496b1c2cc9141070d6dafce8856000f049ba3c7ad2030c986c9ae86fbad38f9e"
     )
     assert hash_process_definition(first["procure_to_pay"]) == (
-        "430f4573b94dde331055cc178e4b57c9800d2b4a13bfe4f550d0ac6dfc137aaf"
+        "ce3092229047e55cd638f0310259adde261d10766670c7b366c0604c7772726f"
     )
     assert hash_process_catalog(first) == (
-        "67daa64fe54eb88420924196b94e20e73891ca82f62823e48d4510f86bc58de3"
+        "c015e0a5df5f910175f1edb6a2cf974868ac7f1233e1de4397d6068b6f6b0bd6"
     )
 
 

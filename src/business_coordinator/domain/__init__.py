@@ -1,4 +1,6 @@
 from business_coordinator.domain.models import (
+    AccountingImpact,
+    AccountingLine,
     AwareDatetime,
     BusinessEvent,
     BusinessObject,
@@ -15,7 +17,9 @@ from business_coordinator.domain.models import (
     ResourceType,
     ScenarioEvent,
     ScenarioEventType,
+    SimulationMetrics,
     SimulationRunResult,
+    SimulationSession,
     SimulationTraceEvent,
     SnapshotBundle,
     SnapshotManifest,
@@ -34,6 +38,8 @@ from business_coordinator.domain.serialization import canonical_data, canonical_
 
 __all__ = [
     "AwareDatetime",
+    "AccountingImpact",
+    "AccountingLine",
     "BusinessEvent",
     "BusinessObject",
     "CanonicalModel",
@@ -53,6 +59,8 @@ __all__ = [
     "ScenarioEvent",
     "ScenarioEventType",
     "SimulationRunResult",
+    "SimulationMetrics",
+    "SimulationSession",
     "SimulationTraceEvent",
     "SnapshotBundle",
     "SnapshotManifest",

@@ -18,7 +18,7 @@ nodes:
 
   - id: purchase_order_placed
     label: Purchase Order Placed
-    resource: procurement_staff
+    resource: purchasing_staff
     processing_time_hours: 1.0
     events_on_entry: [purchase_order_placed]
     events_on_exit: [purchase_order_sent]
@@ -83,3 +83,5 @@ nodes:
         credit_account: cash
         amount_basis: payment_amount
     next: []
+parameters:
+  supplier_payment_terms_hours: 336

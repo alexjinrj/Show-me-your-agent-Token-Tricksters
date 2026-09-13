@@ -106,3 +106,5 @@ nodes:
         credit_account: accounts_receivable
         amount_basis: payment_amount
     next: []
+parameters:
+  customer_payment_delay_hours: 168

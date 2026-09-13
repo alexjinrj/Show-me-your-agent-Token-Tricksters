@@ -175,6 +175,12 @@ class SimulationSessionRow(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     base_snapshot_id: Mapped[str] = mapped_column(ForeignKey("state_snapshots.id"))
     name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str] = mapped_column(String(1000), default="")
+    parent_session_id: Mapped[str | None] = mapped_column(
+        ForeignKey("simulation_sessions.id", name="fk_simulation_session_parent"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    state_type: Mapped[str] = mapped_column(String(10), default="simulated")
 
 
 class SimulationEventRow(Base):
@@ -182,4 +188,39 @@ class SimulationEventRow(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     simulation_session_id: Mapped[str] = mapped_column(ForeignKey("simulation_sessions.id"))
     event_type: Mapped[str] = mapped_column(String(80))
+    effective_day: Mapped[Decimal] = mapped_column(Numeric(12, 4))
     payload: Mapped[dict[str, Any]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class SimulationRunRow(Base):
+    __tablename__ = "simulation_runs"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    simulation_session_id: Mapped[str] = mapped_column(ForeignKey("simulation_sessions.id"))
+    snapshot_hash: Mapped[str] = mapped_column(String(64))
+    process_definition_version: Mapped[str] = mapped_column(String(255))
+    process_definition_hash: Mapped[str] = mapped_column(String(64))
+    scenario_event_hash: Mapped[str] = mapped_column(String(64))
+    horizon_days: Mapped[int] = mapped_column(Integer)
+    random_seed: Mapped[int] = mapped_column(Integer)
+    result_hash: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(20))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class SimulationResultRow(Base):
+    __tablename__ = "simulation_results"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    simulation_run_id: Mapped[str] = mapped_column(ForeignKey("simulation_runs.id"), unique=True)
+    summary_metrics: Mapped[dict[str, Any]] = mapped_column(JSON)
+    event_trace: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+
+
+class AccountingImpactRow(Base):
+    __tablename__ = "accounting_impacts"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    simulation_run_id: Mapped[str] = mapped_column(ForeignKey("simulation_runs.id"))
+    event_type: Mapped[str] = mapped_column(String(80))
+    object_id: Mapped[str] = mapped_column(String(36))
+    simulated_hour: Mapped[Decimal] = mapped_column(Numeric(14, 4))
+    lines: Mapped[list[dict[str, Any]]] = mapped_column(JSON)

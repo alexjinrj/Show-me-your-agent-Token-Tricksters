@@ -116,6 +116,7 @@ class ProcessDefinition(CanonicalModel):
     initial_node_id: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
     terminal_node_ids: tuple[str, ...] = Field(min_length=1)
     nodes: tuple[ProcessNodeDefinition, ...] = Field(min_length=1)
+    parameters: dict[str, Decimal] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def validate_graph(self) -> ProcessDefinition:
