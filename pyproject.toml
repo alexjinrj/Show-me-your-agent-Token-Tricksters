@@ -1,0 +1,39 @@
+[project]
+name = "business-coordinator"
+version = "0.1.0"
+description = "Canonical domain and process contracts for the SME Business State Coordinator"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "pydantic>=2.11,<3",
+  "pyyaml>=6.0,<7",
+]
+
+[dependency-groups]
+dev = [
+  "mypy>=1.16,<2",
+  "pytest>=8.4,<9",
+  "ruff>=0.12,<1",
+  "types-pyyaml>=6.0.12.20250516",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/business_coordinator"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["business_coordinator"]

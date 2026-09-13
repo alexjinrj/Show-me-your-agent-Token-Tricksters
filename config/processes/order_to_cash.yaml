@@ -1,0 +1,108 @@
+process_id: order_to_cash
+version: 1
+label: Order to Cash
+initial_node_id: order_received
+terminal_node_ids:
+  - paid
+nodes:
+  - id: order_received
+    label: Order Received
+    resource: sales_staff
+    processing_time_hours: 0.5
+    events_on_entry: [order_received]
+    events_on_exit: [order_submitted_for_credit_review]
+    operational_metrics: [object_count, total_quantity, total_monetary_value, backlog_count]
+    next:
+      - target: credit_review
+        guard: customer_is_active
+
+  - id: credit_review
+    label: Credit Review
+    resource: finance_staff
+    processing_time_hours: 1.0
+    events_on_entry: [credit_review_started]
+    events_on_exit: [credit_review_completed]
+    operational_metrics: [backlog_count, average_waiting_time, resource_utilization]
+    next:
+      - target: order_approved
+        guard: credit_approved
+
+  - id: order_approved
+    label: Order Approved
+    resource: sales_staff
+    processing_time_hours: 0.25
+    events_on_entry: [order_approved]
+    events_on_exit: [inventory_allocation_requested]
+    operational_metrics: [object_count, total_monetary_value]
+    next:
+      - target: inventory_allocated
+        guard: inventory_is_available
+
+  - id: inventory_allocated
+    label: Inventory Allocated
+    resource: warehouse_staff
+    processing_time_hours: 0.25
+    events_on_entry: [inventory_allocated]
+    events_on_exit: [order_released_to_warehouse]
+    operational_metrics: [inventory_quantity, backlog_count]
+    next:
+      - target: pick_and_pack
+        guard: inventory_is_allocated
+
+  - id: pick_and_pack
+    label: Pick and Pack
+    resource: warehouse_staff
+    processing_time_hours: 2.0
+    events_on_entry: [pick_and_pack_started]
+    events_on_exit: [order_packed]
+    operational_metrics:
+      [backlog_count, average_waiting_time, available_capacity, resource_utilization]
+    next:
+      - target: shipped
+        guard: order_is_packed
+
+  - id: shipped
+    label: Shipped
+    resource: warehouse_staff
+    processing_time_hours: 0.5
+    events_on_entry: [goods_shipped]
+    events_on_exit: [shipment_confirmed]
+    operational_metrics: [object_count, inventory_quantity, total_monetary_value]
+    financial_effects:
+      - event: goods_shipped
+        debit_account: cost_of_goods_sold
+        credit_account: inventory
+        amount_basis: inventory_cost
+    next:
+      - target: invoiced
+        guard: shipment_confirmed
+
+  - id: invoiced
+    label: Invoiced
+    resource: finance_staff
+    processing_time_hours: 0.5
+    events_on_entry: [customer_invoice_recorded]
+    events_on_exit: [customer_payment_requested]
+    operational_metrics: [accounts_receivable, total_monetary_value]
+    financial_effects:
+      - event: customer_invoice_recorded
+        debit_account: accounts_receivable
+        credit_account: revenue
+        amount_basis: order_amount
+    next:
+      - target: paid
+        guard: payment_received
+
+  - id: paid
+    label: Paid
+    resource: finance_staff
+    processing_time_hours: 0.25
+    events_on_entry: [customer_payment_received]
+    events_on_exit: [order_to_cash_completed]
+    operational_metrics: [cash, accounts_receivable, object_count]
+    financial_effects:
+      - event: customer_payment_received
+        debit_account: cash
+        credit_account: accounts_receivable
+        amount_basis: payment_amount
+    next: []

@@ -29,3 +29,41 @@ used by both persistence and simulation.
 
 The canonical model package and validated process definitions are the only
 business-contract inputs used by CSV ingestion and SQL persistence.
+
+## Public Foundation API
+
+Canonical contracts are exported from `business_coordinator.domain`. They are
+immutable Pydantic v2 models with forbidden extra fields, UUID-string internal
+identifiers, timezone-aware timestamps, decimal monetary values, and explicit
+`actual` or `simulated` state labels.
+
+Process configuration is loaded through:
+
+```python
+from business_coordinator.config import (
+    hash_process_catalog,
+    hash_process_definition,
+    load_process_definition,
+    load_process_definitions,
+)
+```
+
+Hashes are lowercase SHA-256 digests of canonical JSON. They depend on validated
+configuration semantics, not YAML key order, whitespace, or comments. Catalogs
+are ordered by process ID, and snapshot records are ordered by record type and
+record key.
+
+## Verification
+
+From the repository root, run:
+
+```text
+uv sync --dev
+uv run ruff format --check .
+uv run ruff check .
+uv run mypy
+uv run pytest
+```
+
+This workstream has no persistence, SimPy, API, UI, Agent, LangGraph, or
+external-service dependency.
