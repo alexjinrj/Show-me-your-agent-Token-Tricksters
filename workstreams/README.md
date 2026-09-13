@@ -19,6 +19,18 @@ main
           -> codex/simpy-process-simulation
 ```
 
+Each branch is checked out in its own sibling worktree:
+
+```text
+Code/                                      # main coordination checkout
+Code-worktrees/foundation-domain-yaml/     # codex/foundation-domain-yaml
+Code-worktrees/data-csv-sql/               # codex/data-csv-sql
+Code-worktrees/simpy-process-simulation/   # codex/simpy-process-simulation
+```
+
+Agents must work only in the directory assigned to their branch. They must not
+switch branches inside another worktree or edit another workstream's checkout.
+
 Implementation should be merged in the same order. The shared boundary between
 the workstreams is defined in [`INTERFACE_CONTRACTS.md`](INTERFACE_CONTRACTS.md).
 
