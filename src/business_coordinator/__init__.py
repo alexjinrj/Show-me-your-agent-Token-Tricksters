@@ -1,5 +1,5 @@
-"""SME Business State Coordinator core package."""
+"""Deterministic contracts for the SME Business State Coordinator."""
 
-from business_coordinator.persistence.service import ActualStateService
+__version__ = "0.1.0"
 
-__all__ = ["ActualStateService"]
+__all__ = ["__version__"]
