@@ -1,0 +1,13 @@
+version: adventureworks-v1
+mode: fixed
+source_system: microsoft-adventureworks-demo
+files:
+  customers: [customer_number, name, active, business_timestamp, data_origin, source_record_id]
+  suppliers: [supplier_number, name, active, business_timestamp, data_origin, source_record_id]
+  items: [sku, name, standard_cost, list_price, reorder_point, active, business_timestamp, data_origin, source_record_id]
+  inventory: [sku, warehouse, quantity, business_timestamp, data_origin, source_record_id]
+  sales_orders: [order_number, customer_number, sku, quantity, unit_price, order_date, due_date, status, priority, data_origin, source_record_id]
+  purchase_orders: [order_number, supplier_number, sku, quantity, unit_cost, order_date, due_date, status, priority, data_origin, source_record_id]
+  resources: [resource_type, process_id, node_id, capacity_units, effective_at, data_origin, source_record_id]
+  opening_balances: [account_code, amount, currency, business_timestamp, data_origin, source_record_id]
+
