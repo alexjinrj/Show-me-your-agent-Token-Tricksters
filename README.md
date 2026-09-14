@@ -30,6 +30,7 @@ into `main`:
 | Foundation | `codex/foundation-domain-yaml` | Python project, immutable Pydantic domain contracts, canonical serialization, process configuration loader, and versioned Order-to-Cash and Procure-to-Pay YAML |
 | Data and Actual State | `codex/data-csv-sql` | Deterministic CSV mappings and validation, source lineage, SQLAlchemy/Alembic persistence, idempotent ingestion, materialized Actual State, immutable snapshot bundles, and demo data |
 | Simulation | `codex/simpy-process-simulation` | Isolated SimPy runs, shared inventory/resources, O2C and P2P processing, financial state, scenario events, reproducible result hashes, persistence, comparison, and invariant tests |
+| Demo frontend | `codex/demo-frontend` | FastAPI application API, static web dashboard, isolated baseline/alternative workflow, process explorer, comparison, playback, audit evidence, and Docker packaging |
 
 The intended integration order is:
 
@@ -104,6 +105,21 @@ and a new customer order arriving on day one. The report also shows the
 configured process nodes, representative event journeys, reproducibility, and
 Actual State isolation checks.
 
+Run the interactive web dashboard with:
+
+```bash
+uv run uvicorn business_coordinator.api.main:app --reload
+```
+
+Open `http://127.0.0.1:8000`. The API seeds an idempotent local SQLite database,
+serves the validated process catalog, and keeps baseline and alternative
+simulation sessions isolated. To exercise the container hook:
+
+```bash
+docker build -t business-coordinator-demo .
+docker run --rm -p 8000:8000 business-coordinator-demo
+```
+
 Generated databases, virtual environments, download caches, and test/type-check
 caches are ignored by Git.
 
@@ -122,9 +138,9 @@ Before changing a workstream:
    definition, or simulation event changes.
 6. Run Ruff, mypy, and pytest before committing.
 
-The next planned slice is the read-only Streamlit demo described in
-`FRONTEND_PROJECT_SPECIFICATION.md`. Typed Agent tools, FastAPI,
-LangGraph/LLM coordination, ERPNext submission, and production deployment
+The interactive demo described in `FRONTEND_PROJECT_SPECIFICATION.md` is now
+implemented on `codex/demo-frontend`. Typed Agent tools, LangGraph/LLM
+coordination, ERPNext submission, authentication, and production deployment
 remain out of scope.
 
 ## Known Demo Limitation

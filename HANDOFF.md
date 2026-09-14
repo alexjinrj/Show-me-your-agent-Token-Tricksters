@@ -24,6 +24,8 @@ The first MVP slice is integrated:
    order arrivals.
 5. A runnable HTML demo comparing four 30-day scenarios.
 6. UTC-safe SQLite timestamp storage while retaining source CSV offsets.
+7. FastAPI plus a no-build web dashboard for scenario comparison, trace playback,
+   process inspection, and audit evidence.
 
 GitHub PR #2 integrated the Foundation, Data, and SimPy branches. A later demo
 update added the visual runner, validated runtime process catalog, and timezone
@@ -42,6 +44,9 @@ correction.
 | Simulation engine | `src/business_coordinator/simulation/engine.py` |
 | Persisted simulation sessions | `src/business_coordinator/simulation/service.py` |
 | Visual demo | `scripts/run_simulation_demo.py` |
+| Web API entrypoint | `src/business_coordinator/api/main.py` |
+| Web dashboard | `web/index.html`, `web/app.js`, `web/styles.css` |
+| API and UI tests | `tests/api/` |
 
 The supported simulation boundary remains:
 
@@ -63,6 +68,7 @@ From `Code/`:
 ```bash
 uv sync --dev
 uv run python scripts/run_simulation_demo.py --open
+uv run uvicorn business_coordinator.api.main:app --reload
 uv run ruff format --check .
 uv run ruff check .
 uv run mypy
@@ -103,7 +109,7 @@ simulation tests. Do not copy process timing into UI code.
 | `Code/` | `main` | Canonical integrated product and documentation |
 | `Code-worktrees/data-csv-sql/` | `codex/data-csv-sql` | Completed data work; use only for an isolated data-layer change |
 | `Code-worktrees/mvp-integration/` | `codex/mvp-foundation-data-simpy` | Completed integration history; no longer the canonical checkout |
-| `Code-worktrees/demo-frontend/` | `codex/demo-frontend` | Next frontend implementation workspace |
+| `Code-worktrees/demo-frontend/` | `codex/demo-frontend` | FastAPI dashboard MVP; continue visual refinement here |
 
 The completed Foundation and SimPy branches remain useful history, but new
 product work should not continue on those old branch tips.
@@ -118,8 +124,9 @@ product work should not continue on those old branch tips.
   that backlog.
 - The deterministic engine accepts a seed for the reproducibility contract, but
   the current slice does not yet contain a stochastic distribution.
-- The frontend, Agent, typed tool layer, FastAPI API, authentication, and
-  production deployment are not implemented yet.
+- The analysis assistant remains a clearly labelled read-only stub.
+- Agent orchestration, typed tool calls, authentication, and production
+  deployment are not implemented yet.
 
 ## Rules for the next agent
 

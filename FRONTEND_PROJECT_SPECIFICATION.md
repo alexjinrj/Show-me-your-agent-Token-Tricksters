@@ -1,15 +1,15 @@
 # Simulation Demo Frontend Project Specification
 
 **Project:** Token Tricksters SME Business State Coordinator  
-**Document version:** 1.0  
-**Status:** Implementation handoff  
+**Document version:** 1.1
+**Status:** FastAPI dashboard implementation
 **Target branch:** `codex/demo-frontend`  
 **Target worktree:** `Code-worktrees/demo-frontend`  
 **Primary implementation language:** Python 3.12  
 
 ## 1. Objective
 
-Build a compact, read-only Streamlit demonstration that lets a reviewer inspect
+Build a compact, read-only web demonstration that lets a reviewer inspect
 the actual-state snapshot, understand the configured enterprise processes, run
 approved simulation scenarios, compare deterministic results, and inspect the
 supporting event and accounting traces.
@@ -36,21 +36,23 @@ Open demo
 
 ## 3. Required stack
 
-- Streamlit for the frontend.
+- FastAPI for the application API and static-file delivery.
+- A lightweight HTML/CSS/vanilla-JavaScript dashboard with no build step.
 - Existing Pydantic domain models for typed values.
 - Existing `ActualStateService` and `SimulationService` application services.
 - Existing validated process YAML and `RuntimeProcessCatalog`.
 - Existing SQLite-compatible persistence for local demonstration.
-- No separate JavaScript framework is required for this slice.
+- One deployable process and SQLite database for the local demo.
 
 The implementation may introduce a small application-facing demo service so
-the Streamlit page does not import functions from `scripts/` or duplicate setup
-logic.
+the web routes do not import functions from `scripts/` or duplicate setup logic.
 
 ## 4. Architecture boundary
 
 ```text
-Streamlit views
+Web dashboard
+      ↓ JSON API (Decimals remain strings)
+FastAPI routes
       ↓ typed commands and display models
 Demo application service
       ├── ActualStateService → immutable SnapshotBundle
@@ -152,7 +154,7 @@ Allow the reviewer to inspect:
 
 ## 7. Application state
 
-Use Streamlit session state only for UI selections and identifiers. Persisted
+Use browser state only for UI selections and identifiers. Persisted
 simulation sessions and runs remain owned by `SimulationService`.
 
 The baseline and each alternative must have separate session IDs. Changing an
@@ -185,7 +187,7 @@ At minimum, add tests for:
 5. Comparison display-model accuracy against `SimulationService.compare_runs`.
 6. Actual State hash remaining unchanged after frontend-triggered runs.
 7. Snapshot time displaying the same instant correctly in Singapore and UTC.
-8. A smoke test that imports and renders the main Streamlit entrypoint.
+8. Smoke tests for the FastAPI app, static assets, and end-to-end API journey.
 
 The existing 27 backend tests must continue to pass.
 
@@ -193,7 +195,7 @@ The existing 27 backend tests must continue to pass.
 
 The frontend slice is complete when:
 
-- `uv run streamlit run app.py` starts the demo locally;
+- `uv run uvicorn business_coordinator.api.main:app --reload` starts the demo locally;
 - a reviewer can run baseline plus one alternative without a terminal;
 - process nodes and timings come from validated YAML;
 - all displayed metrics come from stored `SimulationRunResult` values;
@@ -210,7 +212,8 @@ The frontend slice is complete when:
 - LangGraph or LLM Agent integration;
 - autonomous recommendations;
 - authentication and multi-user authorization;
-- FastAPI or remote deployment;
+- Streamlit or a JavaScript framework;
+- production remote deployment;
 - editing Actual State;
 - arbitrary process editing;
 - production visual design or mobile optimization;

@@ -115,6 +115,7 @@ class RunContext:
         event_type: str,
         order: SimulatedOrder,
         process_id: str,
+        node_id: str | None = None,
         **details: object,
     ) -> None:
         self.trace.append(
@@ -124,6 +125,7 @@ class RunContext:
                 event_type=event_type,
                 object_id=order.object_id,
                 process_id=process_id,
+                node_id=node_id,
                 details={key: str(value) for key, value in sorted(details.items())},
             )
         )
@@ -192,10 +194,12 @@ def _order_to_cash(
         yield context.env.timeout(float(arrival_hour - _decimal(context.env.now)))
     started = _decimal(context.env.now)
     context.active_sales_orders += 1
-    context.record("order_entered_simulation", order, "order_to_cash", sku=order.sku)
+    context.record(
+        "order_entered_simulation", order, "order_to_cash", "order_received", sku=order.sku
+    )
     if order.current_node_id == "order_received":
         yield context.env.process(_use_resource(context, "order_to_cash", "credit_review"))
-        context.record("order_approved", order, "order_to_cash")
+        context.record("order_approved", order, "order_to_cash", "order_approved")
 
     inventory = context.inventory[order.sku]
     if _decimal(inventory.level) < order.quantity:
@@ -204,11 +208,18 @@ def _order_to_cash(
             "stockout_wait_started",
             order,
             "order_to_cash",
+            "inventory_allocated",
             required=order.quantity,
             available=inventory.level,
         )
     yield inventory.get(float(order.quantity))
-    context.record("inventory_allocated", order, "order_to_cash", quantity=order.quantity)
+    context.record(
+        "inventory_allocated",
+        order,
+        "order_to_cash",
+        "inventory_allocated",
+        quantity=order.quantity,
+    )
     yield context.env.process(_use_resource(context, "order_to_cash", "pick_and_pack"))
     cost = _money(context.state.item_costs[order.sku] * order.quantity)
     context.cogs += cost
@@ -217,7 +228,7 @@ def _order_to_cash(
         order,
         (("COST_OF_GOODS_SOLD", cost, Decimal("0")), ("INVENTORY", Decimal("0"), cost)),
     )
-    context.record("goods_shipped", order, "order_to_cash", cost=cost)
+    context.record("goods_shipped", order, "order_to_cash", "shipped", cost=cost)
     yield context.env.process(_use_resource(context, "order_to_cash", "invoiced"))
     amount = _money(order.amount)
     context.revenue += amount
@@ -229,7 +240,7 @@ def _order_to_cash(
     )
     context.fulfilled_sales_orders += 1
     context.order_waiting_hours.append(_decimal(context.env.now) - started)
-    context.record("customer_invoiced", order, "order_to_cash", amount=amount)
+    context.record("customer_invoiced", order, "order_to_cash", "invoiced", amount=amount)
     yield context.env.timeout(
         float(context.config.parameter("order_to_cash", "customer_payment_delay_hours"))
     )
@@ -241,7 +252,7 @@ def _order_to_cash(
         order,
         (("CASH", amount, Decimal("0")), ("ACCOUNTS_RECEIVABLE", Decimal("0"), amount)),
     )
-    context.record("customer_payment_received", order, "order_to_cash", amount=amount)
+    context.record("customer_payment_received", order, "order_to_cash", "paid", amount=amount)
 
 
 def _delivery_adjustments(
@@ -275,12 +286,19 @@ def _delivery_adjustments(
 def _procure_to_pay(
     context: RunContext, order: SimulatedOrder, delivery_adjustment: Decimal
 ) -> Generator[simpy.Event, None, None]:
-    context.record("purchase_order_entered_simulation", order, "procure_to_pay", sku=order.sku)
+    context.record(
+        "purchase_order_entered_simulation",
+        order,
+        "procure_to_pay",
+        "purchase_order_placed",
+        sku=order.sku,
+    )
     if delivery_adjustment:
         context.record(
             "supplier_delivery_adjusted",
             order,
             "procure_to_pay",
+            "supplier_lead_time",
             hours_delta=delivery_adjustment,
         )
     yield context.env.process(_use_resource(context, "procure_to_pay", "purchase_order_placed"))
@@ -303,7 +321,9 @@ def _procure_to_pay(
             ("GOODS_RECEIVED_NOT_INVOICED", Decimal("0"), amount),
         ),
     )
-    context.record("goods_received", order, "procure_to_pay", quantity=order.quantity)
+    context.record(
+        "goods_received", order, "procure_to_pay", "goods_received", quantity=order.quantity
+    )
     yield context.env.process(_use_resource(context, "procure_to_pay", "supplier_invoice_recorded"))
     context.payables += amount
     context.journal(
@@ -314,7 +334,13 @@ def _procure_to_pay(
             ("ACCOUNTS_PAYABLE", Decimal("0"), amount),
         ),
     )
-    context.record("supplier_invoice_recorded", order, "procure_to_pay", amount=amount)
+    context.record(
+        "supplier_invoice_recorded",
+        order,
+        "procure_to_pay",
+        "supplier_invoice_recorded",
+        amount=amount,
+    )
     yield context.env.timeout(
         float(context.config.parameter("procure_to_pay", "supplier_payment_terms_hours"))
     )
@@ -326,7 +352,7 @@ def _procure_to_pay(
         order,
         (("ACCOUNTS_PAYABLE", amount, Decimal("0")), ("CASH", Decimal("0"), amount)),
     )
-    context.record("supplier_paid", order, "procure_to_pay", amount=amount)
+    context.record("supplier_paid", order, "procure_to_pay", "supplier_paid", amount=amount)
 
 
 def _apply_capacity_change(

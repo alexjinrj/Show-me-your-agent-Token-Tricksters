@@ -114,6 +114,10 @@ class SimulationService:
                     state_type="simulated",
                 )
             )
+            # Persist the child before copying events that reference it. This
+            # makes foreign-key ordering explicit on SQLite and preserves the
+            # fork lineage in the database rather than only in an API response.
+            database.flush()
             for index, event in enumerate(parent.scenario_events):
                 database.add(
                     SimulationEventRow(
@@ -194,6 +198,7 @@ class SimulationService:
             "average_waiting_hours",
             "fulfilment_rate",
             "stockout_count",
+            "ending_inventory_quantity",
             "ending_inventory_value",
             "revenue",
             "cost_of_goods_sold",
@@ -201,6 +206,7 @@ class SimulationService:
             "accounts_receivable",
             "accounts_payable",
             "ending_cash",
+            "minimum_cash",
         )
         first = baseline.summary_metrics.model_dump(mode="python")
         second = alternative.summary_metrics.model_dump(mode="python")
@@ -209,6 +215,16 @@ class SimulationService:
             baseline_value = Decimal(str(first[key]))
             alternative_value = Decimal(str(second[key]))
             comparison[key] = {
+                "baseline": baseline_value,
+                "alternative": alternative_value,
+                "difference": alternative_value - baseline_value,
+            }
+        baseline_utilization = first["resource_utilization"]
+        alternative_utilization = second["resource_utilization"]
+        for resource in sorted(set(baseline_utilization) | set(alternative_utilization)):
+            baseline_value = Decimal(str(baseline_utilization.get(resource, 0)))
+            alternative_value = Decimal(str(alternative_utilization.get(resource, 0)))
+            comparison[f"resource_utilization.{resource}"] = {
                 "baseline": baseline_value,
                 "alternative": alternative_value,
                 "difference": alternative_value - baseline_value,

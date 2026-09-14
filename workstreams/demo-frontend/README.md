@@ -1,6 +1,6 @@
 # Demo Frontend Workstream
 
-Status: ready for implementation.
+Status: MVP implementation available; further visual refinement is expected.
 
 - Branch: `codex/demo-frontend`
 - Worktree: `Code-worktrees/demo-frontend`
@@ -16,17 +16,17 @@ while that Agent is active.
 
 ## Scope
 
-Implement the read-only Streamlit demonstration described by the frontend
+Implement the read-only FastAPI web demonstration described by the frontend
 specification. Reuse backend application services and validated process
 configuration. Do not change Actual State, simulation formulas, or canonical
 contracts merely to simplify the UI.
 
-## Starting checks
+## Run and verify
 
 ```bash
 git status --short --branch
 uv sync --dev
-uv run python scripts/run_simulation_demo.py
+uv run uvicorn business_coordinator.api.main:app --reload
 uv run pytest -q
 ```
 
