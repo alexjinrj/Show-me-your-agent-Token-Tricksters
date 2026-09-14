@@ -78,10 +78,15 @@ def test_snapshot_is_canonical_and_detached(service: ActualStateService, demo_pa
     first = service.create_snapshot(as_of)
     bundle = service.load_snapshot(first.snapshot_id)
     second = service.create_snapshot(as_of)
+    same_instant = service.create_snapshot(datetime.fromisoformat("2026-09-12T15:59:00+00:00"))
     assert first.snapshot_id == second.snapshot_id
+    assert first.snapshot_id == same_instant.snapshot_id
     assert first.content_hash == second.content_hash
+    assert bundle.manifest.as_of_time == datetime.fromisoformat("2026-09-12T15:59:00+00:00")
     assert bundle.manifest.content_hash == service.actual_state_hash()
     assert len(bundle.records) == 1136
+    customer = next(record for record in bundle.records if record.record_type == "customer")
+    assert customer.data["business_timestamp"] == "2026-09-12T15:59:00+00:00"
     assert isinstance(bundle.records, tuple)
     with pytest.raises(ValidationError):
         bundle.records[0].data = {}  # type: ignore[misc]

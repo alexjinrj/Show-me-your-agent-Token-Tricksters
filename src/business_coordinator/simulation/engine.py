@@ -8,19 +8,23 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 import simpy
-import yaml
 
 from business_coordinator.domain.models import (
     AccountingImpact,
     AccountingLine,
+    ProcessId,
     ScenarioEvent,
     SimulationMetrics,
     SimulationRunResult,
     SimulationTraceEvent,
     SnapshotBundle,
+)
+from business_coordinator.simulation.process_runtime import (
+    RuntimeProcessCatalog,
+    load_runtime_process_catalog,
 )
 from business_coordinator.simulation.state import SimulatedOrder, SimulationState, snapshot_to_state
 
@@ -55,38 +59,6 @@ def _decimal(value: object) -> Decimal:
     return Decimal(str(value))
 
 
-@dataclass(frozen=True)
-class ProcessConfiguration:
-    version_label: str
-    content_hash: str
-    processing_hours: dict[str, Decimal]
-    payment_delay_hours: Decimal
-    supplier_terms_hours: Decimal
-
-
-def _load_process_configuration(config_dir: Path | None = None) -> ProcessConfiguration:
-    root = config_dir or Path(__file__).parents[3] / "config" / "processes"
-    documents: list[dict[str, Any]] = []
-    for name in ("order_to_cash.yaml", "procure_to_pay.yaml"):
-        with (root / name).open(encoding="utf-8") as handle:
-            loaded = yaml.safe_load(handle)
-        if not isinstance(loaded, dict):
-            raise ValueError(f"invalid process configuration: {name}")
-        documents.append(cast(dict[str, Any], loaded))
-    processing: dict[str, Decimal] = {}
-    for document in documents:
-        for node in document["nodes"]:
-            processing[str(node["id"])] = _decimal(node["processing_time_hours"])
-    versions = ",".join(f"{doc['process_id']}:v{doc['version']}" for doc in documents)
-    return ProcessConfiguration(
-        version_label=versions,
-        content_hash=_hash(documents),
-        processing_hours=processing,
-        payment_delay_hours=_decimal(documents[0]["parameters"]["customer_payment_delay_hours"]),
-        supplier_terms_hours=_decimal(documents[1]["parameters"]["supplier_payment_terms_hours"]),
-    )
-
-
 class CapacityPool:
     def __init__(self, env: simpy.Environment, capacity: int) -> None:
         self.env = env
@@ -119,7 +91,7 @@ class CapacityPool:
 class RunContext:
     env: simpy.Environment
     state: SimulationState
-    config: ProcessConfiguration
+    config: RuntimeProcessCatalog
     horizon_hours: Decimal
     pools: dict[str, CapacityPool]
     inventory: dict[str, simpy.Container]
@@ -195,14 +167,22 @@ class RunContext:
 
 
 def _use_resource(
-    context: RunContext, resource_type: str, node_id: str
+    context: RunContext, process_id: str, node_id: str
 ) -> Generator[simpy.Event, None, None]:
-    duration = context.config.processing_hours[node_id]
+    process = cast_process_id(process_id)
+    duration = context.config.processing_hours(process, node_id)
+    resource_type = context.config.resource(process, node_id)
     pool = context.pools[resource_type]
     yield pool.acquire()
     yield context.env.timeout(float(duration))
     yield pool.release()
     context.busy_hours[node_id] = context.busy_hours.get(node_id, Decimal("0")) + duration
+
+
+def cast_process_id(value: str) -> ProcessId:
+    if value not in {"order_to_cash", "procure_to_pay"}:
+        raise ValueError(f"unknown process: {value}")
+    return cast(ProcessId, value)
 
 
 def _order_to_cash(
@@ -214,7 +194,7 @@ def _order_to_cash(
     context.active_sales_orders += 1
     context.record("order_entered_simulation", order, "order_to_cash", sku=order.sku)
     if order.current_node_id == "order_received":
-        yield context.env.process(_use_resource(context, "sales_staff", "credit_review"))
+        yield context.env.process(_use_resource(context, "order_to_cash", "credit_review"))
         context.record("order_approved", order, "order_to_cash")
 
     inventory = context.inventory[order.sku]
@@ -229,7 +209,7 @@ def _order_to_cash(
         )
     yield inventory.get(float(order.quantity))
     context.record("inventory_allocated", order, "order_to_cash", quantity=order.quantity)
-    yield context.env.process(_use_resource(context, "warehouse_staff", "pick_and_pack"))
+    yield context.env.process(_use_resource(context, "order_to_cash", "pick_and_pack"))
     cost = _money(context.state.item_costs[order.sku] * order.quantity)
     context.cogs += cost
     context.journal(
@@ -238,7 +218,7 @@ def _order_to_cash(
         (("COST_OF_GOODS_SOLD", cost, Decimal("0")), ("INVENTORY", Decimal("0"), cost)),
     )
     context.record("goods_shipped", order, "order_to_cash", cost=cost)
-    yield context.env.process(_use_resource(context, "finance_staff", "invoiced"))
+    yield context.env.process(_use_resource(context, "order_to_cash", "invoiced"))
     amount = _money(order.amount)
     context.revenue += amount
     context.receivables += amount
@@ -250,7 +230,9 @@ def _order_to_cash(
     context.fulfilled_sales_orders += 1
     context.order_waiting_hours.append(_decimal(context.env.now) - started)
     context.record("customer_invoiced", order, "order_to_cash", amount=amount)
-    yield context.env.timeout(float(context.config.payment_delay_hours))
+    yield context.env.timeout(
+        float(context.config.parameter("order_to_cash", "customer_payment_delay_hours"))
+    )
     context.receivables -= amount
     context.cash += amount
     context.minimum_cash = min(context.minimum_cash, context.cash)
@@ -301,7 +283,7 @@ def _procure_to_pay(
             "procure_to_pay",
             hours_delta=delivery_adjustment,
         )
-    yield context.env.process(_use_resource(context, "purchasing_staff", "purchase_order_placed"))
+    yield context.env.process(_use_resource(context, "procure_to_pay", "purchase_order_placed"))
     due_hours = max(
         Decimal("0"),
         _decimal((order.due_at - context.snapshot_time).total_seconds()) / Decimal("3600")
@@ -310,7 +292,7 @@ def _procure_to_pay(
     remaining = due_hours - _decimal(context.env.now)
     if remaining > 0:
         yield context.env.timeout(float(remaining))
-    yield context.env.process(_use_resource(context, "warehouse_staff", "goods_received"))
+    yield context.env.process(_use_resource(context, "procure_to_pay", "goods_received"))
     yield context.inventory[order.sku].put(float(order.quantity))
     amount = _money(order.amount)
     context.journal(
@@ -322,7 +304,7 @@ def _procure_to_pay(
         ),
     )
     context.record("goods_received", order, "procure_to_pay", quantity=order.quantity)
-    yield context.env.process(_use_resource(context, "finance_staff", "supplier_invoice_recorded"))
+    yield context.env.process(_use_resource(context, "procure_to_pay", "supplier_invoice_recorded"))
     context.payables += amount
     context.journal(
         "supplier_invoice_recorded",
@@ -333,7 +315,9 @@ def _procure_to_pay(
         ),
     )
     context.record("supplier_invoice_recorded", order, "procure_to_pay", amount=amount)
-    yield context.env.timeout(float(context.config.supplier_terms_hours))
+    yield context.env.timeout(
+        float(context.config.parameter("procure_to_pay", "supplier_payment_terms_hours"))
+    )
     context.payables -= amount
     context.cash -= amount
     context.minimum_cash = min(context.minimum_cash, context.cash)
@@ -406,14 +390,7 @@ def _result_metrics(context: RunContext) -> SimulationMetrics:
     )
     utilization: dict[str, Decimal] = {}
     for node, hours in sorted(context.busy_hours.items()):
-        resource_type = {
-            "credit_review": "sales_staff",
-            "pick_and_pack": "warehouse_staff",
-            "invoiced": "finance_staff",
-            "purchase_order_placed": "purchasing_staff",
-            "goods_received": "warehouse_staff",
-            "supplier_invoice_recorded": "finance_staff",
-        }[node]
+        resource_type = context.config.resource_for_node(node)
         denominator = context.pools[resource_type].available_hours(context.horizon_hours)
         utilization[node] = _number(min(Decimal("1"), hours / denominator))
     ending_quantity = sum(
@@ -456,7 +433,7 @@ def run_simulation(
     if horizon_days <= 0:
         raise ValueError("horizon_days must be greater than zero")
     state = snapshot_to_state(snapshot)
-    config = _load_process_configuration(config_dir)
+    config = load_runtime_process_catalog(config_dir)
     events = sorted(
         scenario_events,
         key=lambda item: (item.effective_day, item.event_type, _canonical_json(item.payload)),

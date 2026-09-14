@@ -50,6 +50,14 @@ Process timing is versioned in:
 - `config/processes/order_to_cash.yaml`
 - `config/processes/procure_to_pay.yaml`
 
+The simulation loads these files through the validated
+`RuntimeProcessCatalog` in
+`src/business_coordinator/simulation/process_runtime.py`. Node definitions,
+transitions, resources, processing times, process parameters, versions, and
+the process hash therefore remain outside the SimPy engine. Operational
+effects such as allocating inventory and posting balanced accounting entries
+remain deterministic Python behavior.
+
 Supported first-slice events are `order_arrival`,
 `resource_capacity_changed`, and `supplier_delivery_delayed`; negative delivery
 day deltas represent expedited delivery. Convenience constructors provide the

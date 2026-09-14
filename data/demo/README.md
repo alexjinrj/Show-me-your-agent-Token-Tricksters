@@ -15,3 +15,13 @@ counts, date rebasing, and the `source` / `derived` / `synthetic` boundary.
 AdventureWorks is not represented as Singapore business evidence. It supplies
 fictitious, relationally coherent records which are adapted for this MVP.
 
+## Timestamp handling
+
+Source CSVs retain their original demo offset (`+08:00`) so the supplied local
+time remains auditable. During ingestion, timestamps are normalized to UTC
+before SQLite storage; snapshot records restore explicit `+00:00` offsets.
+This preserves the instant represented by the source value and avoids SQLite's
+loss of timezone offsets. Existing demo databases created before this rule
+must be rebuilt from the retained CSVs rather than migrated heuristically,
+because a legacy naive SQLite timestamp does not contain enough information to
+prove its original offset.
