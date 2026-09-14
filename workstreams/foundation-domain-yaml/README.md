@@ -1,5 +1,7 @@
 # Engineering Foundation, Domain Model, and Process YAML
 
+Status: completed and integrated into `main` through PR #2.
+
 Git branch: `codex/foundation-domain-yaml`
 
 ## Objective

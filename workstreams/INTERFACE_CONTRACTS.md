@@ -88,7 +88,8 @@ and event trace.
 
 1. Process YAML is versioned and validated before ingestion or simulation.
 2. Times are timezone-aware ISO 8601 values; the demo company timezone is
-   `Asia/Singapore`.
+   `Asia/Singapore`. Source offsets remain in retained files, SQLite storage is
+   normalized to UTC, and snapshot outputs restore an explicit UTC offset.
 3. Currency values use decimal semantics and the demo currency is SGD.
 4. Quantities are never inferred by the LLM.
 5. Actual State is append-only except for explicitly materialized projections.
@@ -97,3 +98,11 @@ and event trace.
    identical result hash.
 8. Contract changes require coordinated updates to all dependent branches and
    their tests.
+
+## Frontend Boundary
+
+The demo frontend may call `ActualStateService`, `SimulationService`, and the
+validated runtime process catalog through an application-facing orchestration
+service. It must not query ORM tables directly, write Actual State, duplicate
+process definitions, or recalculate values already supplied by
+`SimulationRunResult`.

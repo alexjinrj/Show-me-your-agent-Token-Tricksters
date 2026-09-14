@@ -1,5 +1,7 @@
 # CSV Ingestion and SQL Actual State
 
+Status: completed and integrated into `main` through PR #2.
+
 Git branch: `codex/data-csv-sql`
 
 Depends on: `codex/foundation-domain-yaml`

@@ -15,10 +15,15 @@ scenarios. Simulation results never write back to Actual State.
   order.
 - [Interface contracts](workstreams/INTERFACE_CONTRACTS.md) — canonical types
   and the hand-off between domain, persistence, and simulation.
+- [Engineering handoff](HANDOFF.md) — current checkout roles, entrypoints,
+  limitations, and instructions for the next Agent.
+- [Frontend project specification](FRONTEND_PROJECT_SPECIFICATION.md) — scope
+  and acceptance criteria for the next demo UI workstream.
 
 ## Current MVP Status
 
-Three implementation workstreams have been completed on isolated Git branches:
+The first three implementation workstreams have been completed and integrated
+into `main`:
 
 | Workstream | Branch | Delivered |
 |---|---|---|
@@ -36,9 +41,10 @@ CSV ingestion → SQL Actual State → immutable SnapshotBundle
                                   isolated SimPy simulation
 ```
 
-An integration branch combines the three workstreams before they are merged
-into `main`. Until that pull request is merged, `main` remains the coordination
-and documentation branch.
+`Code/` on `main` is now the canonical integrated working directory. Completed
+feature worktrees remain available as isolated history; they are not newer
+copies of the product. The next isolated worktree is reserved for the demo
+frontend.
 
 ## Architectural Rules
 
@@ -70,7 +76,7 @@ The deterministic fixture currently contains:
 
 ## Development and Verification
 
-After checking out the integration branch or an implementation worktree:
+From the canonical `Code/` checkout or a worktree based on the latest `main`:
 
 ```bash
 uv sync --dev
@@ -116,9 +122,10 @@ Before changing a workstream:
    definition, or simulation event changes.
 6. Run Ruff, mypy, and pytest before committing.
 
-The next product layers remain out of scope for this slice: typed Agent tools,
-FastAPI, LangGraph/LLM coordination, Streamlit, ERPNext submission, and
-production deployment.
+The next planned slice is the read-only Streamlit demo described in
+`FRONTEND_PROJECT_SPECIFICATION.md`. Typed Agent tools, FastAPI,
+LangGraph/LLM coordination, ERPNext submission, and production deployment
+remain out of scope.
 
 ## Known Demo Limitation
 

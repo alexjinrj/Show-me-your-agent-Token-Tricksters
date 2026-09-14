@@ -1,5 +1,8 @@
 # SimPy Process Simulation
 
+Status: completed and integrated into `main` through PR #2; the visual demo and
+UTC-safe snapshot follow-up are also on `main`.
+
 Git branch: `codex/simpy-process-simulation`
 
 Depends on: `codex/data-csv-sql`, which itself depends on
