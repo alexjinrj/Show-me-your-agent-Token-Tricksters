@@ -6,3 +6,8 @@
 *.db
 demo-output/
 __pycache__/
+
+# Keep implementation notes and agent handoff documents local. Only the
+# repository's root README is published.
+*.md
+!/README.md
