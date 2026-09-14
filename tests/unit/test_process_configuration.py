@@ -14,6 +14,7 @@ from business_coordinator.config import (
     load_process_definition,
     load_process_definitions,
 )
+from business_coordinator.simulation.process_runtime import load_runtime_process_catalog
 
 CONFIG_DIRECTORY = Path(__file__).parents[2] / "config" / "processes"
 
@@ -70,6 +71,24 @@ def test_configuration_hashes_are_stable() -> None:
     assert hash_process_catalog(first) == (
         "c015e0a5df5f910175f1edb6a2cf974868ac7f1233e1de4397d6068b6f6b0bd6"
     )
+
+
+def test_simulation_runtime_reads_validated_process_structure() -> None:
+    runtime = load_runtime_process_catalog(CONFIG_DIRECTORY)
+
+    assert runtime.path_from("order_to_cash", "order_received") == (
+        "order_received",
+        "credit_review",
+        "order_approved",
+        "inventory_allocated",
+        "pick_and_pack",
+        "shipped",
+        "invoiced",
+        "paid",
+    )
+    assert runtime.resource("order_to_cash", "pick_and_pack") == "warehouse_staff"
+    assert runtime.processing_hours("order_to_cash", "pick_and_pack") == 2
+    assert runtime.parameter("procure_to_pay", "supplier_payment_terms_hours") == 336
 
 
 def _unknown_target(raw: dict[str, Any]) -> None:

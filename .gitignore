@@ -4,5 +4,5 @@
 .ruff_cache/
 .venv/
 *.db
+demo-output/
 __pycache__/
-

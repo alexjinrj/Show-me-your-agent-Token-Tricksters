@@ -47,7 +47,9 @@ def _id(*parts: object) -> str:
 
 
 def _json_default(value: object) -> str:
-    if isinstance(value, (datetime, Decimal)):
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, Decimal):
         return str(value)
     raise TypeError(f"cannot encode {type(value)!r}")
 
@@ -62,6 +64,26 @@ def _hash(value: object) -> str:
 
 def _utcnow() -> datetime:
     return datetime.now(UTC)
+
+
+def _to_storage_time(value: datetime) -> datetime:
+    """Normalize an aware timestamp to naive UTC for SQLite portability."""
+    if value.tzinfo is None:
+        raise ValueError("database timestamps must be timezone-aware")
+    return value.astimezone(UTC).replace(tzinfo=None)
+
+
+def _from_storage_time(value: datetime) -> datetime:
+    """Restore the UTC meaning of a timestamp read from SQLite."""
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+def _snapshot_value(value: object) -> object:
+    if isinstance(value, datetime):
+        return _from_storage_time(value)
+    return value
 
 
 class ActualStateService:
@@ -90,7 +112,7 @@ class ActualStateService:
                         file_name=Path(path).name,
                         sha256=inspection.sha256,
                         row_count=inspection.row_count,
-                        created_at=now,
+                        created_at=_to_storage_time(now),
                     )
                 )
             run = session.get(IngestionRunRow, run_id)
@@ -107,7 +129,7 @@ class ActualStateService:
                         validation_report=serialized_report,
                         staged_rows=serialized_rows,
                         idempotency_key=None,
-                        created_at=now,
+                        created_at=_to_storage_time(now),
                         committed_at=None,
                     )
                 )
@@ -135,7 +157,7 @@ class ActualStateService:
                 self._commit_row(session, run, source, row, now)
             run.idempotency_key = idempotency_key
             run.validation_status = "committed"
-            run.committed_at = now
+            run.committed_at = _to_storage_time(now)
             return {
                 "ingestion_run_id": run.id,
                 "committed": True,
@@ -156,8 +178,8 @@ class ActualStateService:
             "source_file_id": source.id,
             "source_record_id": row["source_record_id"],
             "ingestion_run_id": run.id,
-            "business_timestamp": datetime.fromisoformat(timestamp),
-            "ingested_at": now,
+            "business_timestamp": _to_storage_time(datetime.fromisoformat(timestamp)),
+            "ingested_at": _to_storage_time(now),
             "mapping_version": run.mapping_version,
             "validation_status": "valid",
             "data_origin": row["data_origin"],
@@ -214,7 +236,7 @@ class ActualStateService:
                     process_id=row["process_id"],
                     node_id=row["node_id"],
                     capacity_units=Decimal(row["capacity_units"]),
-                    effective_at=datetime.fromisoformat(row["effective_at"]),
+                    effective_at=_to_storage_time(datetime.fromisoformat(row["effective_at"])),
                     **lineage,
                 )
             )
@@ -299,7 +321,7 @@ class ActualStateService:
                 process_id=process_id,
                 current_node_id=node_map[status],
                 status=status,
-                entered_node_at=datetime.fromisoformat(row["order_date"]),
+                entered_node_at=_to_storage_time(datetime.fromisoformat(row["order_date"])),
                 amount=amount,
                 quantity=quantity,
                 priority=int(row["priority"]),
@@ -413,14 +435,18 @@ class ActualStateService:
             for record_type, model, key_name, fields in specs:
                 statement = select(model)
                 if as_of_time is not None and hasattr(model, "business_timestamp"):
-                    statement = statement.where(model.business_timestamp <= as_of_time)
+                    statement = statement.where(
+                        model.business_timestamp <= _to_storage_time(as_of_time)
+                    )
                 rows = session.scalars(statement).all()
                 for row in rows:
                     records.append(
                         {
                             "record_type": record_type,
                             "record_key": str(getattr(row, key_name)),
-                            "data": {field: getattr(row, field) for field in fields},
+                            "data": {
+                                field: _snapshot_value(getattr(row, field)) for field in fields
+                            },
                         }
                     )
             # A simulation must receive all pending-obligation facts through the
@@ -429,7 +455,7 @@ class ActualStateService:
             event_statement = select(BusinessEventRow)
             if as_of_time is not None:
                 event_statement = event_statement.where(
-                    BusinessEventRow.business_timestamp <= as_of_time
+                    BusinessEventRow.business_timestamp <= _to_storage_time(as_of_time)
                 )
             order_payloads = {
                 row.object_id: json.loads(_canonical_json(row.payload))
@@ -447,9 +473,11 @@ class ActualStateService:
     ) -> SnapshotManifest:
         if as_of_time.tzinfo is None:
             raise ValueError("as_of_time must be timezone-aware")
-        records = self._snapshot_content(as_of_time)
+        normalized_as_of_time = _to_storage_time(as_of_time)
+        canonical_as_of_time = _from_storage_time(normalized_as_of_time)
+        records = self._snapshot_content(canonical_as_of_time)
         content_hash = _hash(records)
-        snapshot_id = _id("snapshot", company_id, as_of_time.isoformat(), content_hash)
+        snapshot_id = _id("snapshot", company_id, canonical_as_of_time.isoformat(), content_hash)
         created_at = _utcnow()
         with Session(self.engine) as session, session.begin():
             existing = session.get(StateSnapshotRow, snapshot_id)
@@ -458,8 +486,8 @@ class ActualStateService:
                 snapshot = StateSnapshotRow(
                     id=snapshot_id,
                     company_id=company_id,
-                    as_of_time=as_of_time,
-                    created_at=created_at,
+                    as_of_time=normalized_as_of_time,
+                    created_at=_to_storage_time(created_at),
                     source_event_watermark=watermark,
                     process_definition_versions={"order_to_cash": 1, "procure_to_pay": 1},
                     content_hash=content_hash,
@@ -482,7 +510,7 @@ class ActualStateService:
                         )
                     )
             else:
-                created_at = existing.created_at.replace(tzinfo=UTC)
+                created_at = _from_storage_time(existing.created_at)
         return self.load_snapshot(snapshot_id).manifest
 
     def load_snapshot(self, snapshot_id: str) -> SnapshotBundle:
@@ -498,8 +526,8 @@ class ActualStateService:
             manifest = SnapshotManifest(
                 snapshot_id=snapshot.id,
                 company_id=snapshot.company_id,
-                as_of_time=snapshot.as_of_time.replace(tzinfo=UTC),
-                created_at=snapshot.created_at.replace(tzinfo=UTC),
+                as_of_time=_from_storage_time(snapshot.as_of_time),
+                created_at=_from_storage_time(snapshot.created_at),
                 source_event_watermark=snapshot.source_event_watermark,
                 process_definition_versions=cast(
                     dict[ProcessId, int], dict(snapshot.process_definition_versions)

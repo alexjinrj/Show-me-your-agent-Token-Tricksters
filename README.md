@@ -86,6 +86,18 @@ Build the deterministic Actual State database and snapshot with:
 uv run python scripts/seed_demo_data.py --database actual_state.db
 ```
 
+Run the end-to-end visual simulation demo with:
+
+```bash
+uv run python scripts/run_simulation_demo.py --open
+```
+
+This creates `demo-output/simulation-demo.html` with a 30-day comparison of
+the baseline, one additional warehouse worker, an expedited supplier delivery,
+and a new customer order arriving on day one. The report also shows the
+configured process nodes, representative event journeys, reproducibility, and
+Actual State isolation checks.
+
 Generated databases, virtual environments, download caches, and test/type-check
 caches are ignored by Git.
 
