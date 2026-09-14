@@ -12,8 +12,8 @@ from business_coordinator.domain.processes import ProcessDefinition
 from business_coordinator.domain.serialization import canonical_hash
 
 SUPPORTED_PROCESS_VERSIONS: dict[ProcessId, frozenset[int]] = {
-    "order_to_cash": frozenset({1}),
-    "procure_to_pay": frozenset({1}),
+    "order_to_cash": frozenset({2}),
+    "procure_to_pay": frozenset({2}),
 }
 
 

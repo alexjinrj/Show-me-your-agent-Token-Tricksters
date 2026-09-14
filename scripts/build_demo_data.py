@@ -322,12 +322,12 @@ def build(output: Path, cache: Path) -> None:
     )
 
     resources = [
-        ("sales_staff", "order_to_cash", "credit_review", "3"),
+        ("sales_staff", "order_to_cash", "review_credit", "3"),
         ("warehouse_staff", "order_to_cash", "pick_and_pack", "2"),
-        ("finance_staff", "order_to_cash", "invoiced", "2"),
-        ("purchasing_staff", "procure_to_pay", "purchase_order_placed", "2"),
-        ("warehouse_staff", "procure_to_pay", "goods_received", "2"),
-        ("finance_staff", "procure_to_pay", "supplier_invoice_recorded", "2"),
+        ("finance_staff", "order_to_cash", "record_customer_invoice", "2"),
+        ("purchasing_staff", "procure_to_pay", "place_purchase_order", "2"),
+        ("warehouse_staff", "procure_to_pay", "receive_goods", "2"),
+        ("finance_staff", "procure_to_pay", "record_supplier_invoice", "2"),
     ]
     write_csv(
         output,

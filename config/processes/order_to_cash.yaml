@@ -1,104 +1,144 @@
+schema_version: 2
 process_id: order_to_cash
-version: 1
+version: 2
 label: Order to Cash
-initial_node_id: order_received
-terminal_node_ids:
-  - paid
-nodes:
-  - id: order_received
-    label: Order Received
+primary_object_type: sales_order
+active_statuses: [open, backlog]
+initial_activity_id: receive_order
+terminal_activity_ids: [collect_customer_payment]
+cycle_metrics:
+  completion_activity_id: record_customer_invoice
+
+activities:
+  - id: receive_order
+    kind: activity
+    label: Receive Order
+    inputs:
+      - {alias: subject, object_type: sales_order, source: subject}
     resource: sales_staff
-    processing_time_hours: 0.5
-    events_on_entry: [order_received]
-    events_on_exit: [order_submitted_for_credit_review]
+    duration: {kind: fixed, hours: 0.5}
+    operations:
+      - {operation: set, target: subject.status, value: open}
+    on_start: {event_type: order_entered_simulation, references: [subject]}
+    on_complete: {event_type: order_received, references: [subject]}
     operational_metrics: [object_count, total_quantity, total_monetary_value, backlog_count]
-    next:
-      - target: credit_review
-        guard: customer_is_active
+    next: [{target: review_credit}]
 
-  - id: credit_review
-    label: Credit Review
+  - id: review_credit
+    kind: activity
+    label: Review Credit
+    inputs:
+      - {alias: subject, object_type: sales_order, source: subject}
     resource: finance_staff
-    processing_time_hours: 1.0
-    events_on_entry: [credit_review_started]
-    events_on_exit: [credit_review_completed]
+    duration: {kind: fixed, hours: 1.0}
+    on_start: {event_type: credit_review_started, references: [subject]}
+    on_complete: {event_type: credit_review_completed, references: [subject]}
     operational_metrics: [backlog_count, average_waiting_time, resource_utilization]
-    next:
-      - target: order_approved
-        guard: credit_approved
+    next: [{target: approve_order}]
 
-  - id: order_approved
-    label: Order Approved
+  - id: approve_order
+    kind: activity
+    label: Approve Order
+    inputs:
+      - {alias: subject, object_type: sales_order, source: subject}
     resource: sales_staff
-    processing_time_hours: 0.25
-    events_on_entry: [order_approved]
-    events_on_exit: [inventory_allocation_requested]
+    duration: {kind: fixed, hours: 0.25}
+    operations:
+      - {operation: set, target: subject.status, value: approved}
+    on_complete: {event_type: order_approved, references: [subject]}
     operational_metrics: [object_count, total_monetary_value]
-    next:
-      - target: inventory_allocated
-        guard: inventory_is_available
+    next: [{target: allocate_inventory}]
 
-  - id: inventory_allocated
-    label: Inventory Allocated
+  - id: allocate_inventory
+    kind: activity
+    label: Allocate Inventory
+    inputs:
+      - {alias: subject, object_type: sales_order, source: subject}
+      - alias: inventory
+        object_type: inventory_position
+        source: related
+        match_field: sku
+        value_from: subject.sku
     resource: warehouse_staff
-    processing_time_hours: 0.25
-    events_on_entry: [inventory_allocated]
-    events_on_exit: [order_released_to_warehouse]
-    operational_metrics: [inventory_quantity, backlog_count]
-    next:
-      - target: pick_and_pack
-        guard: inventory_is_allocated
+    duration: {kind: fixed, hours: 0.25}
+    operations:
+      - operation: decrease
+        target: inventory.quantity_available
+        value_from: subject.quantity
+        wait_if_insufficient: true
+      - {operation: increase, target: inventory.quantity_reserved, value_from: subject.quantity}
+      - {operation: set, target: subject.status, value: inventory_allocated}
+    on_start: {event_type: inventory_allocation_started, references: [subject, inventory]}
+    on_complete: {event_type: inventory_allocated, references: [subject, inventory]}
+    operational_metrics: [inventory_quantity, backlog_count, resource_utilization]
+    next: [{target: pick_and_pack}]
 
   - id: pick_and_pack
+    kind: activity
     label: Pick and Pack
+    inputs:
+      - {alias: subject, object_type: sales_order, source: subject}
     resource: warehouse_staff
-    processing_time_hours: 2.0
-    events_on_entry: [pick_and_pack_started]
-    events_on_exit: [order_packed]
-    operational_metrics:
-      [backlog_count, average_waiting_time, available_capacity, resource_utilization]
-    next:
-      - target: shipped
-        guard: order_is_packed
+    duration: {kind: fixed, hours: 2.0}
+    operations:
+      - {operation: set, target: subject.status, value: packed}
+    on_start: {event_type: pick_and_pack_started, references: [subject]}
+    on_complete: {event_type: order_packed, references: [subject]}
+    operational_metrics: [backlog_count, average_waiting_time, available_capacity, resource_utilization]
+    next: [{target: ship_goods}]
 
-  - id: shipped
-    label: Shipped
+  - id: ship_goods
+    kind: activity
+    label: Ship Goods
+    inputs:
+      - {alias: subject, object_type: sales_order, source: subject}
+      - alias: inventory
+        object_type: inventory_position
+        source: related
+        match_field: sku
+        value_from: subject.sku
     resource: warehouse_staff
-    processing_time_hours: 0.5
-    events_on_entry: [goods_shipped]
-    events_on_exit: [shipment_confirmed]
+    duration: {kind: fixed, hours: 0.5}
+    operations:
+      - {operation: decrease, target: inventory.quantity_reserved, value_from: subject.quantity}
+      - {operation: decrease, target: inventory.quantity_on_hand, value_from: subject.quantity}
+      - {operation: set, target: subject.status, value: shipped}
+    on_complete: {event_type: goods_shipped, references: [subject, inventory]}
     operational_metrics: [object_count, inventory_quantity, total_monetary_value]
     financial_effects:
       - event: goods_shipped
         debit_account: cost_of_goods_sold
         credit_account: inventory
         amount_basis: inventory_cost
-    next:
-      - target: invoiced
-        guard: shipment_confirmed
+    next: [{target: record_customer_invoice}]
 
-  - id: invoiced
-    label: Invoiced
+  - id: record_customer_invoice
+    kind: activity
+    label: Record Customer Invoice
+    inputs:
+      - {alias: subject, object_type: sales_order, source: subject}
     resource: finance_staff
-    processing_time_hours: 0.5
-    events_on_entry: [customer_invoice_recorded]
-    events_on_exit: [customer_payment_requested]
+    duration: {kind: fixed, hours: 0.5}
+    operations:
+      - {operation: set, target: subject.status, value: invoiced}
+    on_complete: {event_type: customer_invoiced, references: [subject]}
     operational_metrics: [accounts_receivable, total_monetary_value]
     financial_effects:
-      - event: customer_invoice_recorded
+      - event: customer_invoiced
         debit_account: accounts_receivable
         credit_account: revenue
         amount_basis: order_amount
-    next:
-      - target: paid
-        guard: payment_received
+    next: [{target: collect_customer_payment}]
 
-  - id: paid
-    label: Paid
-    resource: finance_staff
-    processing_time_hours: 0.25
-    events_on_entry: [customer_payment_received]
-    events_on_exit: [order_to_cash_completed]
+  - id: collect_customer_payment
+    kind: activity
+    label: Collect Customer Payment
+    inputs:
+      - {alias: subject, object_type: sales_order, source: subject}
+    duration: {kind: parameter, parameter: customer_payment_delay_hours}
+    operations:
+      - {operation: set, target: subject.status, value: paid}
+    on_complete: {event_type: customer_payment_received, references: [subject]}
     operational_metrics: [cash, accounts_receivable, object_count]
     financial_effects:
       - event: customer_payment_received
@@ -106,5 +146,6 @@ nodes:
         credit_account: accounts_receivable
         amount_basis: payment_amount
     next: []
+
 parameters:
   customer_payment_delay_hours: 168
