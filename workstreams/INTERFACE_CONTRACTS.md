@@ -33,6 +33,9 @@ The foundation branch owns versioned, Pydantic-based definitions for:
 - `SnapshotRecord`
 - `SnapshotBundle`
 - `ScenarioEvent`
+- `StateRecord`
+- `EnterpriseState`
+- `SimulationCheckpoint`
 - `SimulationRunResult`
 
 All identifiers are UUID strings internally. Human-readable customer, supplier,
@@ -79,10 +82,20 @@ The first slice supports these scenario event types:
 - `resource_capacity_changed`
 - `supplier_delivery_delayed` (a negative day delta represents an expedited delivery)
 
-A simulation run must construct a fresh in-memory state and a fresh SimPy
-environment. Its result must contain the snapshot hash, process-definition
-version/hash, scenario-event hash, horizon, seed, result hash, summary metrics,
-and event trace.
+A simulation run must construct a fresh in-memory `EnterpriseState` and a fresh
+SimPy environment. Its result must contain the snapshot hash,
+process-definition version/hash, scenario-event hash, horizon, seed, result
+hash, summary metrics, event trace, accounting impacts, and day-indexed
+`SimulationCheckpoint` values.
+
+Process YAML schema v2 is executable. It owns activity input bindings,
+conditions, duration rules, resources, state operations, emitted events,
+financial effects, and transitions. Python may implement those generic
+primitives but must not encode an Order-to-Cash or Procure-to-Pay sequence.
+
+`EnterpriseState.records` uses stable record IDs and distinguishes `object`,
+`event`, and `activity_run` records. Events and objects use one queryable state
+interface while retaining different lifecycle semantics.
 
 ## Compatibility Rules
 
@@ -98,6 +111,9 @@ and event trace.
    identical result hash.
 8. Contract changes require coordinated updates to all dependent branches and
    their tests.
+9. Completed runs expose checkpoint 0 and one incremental checkpoint per day;
+   a future streaming API may deliver the same contract without changing the
+   simulation semantics.
 
 ## Frontend Boundary
 

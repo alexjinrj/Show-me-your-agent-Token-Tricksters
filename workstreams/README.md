@@ -10,6 +10,7 @@ into `main`.
 | 2 | CSV ingestion and SQL Actual State | `codex/data-csv-sql` | `data-csv-sql/` |
 | 3 | SimPy process simulation | `codex/simpy-process-simulation` | `simpy-process-simulation/` |
 | 4 | Read-only demo frontend | `codex/demo-frontend` | `demo-frontend/` |
+| 5 | Object-centric YAML runtime refactor | `codex/object-centric-runtime` | repository-wide successor workstream |
 
 The completed dependency chain was:
 
@@ -27,6 +28,7 @@ Code/                                      # canonical integrated main
 Code-worktrees/data-csv-sql/               # completed isolated data history
 Code-worktrees/mvp-integration/             # completed integration history
 Code-worktrees/demo-frontend/              # next frontend implementation
+Code-worktrees/object-centric-runtime/     # current state/YAML/SimPy refactor
 ```
 
 Agents must work only in the directory assigned to their branch. They must not

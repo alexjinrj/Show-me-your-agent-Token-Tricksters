@@ -9,36 +9,39 @@ def test_processes_expose_node_sequences(client: TestClient) -> None:
     processes = {item["process_id"]: item for item in response.json()["processes"]}
 
     otc = processes["order_to_cash"]
-    assert [node["id"] for node in otc["nodes"]] == [
-        "order_received",
-        "credit_review",
-        "order_approved",
-        "inventory_allocated",
+    assert [activity["id"] for activity in otc["activities"]] == [
+        "receive_order",
+        "review_credit",
+        "approve_order",
+        "allocate_inventory",
         "pick_and_pack",
-        "shipped",
-        "invoiced",
-        "paid",
+        "ship_goods",
+        "record_customer_invoice",
+        "collect_customer_payment",
     ]
     assert [(edge["source"], edge["target"]) for edge in otc["edges"]] == [
-        ("order_received", "credit_review"),
-        ("credit_review", "order_approved"),
-        ("order_approved", "inventory_allocated"),
-        ("inventory_allocated", "pick_and_pack"),
-        ("pick_and_pack", "shipped"),
-        ("shipped", "invoiced"),
-        ("invoiced", "paid"),
+        ("receive_order", "review_credit"),
+        ("review_credit", "approve_order"),
+        ("approve_order", "allocate_inventory"),
+        ("allocate_inventory", "pick_and_pack"),
+        ("pick_and_pack", "ship_goods"),
+        ("ship_goods", "record_customer_invoice"),
+        ("record_customer_invoice", "collect_customer_payment"),
     ]
-    assert otc["edges"][0]["guard"] == "customer_is_active"
+    assert otc["schema_version"] == 2
+    assert otc["edges"][0]["conditions"] == []
+    assert otc["activities"][3]["inputs"][1]["object_type"] == "inventory_position"
+    assert otc["nodes"] == otc["activities"]  # compatibility alias for the existing UI
     assert "warehouse_staff" in otc["resources"]
 
     ptp = processes["procure_to_pay"]
-    assert [node["id"] for node in ptp["nodes"]] == [
-        "reorder_triggered",
-        "purchase_order_placed",
-        "supplier_lead_time",
-        "goods_received",
-        "supplier_invoice_recorded",
-        "supplier_paid",
+    assert [activity["id"] for activity in ptp["activities"]] == [
+        "evaluate_reorder",
+        "place_purchase_order",
+        "wait_for_supplier_delivery",
+        "receive_goods",
+        "record_supplier_invoice",
+        "pay_supplier",
     ]
     assert len(response.json()["content_hash"]) == 64
 

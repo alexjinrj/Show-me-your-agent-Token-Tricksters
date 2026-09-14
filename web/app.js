@@ -59,15 +59,21 @@ function renderProcesses(data) {
     wrap.appendChild(el("h3", null, `${process.label} (${process.process_id})`));
     const chain = el("div", "node-chain");
     chain.dataset.processId = process.process_id;
-    process.nodes.forEach((node, index) => {
+    const activities = process.activities || process.nodes;
+    activities.forEach((node, index) => {
       const nodeEl = el("button", "node");
       nodeEl.type = "button";
       nodeEl.dataset.nodeId = node.id;
       nodeEl.appendChild(el("div", "node-id", node.id));
-      nodeEl.appendChild(el("div", "node-resource", `${node.resource} · ${node.processing_time_hours}h`));
+      const duration = node.duration.kind === "fixed"
+        ? `${node.duration.hours}h`
+        : node.duration.kind === "parameter"
+          ? `parameter: ${node.duration.parameter}`
+          : `until: ${node.duration.field}`;
+      nodeEl.appendChild(el("div", "node-resource", `${node.resource || "no constrained resource"} · ${duration}`));
       nodeEl.addEventListener("click", () => renderNodeDetail(process, node));
       chain.appendChild(nodeEl);
-      if (index < process.nodes.length - 1) {
+      if (index < activities.length - 1) {
         chain.appendChild(el("span", "arrow", "→"));
       }
     });
@@ -78,7 +84,12 @@ function renderProcesses(data) {
 
 function renderNodeDetail(process, node) {
   const transitions = node.next.length
-    ? node.next.map((item) => `${item.target} [guard: ${item.guard}]`).join(", ")
+    ? node.next.map((item) => {
+        const conditions = item.conditions?.length
+          ? ` [when: ${item.conditions.map((condition) => `${condition.left} ${condition.operator}`).join(" & ")}]`
+          : "";
+        return `${item.target}${conditions}`;
+      }).join(", ")
     : "terminal";
   const effects = node.financial_effects.length
     ? node.financial_effects
@@ -87,10 +98,12 @@ function renderNodeDetail(process, node) {
     : "none";
   document.getElementById("node-detail").textContent =
     `${process.label} · ${node.label} (${node.id})\n` +
-    `Resource: ${node.resource}; processing: ${node.processing_time_hours} hours\n` +
+    `Inputs: ${node.inputs.map((item) => `${item.alias}:${item.object_type}`).join(", ")}\n` +
+    `Resource: ${node.resource || "none"}; duration: ${JSON.stringify(node.duration)}\n` +
     `Next: ${transitions}\n` +
-    `Entry events: ${node.events_on_entry.join(", ") || "none"}\n` +
-    `Exit events: ${node.events_on_exit.join(", ") || "none"}\n` +
+    `Start event: ${node.on_start ? node.on_start.event_type : "none"}\n` +
+    `Completion event: ${node.on_complete.event_type}\n` +
+    `Operations: ${node.operations.map((item) => `${item.operation} ${item.target}`).join(", ") || "none"}\n` +
     `Metrics: ${node.operational_metrics.join(", ") || "none"}\n` +
     `Financial effects: ${effects}`;
 }

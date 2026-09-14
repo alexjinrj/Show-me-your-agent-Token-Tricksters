@@ -26,6 +26,14 @@ The first MVP slice is integrated:
 6. UTC-safe SQLite timestamp storage while retaining source CSV offsets.
 7. FastAPI plus a no-build web dashboard for scenario comparison, trace playback,
    process inspection, and audit evidence.
+8. A follow-on object-centric runtime refactor on `codex/object-centric-runtime`:
+   unified state records, executable YAML v2, a generic SimPy interpreter, and
+   deterministic daily checkpoints.
+
+The refactor branch was created from `codex/demo-frontend`, so it includes that
+frontend while PR #3 remains the separate frontend review unit. Rebase the
+refactor onto `main` after PR #3 merges, or change its pull-request base if the
+frontend history is intentionally retained as a dependency.
 
 GitHub PR #2 integrated the Foundation, Data, and SimPy branches. A later demo
 update added the visual runner, validated runtime process catalog, and timezone
@@ -42,6 +50,7 @@ correction.
 | Validated runtime process catalog | `src/business_coordinator/simulation/process_runtime.py` |
 | CSV-to-Actual-State service | `src/business_coordinator/persistence/service.py` |
 | Simulation engine | `src/business_coordinator/simulation/engine.py` |
+| Object-centric state adapter/store | `src/business_coordinator/simulation/state.py` |
 | Persisted simulation sessions | `src/business_coordinator/simulation/service.py` |
 | Visual demo | `scripts/run_simulation_demo.py` |
 | Web API entrypoint | `src/business_coordinator/api/main.py` |
@@ -93,11 +102,17 @@ creates an immutable snapshot, runs four scenarios, and writes
 
 ## Process configuration rule
 
-Node IDs, transitions, guards, resources, processing times, financial-effect
-mappings, parameters, and versions belong in `config/processes/`. The SimPy
-engine loads them through the validated `RuntimeProcessCatalog`. Operational
-effects such as inventory allocation and balanced accounting postings remain
-deterministic Python code.
+Activity IDs, object bindings, conditions, transitions, resources, durations,
+state operations, output events, financial-effect mappings, parameters, and
+versions belong in `config/processes/`. The SimPy engine loads them through the
+validated `RuntimeProcessCatalog` and interprets only generic primitives. It
+must not regain `_order_to_cash` or `_procure_to_pay` workflow functions.
+
+`EnterpriseState.records` is a dictionary keyed by stable `record_id`. Each
+`StateRecord` has a lightweight `record_kind`: `object` is a current projection,
+`event` is append-only evidence, and `activity_run` records execution state.
+Activities move from `waiting` to `running` to `completed`; completion events
+then apply the YAML-declared object and financial effects.
 
 Any change to a process YAML file must be accompanied by process-validation and
 simulation tests. Do not copy process timing into UI code.
@@ -110,6 +125,7 @@ simulation tests. Do not copy process timing into UI code.
 | `Code-worktrees/data-csv-sql/` | `codex/data-csv-sql` | Completed data work; use only for an isolated data-layer change |
 | `Code-worktrees/mvp-integration/` | `codex/mvp-foundation-data-simpy` | Completed integration history; no longer the canonical checkout |
 | `Code-worktrees/demo-frontend/` | `codex/demo-frontend` | FastAPI dashboard MVP; continue visual refinement here |
+| `Code-worktrees/object-centric-runtime/` | `codex/object-centric-runtime` | Current object-centric/YAML runtime refactor |
 
 The completed Foundation and SimPy branches remain useful history, but new
 product work should not continue on those old branch tips.
@@ -125,7 +141,10 @@ product work should not continue on those old branch tips.
 - The deterministic engine accepts a seed for the reproducibility contract, but
   the current slice does not yet contain a stochastic distribution.
 - The analysis assistant remains a clearly labelled read-only stub.
-- Agent orchestration, typed tool calls, authentication, and production
+- Daily checkpoints are returned with a completed run, but live SSE/WebSocket
+  transport and checkpoint persistence/retrieval are future API work.
+- Agent orchestration, analysis/database-query tools, typed tool calls,
+  authentication, and production
   deployment are not implemented yet.
 
 ## Rules for the next agent

@@ -26,6 +26,7 @@ type UUIDString = Annotated[str, AfterValidator(_validate_uuid_string)]
 type AwareDatetime = Annotated[datetime, AfterValidator(_validate_aware_datetime)]
 type HashDigest = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 StateType = Literal["actual", "simulated"]
+RecordKind = Literal["object", "event", "activity_run"]
 DataOrigin = Literal["source", "derived", "synthetic"]
 ProcessId = Literal["order_to_cash", "procure_to_pay"]
 ObjectType = Literal["sales_order", "purchase_order", "inventory", "balance"]
@@ -47,7 +48,7 @@ type MetricValue = int | Decimal
 
 
 def _default_process_versions() -> dict[ProcessId, int]:
-    return {"order_to_cash": 1, "procure_to_pay": 1}
+    return {"order_to_cash": 2, "procure_to_pay": 2}
 
 
 class CanonicalModel(BaseModel):
@@ -182,6 +183,52 @@ class SnapshotBundle(CanonicalModel):
         return ordered
 
 
+class StateRecord(CanonicalModel):
+    """One addressable row in a reusable object-centric enterprise state."""
+
+    record_id: str = Field(min_length=1)
+    record_kind: RecordKind
+    record_type: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
+    project_id: str = Field(min_length=1)
+    data: dict[str, Any] = Field(default_factory=dict)
+    references: tuple[str, ...] = ()
+    version: int = Field(default=1, gt=0)
+    state_type: StateType = "simulated"
+
+
+class EnterpriseState(CanonicalModel):
+    """Versioned state shared by simulation, frontend, audit, and future Agents."""
+
+    scope_id: str = Field(min_length=1)
+    project_id: str = Field(min_length=1)
+    state_version: int = Field(default=0, ge=0)
+    simulated_hour: Decimal = Field(default=Decimal("0"), ge=0)
+    records: dict[str, StateRecord]
+    state_type: Literal["simulated"] = "simulated"
+
+    @field_validator("records")
+    @classmethod
+    def keys_match_record_ids(cls, value: dict[str, StateRecord]) -> dict[str, StateRecord]:
+        mismatches = sorted(key for key, record in value.items() if key != record.record_id)
+        if mismatches:
+            raise ValueError(f"record keys must match record_id: {mismatches[:3]}")
+        return dict(sorted(value.items()))
+
+
+class StateRecordChange(CanonicalModel):
+    record_id: str = Field(min_length=1)
+    record_kind: RecordKind
+    record_type: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
+    operation: Literal["created", "updated"]
+    changed_fields: dict[str, Any] = Field(default_factory=dict)
+
+
+class ActivityRunStatus(CanonicalModel):
+    activity_id: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
+    subject_record_id: str = Field(min_length=1)
+    status: Literal["waiting", "running", "completed"]
+
+
 class ScenarioEvent(CanonicalModel):
     scenario_event_id: UUIDString | None = None
     event_type: ScenarioEventType
@@ -272,6 +319,16 @@ class SimulationMetrics(CanonicalModel):
     minimum_cash: Decimal = Decimal("0")
 
 
+class SimulationCheckpoint(CanonicalModel):
+    day: int = Field(ge=0)
+    simulated_hour: Decimal = Field(ge=0)
+    state_version: int = Field(ge=0)
+    changes: tuple[StateRecordChange, ...] = ()
+    new_event_record_ids: tuple[str, ...] = ()
+    active_activities: tuple[ActivityRunStatus, ...] = ()
+    state_hash: HashDigest
+
+
 class SimulationRunResult(CanonicalModel):
     simulation_run_id: UUIDString
     simulation_session_id: UUIDString | None = None
@@ -290,6 +347,7 @@ class SimulationRunResult(CanonicalModel):
     summary_metrics: SimulationMetrics
     event_trace: tuple[SimulationTraceEvent, ...]
     accounting_impacts: tuple[AccountingImpact, ...] = ()
+    checkpoints: tuple[SimulationCheckpoint, ...] = ()
 
 
 class SimulationSession(CanonicalModel):

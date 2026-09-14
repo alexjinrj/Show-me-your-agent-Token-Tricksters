@@ -307,11 +307,11 @@ class ActualStateService:
         amount = quantity * Decimal(row[price_field])
         status = row["status"]
         node_map = {
-            "open": "order_received" if is_sales else "purchase_order_placed",
-            "backlog": "pick_and_pack",
-            "shipped": "shipped",
-            "paid": "paid" if is_sales else "supplier_paid",
-            "received": "goods_received",
+            "open": "receive_order" if is_sales else "place_purchase_order",
+            "backlog": "allocate_inventory",
+            "shipped": "ship_goods",
+            "paid": "collect_customer_payment" if is_sales else "pay_supplier",
+            "received": "receive_goods",
         }
         session.add(
             BusinessObjectRow(
@@ -489,7 +489,7 @@ class ActualStateService:
                     as_of_time=normalized_as_of_time,
                     created_at=_to_storage_time(created_at),
                     source_event_watermark=watermark,
-                    process_definition_versions={"order_to_cash": 1, "procure_to_pay": 1},
+                    process_definition_versions={"order_to_cash": 2, "procure_to_pay": 2},
                     content_hash=content_hash,
                 )
                 session.add(snapshot)

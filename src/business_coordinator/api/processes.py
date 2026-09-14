@@ -8,25 +8,33 @@ from business_coordinator.simulation.process_runtime import RuntimeProcessCatalo
 
 def process_graph(definition: ProcessDefinition) -> dict[str, Any]:
     """Serialize one already-validated process definition for the UI."""
-    nodes = [node.model_dump(mode="python") for node in definition.nodes]
+    activities = [activity.model_dump(mode="python") for activity in definition.activities]
     edges = [
         {
-            "source": node.id,
+            "source": activity.id,
             "target": transition.target,
-            "guard": transition.guard,
+            "conditions": [
+                condition.model_dump(mode="python") for condition in transition.conditions
+            ],
         }
-        for node in definition.nodes
-        for transition in node.next
+        for activity in definition.activities
+        for transition in activity.next
     ]
     return {
         "process_id": definition.process_id,
         "version": definition.version,
         "label": definition.label,
+        "schema_version": definition.schema_version,
         "initial_node_id": definition.initial_node_id,
         "terminal_node_ids": definition.terminal_node_ids,
-        "nodes": nodes,
+        "primary_object_type": definition.primary_object_type,
+        "active_statuses": definition.active_statuses,
+        "activities": activities,
+        "nodes": activities,
         "edges": edges,
-        "resources": sorted({node.resource for node in definition.nodes}),
+        "resources": sorted(
+            {activity.resource for activity in definition.activities if activity.resource}
+        ),
         "parameters": definition.parameters,
     }
 

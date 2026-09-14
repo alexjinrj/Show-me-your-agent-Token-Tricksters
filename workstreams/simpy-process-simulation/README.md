@@ -61,6 +61,12 @@ the process hash therefore remain outside the SimPy engine. Operational
 effects such as allocating inventory and posting balanced accounting entries
 remain deterministic Python behavior.
 
+The successor branch `codex/object-centric-runtime` replaces that division:
+YAML schema v2 declares object bindings, state operations, output events,
+financial effects, and transitions as well as timing and resources. The engine
+is now a generic interpreter and emits incremental daily Enterprise State
+checkpoints.
+
 Supported first-slice events are `order_arrival`,
 `resource_capacity_changed`, and `supplier_delivery_delayed`; negative delivery
 day deltas represent expedited delivery. Convenience constructors provide the

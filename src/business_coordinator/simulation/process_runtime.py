@@ -27,11 +27,16 @@ class RuntimeProcessCatalog:
     def node(self, process_id: ProcessId, node_id: str) -> ProcessNodeDefinition:
         return self.definition(process_id).node(node_id)
 
-    def resource(self, process_id: ProcessId, node_id: str) -> ResourceType:
+    def resource(self, process_id: ProcessId, node_id: str) -> ResourceType | None:
         return self.node(process_id, node_id).resource
 
     def processing_hours(self, process_id: ProcessId, node_id: str) -> Decimal:
-        return self.node(process_id, node_id).processing_time_hours
+        duration = self.node(process_id, node_id).duration
+        if duration.kind == "fixed" and duration.hours is not None:
+            return duration.hours
+        if duration.kind == "parameter" and duration.parameter is not None:
+            return self.parameter(process_id, duration.parameter)
+        raise ValueError(f"activity duration is state-dependent: {process_id}.{node_id}")
 
     def parameter(self, process_id: ProcessId, name: str) -> Decimal:
         try:
@@ -62,7 +67,7 @@ class RuntimeProcessCatalog:
             node.resource
             for definition in self.definitions.values()
             for node in definition.nodes
-            if node.id == node_id
+            if node.id == node_id and node.resource is not None
         ]
         if len(matches) != 1:
             raise ValueError(f"node ID must identify one configured resource: {node_id}")

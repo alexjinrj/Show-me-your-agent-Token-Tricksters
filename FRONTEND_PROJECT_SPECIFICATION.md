@@ -18,6 +18,13 @@ The frontend is a presentation and interaction layer. It must not duplicate
 simulation formulas, accounting calculations, process timings, or authoritative
 state logic.
 
+The object-centric runtime adds `SimulationRunResult.checkpoints`: checkpoint 0
+plus one incremental checkpoint per simulated day, each with state changes,
+new event IDs, active activities, and a state hash. The current frontend may
+continue using completed-run trace playback. A later frontend/API change may
+deliver the same checkpoints incrementally over SSE or WebSocket; it must not
+invent intermediate business state in JavaScript.
+
 ## 2. Intended demo journey
 
 The reviewer must be able to complete this sequence without using a terminal:

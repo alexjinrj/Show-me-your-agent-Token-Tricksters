@@ -3,12 +3,12 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from collections.abc import Generator
+from collections.abc import Generator, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import simpy
 
@@ -17,20 +17,46 @@ from business_coordinator.domain.models import (
     AccountingLine,
     ProcessId,
     ScenarioEvent,
+    SimulationCheckpoint,
     SimulationMetrics,
     SimulationRunResult,
     SimulationTraceEvent,
     SnapshotBundle,
+    StateRecord,
+)
+from business_coordinator.domain.processes import (
+    ConditionDefinition,
+    DurationDefinition,
+    EventOutputDefinition,
+    FinancialEffectDefinition,
+    ProcessDefinition,
+    ProcessNodeDefinition,
+    StateEffectDefinition,
 )
 from business_coordinator.simulation.process_runtime import (
     RuntimeProcessCatalog,
     load_runtime_process_catalog,
 )
-from business_coordinator.simulation.state import SimulatedOrder, SimulationState, snapshot_to_state
+from business_coordinator.simulation.state import SimulationState, snapshot_to_state
 
 MONEY = Decimal("0.01")
 NUMBER = Decimal("0.0001")
 RUN_NAMESPACE = uuid.UUID("e42e0ab5-d3a3-4d27-a540-4d66d2062d5a")
+ASSET_OR_EXPENSE_ACCOUNTS = {
+    "CASH",
+    "ACCOUNTS_RECEIVABLE",
+    "INVENTORY",
+    "COST_OF_GOODS_SOLD",
+}
+ACCOUNT_CODES = {
+    "cash": "CASH",
+    "accounts_receivable": "ACCOUNTS_RECEIVABLE",
+    "accounts_payable": "ACCOUNTS_PAYABLE",
+    "inventory": "INVENTORY",
+    "revenue": "REVENUE",
+    "cost_of_goods_sold": "COST_OF_GOODS_SOLD",
+    "goods_received_not_invoiced": "GOODS_RECEIVED_NOT_INVOICED",
+}
 
 
 def _json_default(value: object) -> str:
@@ -57,6 +83,12 @@ def _number(value: Decimal) -> Decimal:
 
 def _decimal(value: object) -> Decimal:
     return Decimal(str(value))
+
+
+def _process_id(value: str) -> ProcessId:
+    if value not in {"order_to_cash", "procure_to_pay"}:
+        raise ValueError(f"unknown process: {value}")
+    return cast(ProcessId, value)
 
 
 class CapacityPool:
@@ -94,38 +126,55 @@ class RunContext:
     config: RuntimeProcessCatalog
     horizon_hours: Decimal
     pools: dict[str, CapacityPool]
-    inventory: dict[str, simpy.Container]
+    availability: dict[str, simpy.Container]
     snapshot_time: datetime
     trace: list[SimulationTraceEvent] = field(default_factory=list)
     impacts: list[AccountingImpact] = field(default_factory=list)
+    checkpoints: list[SimulationCheckpoint] = field(default_factory=list)
     busy_hours: dict[str, Decimal] = field(default_factory=dict)
-    order_waiting_hours: list[Decimal] = field(default_factory=list)
-    active_sales_orders: int = 0
-    fulfilled_sales_orders: int = 0
+    cycle_started: dict[str, Decimal] = field(default_factory=dict)
+    cycle_elapsed: list[Decimal] = field(default_factory=list)
+    cycle_completed: set[str] = field(default_factory=set)
     stockout_count: int = 0
     revenue: Decimal = Decimal("0")
     cogs: Decimal = Decimal("0")
-    cash: Decimal = Decimal("0")
-    receivables: Decimal = Decimal("0")
-    payables: Decimal = Decimal("0")
     minimum_cash: Decimal = Decimal("0")
 
-    def record(
+    @property
+    def now(self) -> Decimal:
+        return _number(_decimal(self.env.now))
+
+    def record_event(
         self,
-        event_type: str,
-        order: SimulatedOrder,
+        output: EventOutputDefinition,
         process_id: str,
-        node_id: str | None = None,
-        **details: object,
+        activity_id: str,
+        bindings: Mapping[str, StateRecord],
+        *,
+        extra: Mapping[str, object] | None = None,
     ) -> None:
+        subject = bindings["subject"]
+        references = tuple(bindings[alias].record_id for alias in output.references)
+        details: dict[str, object] = {
+            key: subject.data[key]
+            for key in ("sku", "quantity", "amount", "object_number")
+            if key in subject.data
+        }
+        details.update(extra or {})
+        self.state.append_event(
+            output.event_type,
+            references,
+            self.now,
+            data={"process_id": process_id, "activity_id": activity_id, **details},
+        )
         self.trace.append(
             SimulationTraceEvent(
                 sequence=len(self.trace) + 1,
-                simulated_hour=_number(_decimal(self.env.now)),
-                event_type=event_type,
-                object_id=order.object_id,
+                simulated_hour=self.now,
+                event_type=output.event_type,
+                object_id=subject.record_id,
                 process_id=process_id,
-                node_id=node_id,
+                node_id=activity_id,
                 details={key: str(value) for key, value in sorted(details.items())},
             )
         )
@@ -133,10 +182,16 @@ class RunContext:
     def record_system(
         self, event_type: str, object_id: str, process_id: str, **details: object
     ) -> None:
+        self.state.append_event(
+            event_type,
+            (object_id,),
+            self.now,
+            data={"process_id": process_id, **details},
+        )
         self.trace.append(
             SimulationTraceEvent(
                 sequence=len(self.trace) + 1,
-                simulated_hour=_number(_decimal(self.env.now)),
+                simulated_hour=self.now,
                 event_type=event_type,
                 object_id=object_id,
                 process_id=process_id,
@@ -147,212 +202,302 @@ class RunContext:
     def journal(
         self,
         event_type: str,
-        order: SimulatedOrder,
-        entries: tuple[tuple[str, Decimal, Decimal], ...],
+        object_id: str,
+        debit_account: str,
+        credit_account: str,
+        amount: Decimal,
     ) -> None:
-        lines = tuple(
-            AccountingLine(account=account, debit=_money(debit), credit=_money(credit))
-            for account, debit, credit in entries
+        amount = _money(amount)
+        lines = (
+            AccountingLine(account=debit_account, debit=amount),
+            AccountingLine(account=credit_account, credit=amount),
         )
-        debits = sum((line.debit for line in lines), Decimal("0"))
-        credits = sum((line.credit for line in lines), Decimal("0"))
-        if debits != credits:
-            raise RuntimeError(f"unbalanced accounting impact for {event_type}")
         self.impacts.append(
             AccountingImpact(
                 event_type=event_type,
-                object_id=order.object_id,
-                simulated_hour=_number(_decimal(self.env.now)),
+                object_id=object_id,
+                simulated_hour=self.now,
                 lines=lines,
             )
         )
+        self._post_balance(debit_account, amount, debit=True)
+        self._post_balance(credit_account, amount, debit=False)
+        if credit_account == "REVENUE":
+            self.revenue += amount
+        if debit_account == "COST_OF_GOODS_SOLD":
+            self.cogs += amount
+        self.minimum_cash = min(self.minimum_cash, self.state.balance("CASH"))
+
+    def _post_balance(self, account_code: str, amount: Decimal, *, debit: bool) -> None:
+        try:
+            balance = self.state.related("balance", "account_code", account_code)
+        except ValueError:
+            balance = self.state.create_record(
+                StateRecord(
+                    record_id=f"balance:{account_code}",
+                    record_kind="object",
+                    record_type="balance",
+                    project_id=self.state.project_id,
+                    data={
+                        "account_code": account_code,
+                        "amount": Decimal("0"),
+                        "currency": "SGD",
+                    },
+                )
+            )
+        current = _decimal(balance.data["amount"])
+        normal_debit = account_code in ASSET_OR_EXPENSE_ACCOUNTS
+        delta = amount if debit == normal_debit else -amount
+        self.state.update(balance.record_id, "amount", _money(current + delta))
 
 
-def _use_resource(
-    context: RunContext, process_id: str, node_id: str
-) -> Generator[simpy.Event, None, None]:
-    process = cast_process_id(process_id)
-    duration = context.config.processing_hours(process, node_id)
-    resource_type = context.config.resource(process, node_id)
-    pool = context.pools[resource_type]
-    yield pool.acquire()
-    yield context.env.timeout(float(duration))
-    yield pool.release()
-    context.busy_hours[node_id] = context.busy_hours.get(node_id, Decimal("0")) + duration
+def _path_value(bindings: Mapping[str, StateRecord], path: str) -> Any:
+    alias, field_name = path.split(".", 1)
+    try:
+        return bindings[alias].data[field_name]
+    except KeyError as exc:
+        raise ValueError(f"state path does not exist: {path}") from exc
 
 
-def cast_process_id(value: str) -> ProcessId:
-    if value not in {"order_to_cash", "procure_to_pay"}:
-        raise ValueError(f"unknown process: {value}")
-    return cast(ProcessId, value)
+def _right_value(
+    bindings: Mapping[str, StateRecord], value: object | None, value_from: str | None
+) -> object:
+    return _path_value(bindings, value_from) if value_from is not None else value
 
 
-def _order_to_cash(
-    context: RunContext, order: SimulatedOrder, *, arrival_hour: Decimal = Decimal("0")
-) -> Generator[simpy.Event, None, None]:
-    if arrival_hour > _decimal(context.env.now):
-        yield context.env.timeout(float(arrival_hour - _decimal(context.env.now)))
-    started = _decimal(context.env.now)
-    context.active_sales_orders += 1
-    context.record(
-        "order_entered_simulation", order, "order_to_cash", "order_received", sku=order.sku
-    )
-    if order.current_node_id == "order_received":
-        yield context.env.process(_use_resource(context, "order_to_cash", "credit_review"))
-        context.record("order_approved", order, "order_to_cash", "order_approved")
-
-    inventory = context.inventory[order.sku]
-    if _decimal(inventory.level) < order.quantity:
-        context.stockout_count += 1
-        context.record(
-            "stockout_wait_started",
-            order,
-            "order_to_cash",
-            "inventory_allocated",
-            required=order.quantity,
-            available=inventory.level,
-        )
-    yield inventory.get(float(order.quantity))
-    context.record(
-        "inventory_allocated",
-        order,
-        "order_to_cash",
-        "inventory_allocated",
-        quantity=order.quantity,
-    )
-    yield context.env.process(_use_resource(context, "order_to_cash", "pick_and_pack"))
-    cost = _money(context.state.item_costs[order.sku] * order.quantity)
-    context.cogs += cost
-    context.journal(
-        "goods_shipped",
-        order,
-        (("COST_OF_GOODS_SOLD", cost, Decimal("0")), ("INVENTORY", Decimal("0"), cost)),
-    )
-    context.record("goods_shipped", order, "order_to_cash", "shipped", cost=cost)
-    yield context.env.process(_use_resource(context, "order_to_cash", "invoiced"))
-    amount = _money(order.amount)
-    context.revenue += amount
-    context.receivables += amount
-    context.journal(
-        "customer_invoiced",
-        order,
-        (("ACCOUNTS_RECEIVABLE", amount, Decimal("0")), ("REVENUE", Decimal("0"), amount)),
-    )
-    context.fulfilled_sales_orders += 1
-    context.order_waiting_hours.append(_decimal(context.env.now) - started)
-    context.record("customer_invoiced", order, "order_to_cash", "invoiced", amount=amount)
-    yield context.env.timeout(
-        float(context.config.parameter("order_to_cash", "customer_payment_delay_hours"))
-    )
-    context.receivables -= amount
-    context.cash += amount
-    context.minimum_cash = min(context.minimum_cash, context.cash)
-    context.journal(
-        "customer_payment_received",
-        order,
-        (("CASH", amount, Decimal("0")), ("ACCOUNTS_RECEIVABLE", Decimal("0"), amount)),
-    )
-    context.record("customer_payment_received", order, "order_to_cash", "paid", amount=amount)
+def _condition_matches(condition: ConditionDefinition, bindings: Mapping[str, StateRecord]) -> bool:
+    left = _path_value(bindings, condition.left)
+    right = _right_value(bindings, condition.value, condition.value_from)
+    if condition.operator == "equals":
+        return bool(left == right)
+    if condition.operator == "not_equals":
+        return bool(left != right)
+    if condition.operator == "greater_than_or_equal":
+        return _decimal(left) >= _decimal(right)
+    if condition.operator == "in":
+        return left in cast(tuple[object, ...], right)
+    raise ValueError(f"unsupported condition operator: {condition.operator}")
 
 
-def _delivery_adjustments(
-    orders: list[SimulatedOrder], events: list[ScenarioEvent]
-) -> dict[str, Decimal]:
-    open_orders = sorted(
-        (
-            order
-            for order in orders
-            if order.object_type == "purchase_order" and order.status == "open"
-        ),
-        key=lambda order: (order.due_at, order.object_number),
-    )
-    adjustments: dict[str, Decimal] = {}
-    for event in events:
-        if event.event_type != "supplier_delivery_delayed":
+def _bind_inputs(
+    state: SimulationState, activity: ProcessNodeDefinition, subject_id: str
+) -> dict[str, StateRecord]:
+    subject = state.record(subject_id)
+    bindings: dict[str, StateRecord] = {}
+    for binding in activity.inputs:
+        if binding.source == "subject":
+            if subject.record_type != binding.object_type:
+                raise ValueError(
+                    f"{activity.id} expects {binding.object_type}; got {subject.record_type}"
+                )
+            bindings[binding.alias] = subject
             continue
-        target = event.payload.get("purchase_order_number")
-        selected = next(
-            (order for order in open_orders if target is None or order.object_number == target),
-            None,
+        if binding.match_field is None or binding.value_from is None:
+            raise ValueError(f"related input is incomplete: {activity.id}.{binding.alias}")
+        bindings[binding.alias] = state.related(
+            binding.object_type,
+            binding.match_field,
+            _path_value({"subject": subject}, binding.value_from),
         )
-        if selected is None:
-            raise ValueError("supplier delivery event does not identify an open purchase order")
-        adjustments[selected.object_id] = adjustments.get(selected.object_id, Decimal("0")) + (
-            _decimal(event.payload["days_delta"]) * Decimal("24")
-        )
-    return adjustments
+    return bindings
 
 
-def _procure_to_pay(
-    context: RunContext, order: SimulatedOrder, delivery_adjustment: Decimal
+def _effect_value(effect: StateEffectDefinition, bindings: Mapping[str, StateRecord]) -> object:
+    return _right_value(bindings, effect.value, effect.value_from)
+
+
+def _apply_effect(
+    context: RunContext,
+    effect: StateEffectDefinition,
+    bindings: Mapping[str, StateRecord],
 ) -> Generator[simpy.Event, None, None]:
-    context.record(
-        "purchase_order_entered_simulation",
-        order,
-        "procure_to_pay",
-        "purchase_order_placed",
-        sku=order.sku,
+    alias, field_name = effect.target.split(".", 1)
+    record = context.state.record(bindings[alias].record_id)
+    value = _effect_value(effect, bindings)
+    current = record.data.get(field_name)
+    container = (
+        context.availability.get(record.record_id) if field_name == "quantity_available" else None
     )
-    if delivery_adjustment:
-        context.record(
-            "supplier_delivery_adjusted",
-            order,
-            "procure_to_pay",
-            "supplier_lead_time",
-            hours_delta=delivery_adjustment,
+    if effect.operation == "set":
+        updated: object = value
+    elif effect.operation == "increase":
+        updated = _decimal(current or 0) + _decimal(value)
+        if container is not None:
+            yield container.put(float(_decimal(value)))
+    else:
+        amount = _decimal(value)
+        if container is not None:
+            if not effect.wait_if_insufficient and _decimal(container.level) < amount:
+                raise ValueError(f"insufficient value for {effect.target}")
+            yield container.get(float(amount))
+        updated = _decimal(current or 0) - amount
+    context.state.update(record.record_id, field_name, updated)
+
+
+def _reserve_waiting_effects(
+    context: RunContext,
+    activity: ProcessNodeDefinition,
+    bindings: Mapping[str, StateRecord],
+) -> Generator[simpy.Event, None, None]:
+    for effect in activity.operations:
+        if not effect.wait_if_insufficient:
+            continue
+        alias, field_name = effect.target.split(".", 1)
+        record = bindings[alias]
+        container = context.availability.get(record.record_id)
+        amount = _decimal(_effect_value(effect, bindings))
+        if field_name != "quantity_available" or container is None:
+            raise ValueError("wait_if_insufficient requires an inventory availability target")
+        if _decimal(container.level) < amount:
+            context.stockout_count += 1
+            context.record_system(
+                "stockout_wait_started",
+                bindings["subject"].record_id,
+                str(bindings["subject"].data["process_id"]),
+                activity_id=activity.id,
+                required=amount,
+                available=container.level,
+            )
+        yield container.get(float(amount))
+        context.state.update(
+            record.record_id,
+            field_name,
+            _decimal(record.data[field_name]) - amount,
         )
-    yield context.env.process(_use_resource(context, "procure_to_pay", "purchase_order_placed"))
-    due_hours = max(
-        Decimal("0"),
-        _decimal((order.due_at - context.snapshot_time).total_seconds()) / Decimal("3600")
-        + delivery_adjustment,
-    )
-    remaining = due_hours - _decimal(context.env.now)
-    if remaining > 0:
-        yield context.env.timeout(float(remaining))
-    yield context.env.process(_use_resource(context, "procure_to_pay", "goods_received"))
-    yield context.inventory[order.sku].put(float(order.quantity))
-    amount = _money(order.amount)
-    context.journal(
-        "goods_received",
-        order,
-        (
-            ("INVENTORY", amount, Decimal("0")),
-            ("GOODS_RECEIVED_NOT_INVOICED", Decimal("0"), amount),
-        ),
-    )
-    context.record(
-        "goods_received", order, "procure_to_pay", "goods_received", quantity=order.quantity
-    )
-    yield context.env.process(_use_resource(context, "procure_to_pay", "supplier_invoice_recorded"))
-    context.payables += amount
-    context.journal(
-        "supplier_invoice_recorded",
-        order,
-        (
-            ("GOODS_RECEIVED_NOT_INVOICED", amount, Decimal("0")),
-            ("ACCOUNTS_PAYABLE", Decimal("0"), amount),
-        ),
-    )
-    context.record(
-        "supplier_invoice_recorded",
-        order,
-        "procure_to_pay",
-        "supplier_invoice_recorded",
-        amount=amount,
-    )
-    yield context.env.timeout(
-        float(context.config.parameter("procure_to_pay", "supplier_payment_terms_hours"))
-    )
-    context.payables -= amount
-    context.cash -= amount
-    context.minimum_cash = min(context.minimum_cash, context.cash)
-    context.journal(
-        "supplier_paid",
-        order,
-        (("ACCOUNTS_PAYABLE", amount, Decimal("0")), ("CASH", Decimal("0"), amount)),
-    )
-    context.record("supplier_paid", order, "procure_to_pay", "supplier_paid", amount=amount)
+
+
+def _duration_wait(
+    context: RunContext,
+    process_id: ProcessId,
+    duration: DurationDefinition,
+    bindings: Mapping[str, StateRecord],
+) -> Generator[simpy.Event, None, None]:
+    if duration.kind == "fixed":
+        yield context.env.timeout(float(cast(Decimal, duration.hours)))
+        return
+    if duration.kind == "parameter":
+        hours = context.config.parameter(process_id, cast(str, duration.parameter))
+        yield context.env.timeout(float(hours))
+        return
+    target = _path_value(bindings, cast(str, duration.field))
+    if isinstance(target, str):
+        target = datetime.fromisoformat(target)
+    if not isinstance(target, datetime):
+        raise ValueError(f"until_field does not contain a datetime: {duration.field}")
+    while True:
+        subject = context.state.record(bindings["subject"].record_id)
+        adjustment = _decimal(subject.data.get("delivery_adjustment_hours", 0))
+        target_hour = (
+            _decimal((target - context.snapshot_time).total_seconds()) / Decimal("3600")
+            + adjustment
+        )
+        remaining = target_hour - _decimal(context.env.now)
+        # SimPy uses floats internally. Treat sub-microhour residue as reached so
+        # converting Decimal deadlines cannot schedule an endless zero-time loop.
+        if remaining <= Decimal("0.000001"):
+            return
+        yield context.env.timeout(float(min(remaining, Decimal("24"))))
+
+
+def _financial_amount(
+    context: RunContext, effect: FinancialEffectDefinition, subject: StateRecord
+) -> Decimal:
+    if effect.amount_basis == "inventory_cost":
+        return _money(
+            _decimal(subject.data["quantity"]) * context.state.item_costs[str(subject.data["sku"])]
+        )
+    return _money(_decimal(subject.data["amount"]))
+
+
+def _apply_financial_effects(
+    context: RunContext,
+    activity: ProcessNodeDefinition,
+    subject: StateRecord,
+) -> None:
+    for effect in activity.financial_effects:
+        context.journal(
+            effect.event,
+            subject.record_id,
+            ACCOUNT_CODES[effect.debit_account],
+            ACCOUNT_CODES[effect.credit_account],
+            _financial_amount(context, effect, subject),
+        )
+
+
+def _next_activity(
+    activity: ProcessNodeDefinition, bindings: Mapping[str, StateRecord]
+) -> str | None:
+    matches = [
+        transition.target
+        for transition in activity.next
+        if all(_condition_matches(condition, bindings) for condition in transition.conditions)
+    ]
+    if len(matches) > 1:
+        raise ValueError(f"multiple transitions matched after activity {activity.id}")
+    if not matches:
+        if activity.next:
+            raise ValueError(f"no transition matched after activity {activity.id}")
+        return None
+    return matches[0]
+
+
+def _run_workflow(
+    context: RunContext,
+    definition: ProcessDefinition,
+    subject_id: str,
+    initial_activity_id: str,
+) -> Generator[simpy.Event, None, None]:
+    if definition.cycle_metrics is not None:
+        context.cycle_started[subject_id] = context.now
+    activity_id: str | None = initial_activity_id
+    while activity_id is not None:
+        activity = definition.activity(activity_id)
+        bindings = _bind_inputs(context.state, activity, subject_id)
+        if not all(_condition_matches(condition, bindings) for condition in activity.enabled_when):
+            raise ValueError(f"activity is not enabled: {definition.process_id}.{activity.id}")
+        references = tuple(record.record_id for record in bindings.values())
+        activity_run_id = context.state.start_activity(
+            definition.process_id, activity.id, subject_id, references, context.now
+        )
+        yield context.env.process(_reserve_waiting_effects(context, activity, bindings))
+        resource = activity.resource
+        if resource is not None:
+            yield context.pools[resource].acquire()
+        context.state.mark_activity_running(activity_run_id, context.now)
+        if activity.on_start is not None:
+            context.record_event(activity.on_start, definition.process_id, activity.id, bindings)
+        started = context.now
+        yield context.env.process(
+            _duration_wait(context, definition.process_id, activity.duration, bindings)
+        )
+        if resource is not None:
+            yield context.pools[resource].release()
+            busy_key = f"{definition.process_id}.{activity.id}"
+            context.busy_hours[busy_key] = context.busy_hours.get(busy_key, Decimal("0")) + (
+                context.now - started
+            )
+        context.record_event(activity.on_complete, definition.process_id, activity.id, bindings)
+        for effect in activity.operations:
+            if not effect.wait_if_insufficient:
+                yield context.env.process(_apply_effect(context, effect, bindings))
+        _apply_financial_effects(
+            context, activity, context.state.record(bindings["subject"].record_id)
+        )
+        context.state.complete_activity(activity_run_id, context.now)
+        if (
+            definition.cycle_metrics is not None
+            and definition.cycle_metrics.completion_activity_id == activity.id
+            and subject_id not in context.cycle_completed
+        ):
+            context.cycle_completed.add(subject_id)
+            context.cycle_elapsed.append(context.now - context.cycle_started[subject_id])
+        refreshed = _bind_inputs(context.state, activity, subject_id)
+        activity_id = _next_activity(activity, refreshed)
+        context.state.update(
+            subject_id,
+            "current_activity_id",
+            activity_id or activity.id,
+        )
 
 
 def _apply_capacity_change(
@@ -375,62 +520,138 @@ def _apply_capacity_change(
     )
 
 
-def _scenario_order(
+def _apply_delivery_adjustment(
+    context: RunContext, event: ScenarioEvent
+) -> Generator[simpy.Event, None, None]:
+    yield context.env.timeout(float(event.effective_day * Decimal("24")))
+    candidates = sorted(
+        (
+            record
+            for record in context.state.records_of_type("purchase_order")
+            if record.data.get("status") not in {"received", "invoiced", "paid"}
+        ),
+        key=lambda record: (str(record.data.get("due_at", "")), record.record_id),
+    )
+    target_number = event.payload.get("purchase_order_number")
+    selected = next(
+        (
+            record
+            for record in candidates
+            if target_number is None or record.data.get("object_number") == target_number
+        ),
+        None,
+    )
+    if selected is None:
+        raise ValueError("supplier delivery event does not identify an open purchase order")
+    key = "days_delta" if "days_delta" in event.payload else "delay_days"
+    delta = _decimal(event.payload[key]) * Decimal("24")
+    current = _decimal(selected.data.get("delivery_adjustment_hours", 0))
+    context.state.update(selected.record_id, "delivery_adjustment_hours", current + delta)
+    context.record_system(
+        "supplier_delivery_adjusted",
+        selected.record_id,
+        str(selected.data["process_id"]),
+        hours_delta=delta,
+    )
+
+
+def _scenario_order_record(
     event: ScenarioEvent,
     sequence: int,
     state: SimulationState,
     snapshot_time: datetime,
-) -> SimulatedOrder:
+) -> StateRecord:
     sku = str(event.payload["sku"])
     if sku not in state.item_prices:
         raise ValueError(f"unknown scenario SKU: {sku}")
     quantity = _decimal(event.payload["quantity"])
-    if quantity <= 0:
-        raise ValueError("scenario order quantity must be greater than zero")
-    amount = _money(quantity * _decimal(event.payload.get("unit_price", state.item_prices[sku])))
+    price = _decimal(event.payload.get("unit_price", state.item_prices[sku]))
+    amount = _money(quantity * price)
     order_number = str(event.payload.get("order_number", f"SCENARIO-SO-{sequence:04d}"))
-    return SimulatedOrder(
-        object_id=str(uuid.uuid5(RUN_NAMESPACE, order_number)),
-        object_number=order_number,
-        object_type="sales_order",
-        current_node_id="order_received",
-        status="open",
-        amount=amount,
-        quantity=quantity,
-        priority=int(event.payload.get("priority", 0)),
-        sku=sku,
-        due_at=snapshot_time,
+    object_id = str(uuid.uuid5(RUN_NAMESPACE, order_number))
+    return StateRecord(
+        record_id=object_id,
+        record_kind="object",
+        record_type="sales_order",
+        project_id=state.project_id,
+        data={
+            "id": object_id,
+            "object_number": order_number,
+            "object_type": "sales_order",
+            "process_id": "order_to_cash",
+            "current_activity_id": "receive_order",
+            "status": "open",
+            "amount": amount,
+            "quantity": quantity,
+            "priority": int(event.payload.get("priority", 0)),
+            "sku": sku,
+            "due_at": snapshot_time,
+            "entered_node_at": snapshot_time,
+        },
+    )
+
+
+def _run_scenario_order(
+    context: RunContext,
+    definition: ProcessDefinition,
+    event: ScenarioEvent,
+    sequence: int,
+) -> Generator[simpy.Event, None, None]:
+    yield context.env.timeout(float(event.effective_day * Decimal("24")))
+    order = context.state.create_record(
+        _scenario_order_record(event, sequence, context.state, context.snapshot_time)
+    )
+    yield context.env.process(
+        _run_workflow(context, definition, order.record_id, definition.initial_activity_id)
+    )
+
+
+def _checkpoint(context: RunContext, day: int) -> None:
+    changes, event_ids = context.state.drain_checkpoint_changes()
+    context.checkpoints.append(
+        SimulationCheckpoint(
+            day=day,
+            simulated_hour=context.now,
+            state_version=context.state.state_version,
+            changes=changes,
+            new_event_record_ids=event_ids,
+            active_activities=context.state.active_activities(),
+            state_hash=context.state.state_hash(context.now),
+        )
     )
 
 
 def _result_metrics(context: RunContext) -> SimulationMetrics:
     waiting = (
-        sum(context.order_waiting_hours, Decimal("0")) / len(context.order_waiting_hours)
-        if context.order_waiting_hours
+        sum(context.cycle_elapsed, Decimal("0")) / len(context.cycle_elapsed)
+        if context.cycle_elapsed
         else Decimal("0")
     )
-    fulfilment = (
-        Decimal(context.fulfilled_sales_orders) / context.active_sales_orders
-        if context.active_sales_orders
-        else Decimal("1")
-    )
+    active = len(context.cycle_started)
+    fulfilled = len(context.cycle_completed)
+    fulfilment = Decimal(fulfilled) / active if active else Decimal("1")
     utilization: dict[str, Decimal] = {}
-    for node, hours in sorted(context.busy_hours.items()):
-        resource_type = context.config.resource_for_node(node)
-        denominator = context.pools[resource_type].available_hours(context.horizon_hours)
-        utilization[node] = _number(min(Decimal("1"), hours / denominator))
+    for key, hours in sorted(context.busy_hours.items()):
+        process_id, activity_id = key.split(".", 1)
+        resource = context.config.resource(_process_id(process_id), activity_id)
+        if resource is None:
+            continue
+        denominator = context.pools[resource].available_hours(context.horizon_hours)
+        utilization[key] = _number(min(Decimal("1"), hours / denominator))
+    inventory = context.state.records_of_type("inventory_position")
     ending_quantity = sum(
-        (_decimal(container.level) for container in context.inventory.values()), Decimal("0")
+        (_decimal(record.data["quantity_on_hand"]) for record in inventory), Decimal("0")
     )
     ending_value = sum(
         (
-            _decimal(container.level) * context.state.item_costs[sku]
-            for sku, container in context.inventory.items()
+            _decimal(record.data["quantity_on_hand"])
+            * context.state.item_costs[str(record.data["sku"])]
+            for record in inventory
         ),
         Decimal("0"),
     )
     return SimulationMetrics(
-        ending_backlog=context.active_sales_orders - context.fulfilled_sales_orders,
+        ending_backlog=active - fulfilled,
         average_waiting_hours=_number(waiting),
         fulfilment_rate=_number(fulfilment),
         resource_utilization=utilization,
@@ -440,9 +661,9 @@ def _result_metrics(context: RunContext) -> SimulationMetrics:
         revenue=_money(context.revenue),
         cost_of_goods_sold=_money(context.cogs),
         gross_profit=_money(context.revenue - context.cogs),
-        accounts_receivable=_money(context.receivables),
-        accounts_payable=_money(context.payables),
-        ending_cash=_money(context.cash),
+        accounts_receivable=_money(context.state.balance("ACCOUNTS_RECEIVABLE")),
+        accounts_payable=_money(context.state.balance("ACCOUNTS_PAYABLE")),
+        ending_cash=_money(context.state.balance("CASH")),
         minimum_cash=_money(context.minimum_cash),
     )
 
@@ -455,7 +676,7 @@ def run_simulation(
     *,
     config_dir: Path | None = None,
 ) -> SimulationRunResult:
-    """Run a deterministic simulation using only a detached snapshot bundle."""
+    """Interpret validated activity YAML against a detached EnterpriseState."""
     if horizon_days <= 0:
         raise ValueError("horizon_days must be greater than zero")
     state = snapshot_to_state(snapshot)
@@ -469,13 +690,13 @@ def run_simulation(
     pools = {
         name: CapacityPool(env, capacity) for name, capacity in state.resource_capacities.items()
     }
-    inventory = {
-        sku: simpy.Container(
+    availability = {
+        record.record_id: simpy.Container(
             env,
             capacity=10**12,
-            init=float(state.inventory.get(sku, Decimal("0"))),
+            init=float(_decimal(record.data["quantity_available"])),
         )
-        for sku in state.item_costs
+        for record in state.records_of_type("inventory_position")
     }
     horizon_hours = Decimal(horizon_days) * Decimal("24")
     context = RunContext(
@@ -484,39 +705,53 @@ def run_simulation(
         config=config,
         horizon_hours=horizon_hours,
         pools=pools,
-        inventory=inventory,
+        availability=availability,
         snapshot_time=snapshot.manifest.as_of_time,
-        cash=state.balances["CASH"],
-        receivables=state.balances["ACCOUNTS_RECEIVABLE"],
-        payables=state.balances["ACCOUNTS_PAYABLE"],
-        minimum_cash=state.balances["CASH"],
+        minimum_cash=state.balance("CASH"),
     )
-    adjustments = _delivery_adjustments(state.orders, events)
-    for order in state.orders:
-        if order.object_type == "sales_order" and order.status in {"open", "backlog"}:
-            env.process(_order_to_cash(context, order))
-        elif order.object_type == "purchase_order" and order.status == "open":
-            adjustment = adjustments.get(order.object_id, Decimal("0"))
-            env.process(_procure_to_pay(context, order, adjustment))
+
+    for definition in config.definitions.values():
+        subjects = [
+            record
+            for record in state.records_of_type(definition.primary_object_type)
+            if str(record.data.get("status")) in definition.active_statuses
+        ]
+        for subject in subjects:
+            start = str(subject.data.get("current_activity_id", definition.initial_activity_id))
+            env.process(_run_workflow(context, definition, subject.record_id, start))
+
     scenario_sequence = 0
     for event in events:
         if event.event_type == "resource_capacity_changed":
             env.process(_apply_capacity_change(context, event))
+        elif event.event_type == "supplier_delivery_delayed":
+            env.process(_apply_delivery_adjustment(context, event))
         elif event.event_type == "order_arrival":
             scenario_sequence += 1
-            order = _scenario_order(
-                event,
-                scenario_sequence,
-                state,
-                snapshot.manifest.as_of_time,
+            env.process(
+                _run_scenario_order(
+                    context,
+                    config.definition("order_to_cash"),
+                    event,
+                    scenario_sequence,
+                )
             )
-            arrival_hour = event.effective_day * Decimal("24")
-            env.process(_order_to_cash(context, order, arrival_hour=arrival_hour))
-    env.run(until=float(horizon_hours))
+
+    _checkpoint(context, 0)
+    for day in range(1, horizon_days + 1):
+        target = float(Decimal(day) * Decimal("24"))
+        env.run(until=target)
+        while env.peek() == target:
+            env.step()
+        _checkpoint(context, day)
+
     metrics = _result_metrics(context)
+    versions = {
+        process_id: definition.version for process_id, definition in config.definitions.items()
+    }
     deterministic = {
         "snapshot_hash": snapshot.manifest.content_hash,
-        "process_definition_version": config.version_label,
+        "process_definition_versions": versions,
         "process_definition_hash": config.content_hash,
         "scenario_event_hash": scenario_hash,
         "horizon_days": horizon_days,
@@ -524,6 +759,7 @@ def run_simulation(
         "summary_metrics": metrics.model_dump(mode="json"),
         "event_trace": [item.model_dump(mode="json") for item in context.trace],
         "accounting_impacts": [item.model_dump(mode="json") for item in context.impacts],
+        "checkpoints": [item.model_dump(mode="json") for item in context.checkpoints],
     }
     result_hash = _hash(deterministic)
     run_id = str(uuid.uuid5(RUN_NAMESPACE, result_hash))
@@ -531,6 +767,7 @@ def run_simulation(
         simulation_run_id=run_id,
         snapshot_hash=snapshot.manifest.content_hash,
         process_definition_version=config.version_label,
+        process_definition_versions=versions,
         process_definition_hash=config.content_hash,
         scenario_event_hash=scenario_hash,
         horizon_days=horizon_days,
@@ -539,4 +776,5 @@ def run_simulation(
         summary_metrics=metrics,
         event_trace=tuple(context.trace),
         accounting_impacts=tuple(context.impacts),
+        checkpoints=tuple(context.checkpoints),
     )

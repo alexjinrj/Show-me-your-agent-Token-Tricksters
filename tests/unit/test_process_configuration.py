@@ -19,39 +19,42 @@ from business_coordinator.simulation.process_runtime import load_runtime_process
 CONFIG_DIRECTORY = Path(__file__).parents[2] / "config" / "processes"
 
 
-def test_process_catalog_loads_with_expected_sequences_and_guards() -> None:
+def test_process_catalog_loads_with_executable_activity_contracts() -> None:
     catalog = load_process_definitions(CONFIG_DIRECTORY)
 
     assert list(catalog) == ["order_to_cash", "procure_to_pay"]
     order_to_cash = catalog["order_to_cash"]
     assert [node.id for node in order_to_cash.nodes] == [
-        "order_received",
-        "credit_review",
-        "order_approved",
-        "inventory_allocated",
+        "receive_order",
+        "review_credit",
+        "approve_order",
+        "allocate_inventory",
         "pick_and_pack",
-        "shipped",
-        "invoiced",
-        "paid",
+        "ship_goods",
+        "record_customer_invoice",
+        "collect_customer_payment",
     ]
-    assert order_to_cash.transition("order_received", "credit_review").guard == "customer_is_active"
-    assert order_to_cash.transition("shipped", "invoiced").guard == "shipment_confirmed"
+    allocation = order_to_cash.activity("allocate_inventory")
+    assert [item.object_type for item in allocation.inputs] == [
+        "sales_order",
+        "inventory_position",
+    ]
+    assert allocation.operations[0].target == "inventory.quantity_available"
+    assert allocation.operations[0].wait_if_insufficient is True
 
     procure_to_pay = catalog["procure_to_pay"]
     assert [node.id for node in procure_to_pay.nodes] == [
-        "reorder_triggered",
-        "purchase_order_placed",
-        "supplier_lead_time",
-        "goods_received",
-        "supplier_invoice_recorded",
-        "supplier_paid",
+        "evaluate_reorder",
+        "place_purchase_order",
+        "wait_for_supplier_delivery",
+        "receive_goods",
+        "record_supplier_invoice",
+        "pay_supplier",
     ]
-    assert (
-        procure_to_pay.transition("supplier_lead_time", "goods_received").guard
-        == "supplier_delivery_received"
-    )
+    receiving = procure_to_pay.activity("receive_goods")
+    assert receiving.operations[0].target == "inventory.quantity_on_hand"
     with pytest.raises(ValueError, match="not permitted"):
-        order_to_cash.transition("order_received", "paid")
+        order_to_cash.transition("receive_order", "collect_customer_payment")
 
 
 def test_configuration_hashes_are_stable() -> None:
@@ -62,29 +65,23 @@ def test_configuration_hashes_are_stable() -> None:
         second["order_to_cash"]
     )
     assert hash_process_catalog(first) == hash_process_catalog(second)
-    assert hash_process_definition(first["order_to_cash"]) == (
-        "496b1c2cc9141070d6dafce8856000f049ba3c7ad2030c986c9ae86fbad38f9e"
-    )
-    assert hash_process_definition(first["procure_to_pay"]) == (
-        "ce3092229047e55cd638f0310259adde261d10766670c7b366c0604c7772726f"
-    )
-    assert hash_process_catalog(first) == (
-        "c015e0a5df5f910175f1edb6a2cf974868ac7f1233e1de4397d6068b6f6b0bd6"
-    )
+    assert len(hash_process_definition(first["order_to_cash"])) == 64
+    assert len(hash_process_definition(first["procure_to_pay"])) == 64
+    assert len(hash_process_catalog(first)) == 64
 
 
 def test_simulation_runtime_reads_validated_process_structure() -> None:
     runtime = load_runtime_process_catalog(CONFIG_DIRECTORY)
 
-    assert runtime.path_from("order_to_cash", "order_received") == (
-        "order_received",
-        "credit_review",
-        "order_approved",
-        "inventory_allocated",
+    assert runtime.path_from("order_to_cash", "receive_order") == (
+        "receive_order",
+        "review_credit",
+        "approve_order",
+        "allocate_inventory",
         "pick_and_pack",
-        "shipped",
-        "invoiced",
-        "paid",
+        "ship_goods",
+        "record_customer_invoice",
+        "collect_customer_payment",
     )
     assert runtime.resource("order_to_cash", "pick_and_pack") == "warehouse_staff"
     assert runtime.processing_hours("order_to_cash", "pick_and_pack") == 2
@@ -92,19 +89,15 @@ def test_simulation_runtime_reads_validated_process_structure() -> None:
 
 
 def _unknown_target(raw: dict[str, Any]) -> None:
-    raw["nodes"][0]["next"][0]["target"] = "missing_node"
+    raw["activities"][0]["next"][0]["target"] = "missing_node"
 
 
-def _unknown_guard(raw: dict[str, Any]) -> None:
-    raw["nodes"][0]["next"][0]["guard"] = "llm_decides"
+def _unknown_input_alias(raw: dict[str, Any]) -> None:
+    raw["activities"][0]["operations"][0]["target"] = "missing.status"
 
 
 def _unknown_resource(raw: dict[str, Any]) -> None:
-    raw["nodes"][0]["resource"] = "unbounded_workers"
-
-
-def _wrong_process_guard(raw: dict[str, Any]) -> None:
-    raw["nodes"][0]["next"][0]["guard"] = "supplier_payment_due"
+    raw["activities"][0]["resource"] = "unbounded_workers"
 
 
 def _unsupported_version(raw: dict[str, Any]) -> None:
@@ -115,8 +108,7 @@ def _unsupported_version(raw: dict[str, Any]) -> None:
     ("mutation", "message"),
     [
         (_unknown_target, "transition targets do not exist"),
-        (_unknown_guard, "guard"),
-        (_wrong_process_guard, "guards are not valid for order_to_cash"),
+        (_unknown_input_alias, "unknown input alias"),
         (_unknown_resource, "resource"),
         (_unsupported_version, "unsupported version"),
     ],

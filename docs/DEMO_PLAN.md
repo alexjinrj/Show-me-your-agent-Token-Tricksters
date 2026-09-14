@@ -11,7 +11,7 @@
 ## Existing service API surface
 - ActualStateService: validate_csv, commit_ingestion, create_snapshot, load_snapshot, counts; commit_demo_files helper.
 - SimulationService: create_session, get_session, add_event, fork_session, run_session, compare_runs.
-- run_simulation(snapshot, scenario_events, horizon_days, random_seed) -> SimulationRunResult (summary_metrics, event_trace, accounting_impacts; deterministic result_hash).
+- run_simulation(snapshot, scenario_events, horizon_days, random_seed) -> SimulationRunResult (summary_metrics, event_trace, accounting_impacts, daily state checkpoints; deterministic result_hash).
 - Scenario events: order_arrival, resource_capacity_changed, supplier_delivery_delayed. Builders in simulation/scenarios.py.
 - Processes: the full validated 8-node Order-to-Cash and 6-node Procure-to-Pay definitions from `RuntimeProcessCatalog`.
 - Seeding: scripts/seed_demo_data.py ORDER + snapshot at 2026-09-12T23:59:00+08:00; database.py make_engine/create_schema/sqlite_url.

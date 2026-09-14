@@ -31,6 +31,7 @@ into `main`:
 | Data and Actual State | `codex/data-csv-sql` | Deterministic CSV mappings and validation, source lineage, SQLAlchemy/Alembic persistence, idempotent ingestion, materialized Actual State, immutable snapshot bundles, and demo data |
 | Simulation | `codex/simpy-process-simulation` | Isolated SimPy runs, shared inventory/resources, O2C and P2P processing, financial state, scenario events, reproducible result hashes, persistence, comparison, and invariant tests |
 | Demo frontend | `codex/demo-frontend` | FastAPI application API, static web dashboard, isolated baseline/alternative workflow, process explorer, comparison, playback, audit evidence, and Docker packaging |
+| Object-centric runtime refactor | `codex/object-centric-runtime` | Unified Enterprise State records, executable activity YAML v2, generic SimPy interpreter, and daily state checkpoints; Agent tools remain deferred |
 
 The intended integration order is:
 
@@ -39,7 +40,11 @@ foundation domain + process definitions
                     ↓
 CSV ingestion → SQL Actual State → immutable SnapshotBundle
                                              ↓
-                                  isolated SimPy simulation
+                                  object-centric EnterpriseState
+                                             ↓
+                               YAML-driven SimPy interpreter
+                                             ↓
+                            events + mutations + daily checkpoints
 ```
 
 `Code/` on `main` is now the canonical integrated working directory. Completed
@@ -58,6 +63,26 @@ frontend.
    produce identical result hashes.
 6. Operational and financial values are calculated by deterministic Python
    code, not by an LLM.
+7. Python implements generic simulation primitives; process-specific bindings,
+   activities, effects, timings, outputs, and transitions belong in YAML.
+
+## Object-centric Runtime
+
+`StateRecord` is the common addressable row used by the simulation. A record is
+classified as an `object`, append-only `event`, or `activity_run`, and is scoped
+by the snapshot/company context. Inventory positions, orders, balances, events,
+and activity execution state therefore share one versioned `EnterpriseState`
+interface without pretending that they have identical business meaning.
+
+The v2 files under `config/processes/` define each activity's object bindings,
+duration, optional resource, conditions, state operations, generated events,
+financial effects, and next activities. `simulation/engine.py` interprets those
+primitives and contains no Order-to-Cash or Procure-to-Pay workflow function.
+
+Every run returns checkpoint `0` plus one checkpoint per simulated day. A
+checkpoint contains state changes, new event IDs, active activity statuses, and
+a deterministic state hash. This is the backend contract for later incremental
+frontend playback; SSE/WebSocket streaming is intentionally not implemented yet.
 
 ## Demo Data
 
@@ -139,7 +164,9 @@ Before changing a workstream:
 6. Run Ruff, mypy, and pytest before committing.
 
 The interactive demo described in `FRONTEND_PROJECT_SPECIFICATION.md` is now
-implemented on `codex/demo-frontend`. Typed Agent tools, LangGraph/LLM
+implemented on `codex/demo-frontend`. The object-centric runtime refactor is in
+`Code-worktrees/object-centric-runtime/` on `codex/object-centric-runtime`.
+Typed Agent tools, database-query tools, LangGraph/LLM
 coordination, ERPNext submission, authentication, and production deployment
 remain out of scope.
 
