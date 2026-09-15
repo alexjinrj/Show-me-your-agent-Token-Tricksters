@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from business_coordinator.inventory.reorder import (
+from tools.inventory.reorder import (
     build_reorder_recommendations,
     read_csv,
 )
@@ -61,7 +61,7 @@ def test_reorder_calculation() -> None:
 
 def test_demo_data_has_expected_reorder_skus() -> None:
     project_root = Path(__file__).resolve().parents[2]
-    data_dir = project_root / "data/demo/raw"
+    data_dir = project_root / "data/load_data/adventureworks_demo"
 
     items = read_csv(data_dir / "items.csv")
     inventory = read_csv(data_dir / "inventory.csv")

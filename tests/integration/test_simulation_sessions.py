@@ -6,13 +6,14 @@ from pathlib import Path
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from business_coordinator.persistence.models import (
+from core.simulation import warehouse_capacity_increase
+from enterprise_state.models import (
     AccountingImpactRow,
     BusinessEventRow,
     SimulationRunRow,
 )
-from business_coordinator.persistence.service import ActualStateService, commit_demo_files
-from business_coordinator.simulation import SimulationService, warehouse_capacity_increase
+from enterprise_state.service import ActualStateService, commit_demo_files
+from tools.simulation.service import SimulationService
 
 ORDER = (
     "customers",

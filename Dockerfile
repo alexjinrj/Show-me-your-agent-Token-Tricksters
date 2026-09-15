@@ -13,9 +13,9 @@ ENV PYTHONUNBUFFERED=1 \
 ENV BC_HOST=0.0.0.0 \
     BC_HOST_PORT=8000 \
     BC_DB_PATH=/data/demo_actual_state.db \
-    BC_DEMO_DATA_DIR=/app/data/demo/raw \
-    BC_CONFIG_DIR=/app/config/processes \
-    BC_WEB_DIR=/app/web
+    BC_DEMO_DATA_DIR=/app/data/load_data/adventureworks_demo \
+    BC_CONFIG_DIR=/app/src/core/process_definitions \
+    BC_WEB_DIR=/app/frontend
 
 # Install uv (fast, reproducible resolver).
 COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /usr/local/bin/uv
@@ -28,9 +28,8 @@ RUN uv sync --frozen --no-dev --no-install-project
 
 # Copy only what the runtime needs.
 COPY src/ ./src/
-COPY web/ ./web/
-COPY config/ ./config/
-COPY data/demo ./data/demo
+COPY frontend/ ./frontend/
+COPY data/load_data/ ./data/load_data/
 RUN uv sync --frozen --no-dev
 
 RUN mkdir -p /data
@@ -45,4 +44,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     sys.exit(0 if urllib.request.urlopen(f'http://127.0.0.1:{port}/healthz').status==200 else 1)"
 
 # Bind 0.0.0.0:${BC_HOST_PORT:-8000} for Lightsail compatibility.
-CMD ["sh", "-c", "uv run uvicorn business_coordinator.api.main:app --host 0.0.0.0 --port ${BC_HOST_PORT:-8000}"]
+CMD ["sh", "-c", "uv run uvicorn interfaces.api.main:app --host 0.0.0.0 --port ${BC_HOST_PORT:-8000}"]

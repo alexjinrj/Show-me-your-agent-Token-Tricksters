@@ -5,13 +5,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from business_coordinator.persistence.service import ActualStateService, commit_demo_files
-from business_coordinator.sales_agent import SalesAgentTools
-from business_coordinator.sales_agent.llm_runner import (
+from agent_runtime.llm_runner import (
     choose_mode,
     render_trace,
     run_sales_agent,
 )
+from enterprise_state.service import ActualStateService, commit_demo_files
+from tools.sales import SalesAgentTools
 
 
 class FakeClient:

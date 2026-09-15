@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-WEB_DIR = Path(__file__).parents[2] / "web"
+FRONTEND_DIR = Path(__file__).parents[2] / "frontend"
 
 
 def test_index_served_at_root(client: TestClient) -> None:
@@ -26,7 +26,7 @@ def test_styles_served(client: TestClient) -> None:
 
 
 def test_spa_references_endpoints_and_controls() -> None:
-    app_js = (WEB_DIR / "app.js").read_text(encoding="utf-8")
+    app_js = (FRONTEND_DIR / "app.js").read_text(encoding="utf-8")
     # Task 8: scenario run + comparison endpoints referenced.
     assert "/run" in app_js
     assert "/api/compare" in app_js
@@ -45,7 +45,7 @@ def test_spa_references_endpoints_and_controls() -> None:
 
 
 def test_index_has_playback_and_chat_panels() -> None:
-    index = (WEB_DIR / "index.html").read_text(encoding="utf-8")
+    index = (FRONTEND_DIR / "index.html").read_text(encoding="utf-8")
     for control_id in ('id="play"', 'id="pause"', 'id="step"', 'id="scrub"'):
         assert control_id in index
     assert 'id="chat-form"' in index

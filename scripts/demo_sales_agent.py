@@ -10,10 +10,10 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from business_coordinator.persistence.database import make_engine, sqlite_url
-from business_coordinator.persistence.models import StateSnapshotRow
-from business_coordinator.sales_agent import SalesAgentTools
-from business_coordinator.sales_agent.report import render_sales_report
+from enterprise_state.database import make_engine, sqlite_url
+from enterprise_state.models import StateSnapshotRow
+from interfaces.reports.sales_report import render_sales_report
+from tools.sales import SalesAgentTools
 
 
 def main() -> None:

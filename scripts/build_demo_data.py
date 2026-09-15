@@ -430,7 +430,7 @@ def build(output: Path, cache: Path) -> None:
         json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
 
-    expected = output.parent / "expected"
+    expected = output.parents[1] / "expected"
     expected.mkdir(parents=True, exist_ok=True)
     (expected / "exception.json").write_text(
         json.dumps(manifest["embedded_exception"], indent=2, sort_keys=True) + "\n",
@@ -440,4 +440,4 @@ def build(output: Path, cache: Path) -> None:
 
 if __name__ == "__main__":
     repository = Path(__file__).resolve().parents[1]
-    build(repository / "data/demo/raw", repository / ".cache/adventureworks")
+    build(repository / "data/load_data/adventureworks_demo", repository / ".cache/adventureworks")

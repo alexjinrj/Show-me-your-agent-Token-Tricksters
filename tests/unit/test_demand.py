@@ -1,11 +1,11 @@
 from decimal import Decimal
 from pathlib import Path
 
-from business_coordinator.inventory.demand import (
+from tools.inventory.demand import (
     calculate_demand_shortages,
     create_demand_aligned_events,
 )
-from business_coordinator.inventory.reorder import (
+from tools.inventory.reorder import (
     read_csv,
 )
 
@@ -105,7 +105,7 @@ def test_shortages_create_simulated_events() -> None:
 
 def test_demo_data_demand_shortages() -> None:
     project_root = Path(__file__).resolve().parents[2]
-    data_dir = project_root / "data/demo/raw"
+    data_dir = project_root / "data/load_data/adventureworks_demo"
 
     inventory = read_csv(data_dir / "inventory.csv")
     sales = read_csv(data_dir / "sales_orders.csv")

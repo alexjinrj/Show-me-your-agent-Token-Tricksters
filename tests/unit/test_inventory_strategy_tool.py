@@ -5,8 +5,8 @@ from typing import cast
 
 import pytest
 
-import business_coordinator.tools.inventory_strategy as tool
-from business_coordinator.domain.models import (
+import tools.inventory.strategy as tool
+from core.models import (
     ScenarioEvent,
     SimulationMetrics,
     SimulationRunResult,
