@@ -19,9 +19,10 @@ back to Actual State.
 - A FastAPI application and browser dashboard for running and inspecting the
   demo.
 - Daily simulation checkpoints for future incremental frontend playback.
+- Bounded, audited sales-order tools with prompt-driven LLM trajectory testing.
 
-Agent analysis tools, database-query tools, ERP submission, authentication,
-and production deployment are not included yet.
+Arbitrary database-query tools, ERP submission, authentication, and production
+deployment are not included yet.
 
 ## Runtime architecture
 
@@ -100,6 +101,26 @@ To build a persistent demo database separately:
 ```bash
 uv run python scripts/seed_demo_data.py --database actual_state.db
 ```
+
+## Run the sales Agent demo
+
+The deterministic sales path can generate an offline report without an LLM:
+
+```bash
+uv run python scripts/demo_sales_agent.py --database sales_demo.db --report-dir sales_report
+```
+
+For prompt-driven testing, configure a tool-capable Chat Completions endpoint
+using `.env.example`, then run:
+
+```bash
+uv run python scripts/chat_sales_agent.py --database sales_demo.db --mode exceptions --prompt "How many sales orders are backlogged?"
+```
+
+The terminal shows every tool call. `sales_report/llm_trace.html` and
+`sales_report/llm_trace.json` record the trajectory and API-reported token use.
+See `docs/NSCC_SALES_TEST.md` and `docs/SALES_LLM_EVAL_CASES.md` for cluster and
+sales-only validation steps.
 
 ## Demo data provenance
 
