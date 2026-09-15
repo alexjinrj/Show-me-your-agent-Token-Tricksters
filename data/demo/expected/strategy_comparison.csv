@@ -1,0 +1,12 @@
+metric,baseline,critical_only,demand_aligned,full
+ending_backlog,43,43,0,33
+fulfilment_rate,0.5700,0.5700,1.0000,0.6700
+stockout_count,43,43,43,43
+ending_inventory_quantity,20837.0000,20855.0000,20837.0000,21474.0000
+ending_inventory_value,442360.50,442934.17,442360.50,444089.41
+revenue,281.73,281.73,482.80,318.13
+cost_of_goods_sold,105.58,105.58,180.94,119.23
+gross_profit,176.15,176.15,301.86,198.90
+accounts_payable,354890.00,354890.00,354890.00,354890.00
+ending_cash,-54236.53,-54810.20,-54110.66,-55942.65
+minimum_cash,-54236.53,-54810.20,-54110.66,-55942.65

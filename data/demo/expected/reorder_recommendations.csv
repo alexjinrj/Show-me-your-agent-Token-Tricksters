@@ -1,0 +1,41 @@
+sku,name,current_stock,reorder_point,target_stock,needs_reorder,risk_level,recommended_quantity
+WB-H098,Water Bottle - 30 oz.,1,3,6,true,high,5
+PK-7098,Patch Kit/8 Patches,1,3,6,true,high,5
+TT-M928,Mountain Tire Tube,131,375,750,true,high,619
+TT-R982,Road Tire Tube,505,375,750,false,low,245
+HL-U509-B,"Sport-100 Helmet, Blue",216,3,6,false,low,0
+HL-U509-R,"Sport-100 Helmet, Red",288,3,6,false,low,0
+CA-1098,AWC Logo Cap,288,3,6,false,low,0
+HL-U509,"Sport-100 Helmet, Black",324,3,6,false,low,0
+FE-6654,Fender Set - Mountain,108,3,6,false,low,0
+BC-M005,Mountain Bottle Cage,288,3,6,false,low,0
+TT-T092,Touring Tire Tube,502,375,750,false,low,248
+BC-R205,Road Bottle Cage,324,3,6,false,low,0
+TI-M823,HL Mountain Tire,499,375,750,false,low,251
+CL-9009,Bike Wash - Dissolver,36,3,6,false,low,0
+TI-M602,ML Mountain Tire,669,375,750,false,low,81
+TI-R092,LL Road Tire,488,375,750,false,low,262
+TI-T723,Touring Tire,482,375,750,false,low,268
+TI-R628,ML Road Tire,574,375,750,false,low,176
+HY-1023-70,Hydration Pack - 70 oz.,108,3,6,false,low,0
+TI-M267,LL Mountain Tire,609,375,750,false,low,141
+TI-R982,HL Road Tire,527,375,750,false,low,223
+SJ-0194-X,"Short-Sleeve Classic Jersey, XL",72,3,6,false,low,0
+LJ-0192-M,"Long-Sleeve Logo Jersey, M",180,3,6,false,low,0
+GL-H102-M,"Half-Finger Gloves, M",0,3,6,true,critical,6
+RA-H123,Hitch Rack - 4-Bike,0,3,6,true,critical,6
+GL-H102-S,"Half-Finger Gloves, S",324,3,6,false,low,0
+LJ-0192-L,"Long-Sleeve Logo Jersey, L",216,3,6,false,low,0
+GL-H102-L,"Half-Finger Gloves, L",36,3,6,false,low,0
+SJ-0194-L,"Short-Sleeve Classic Jersey, L",36,3,6,false,low,0
+SH-W890-M,"Women's Mountain Shorts, M",252,3,6,false,low,0
+LJ-0192-S,"Long-Sleeve Logo Jersey, S",144,3,6,false,low,0
+SH-W890-L,"Women's Mountain Shorts, L",288,3,6,false,low,0
+SJ-0194-S,"Short-Sleeve Classic Jersey, S",324,3,6,false,low,0
+SH-W890-S,"Women's Mountain Shorts, S",216,3,6,false,low,0
+SJ-0194-M,"Short-Sleeve Classic Jersey, M",0,3,6,true,critical,6
+LJ-0192-X,"Long-Sleeve Logo Jersey, XL",252,3,6,false,low,0
+SO-R809-L,"Racing Socks, L",288,3,6,false,low,0
+VE-C304-S,"Classic Vest, S",180,3,6,false,low,0
+SO-R809-M,"Racing Socks, M",252,3,6,false,low,0
+VE-C304-M,"Classic Vest, M",216,3,6,false,low,0

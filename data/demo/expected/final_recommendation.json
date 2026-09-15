@@ -1,0 +1,22 @@
+{
+  "recommended_strategy": "demand_aligned",
+  "selection_method": "pareto_dominance",
+  "baseline_run_id": "e1426af8-41c0-5c5e-84ca-bbd239eab37e",
+  "recommended_run_id": "2c6b7d31-5c03-58ef-b0ae-2c192b21791d",
+  "replenishment_quantity": "43",
+  "backlog_reduction": 43,
+  "fulfilment_improvement": "0.4300",
+  "gross_profit_improvement": "125.71",
+  "cash_improvement": "125.87",
+  "actual_state_unchanged": true,
+  "assumptions": [
+    "Open and backlog sales orders represent active demand.",
+    "Open purchase orders represent incoming supply.",
+    "Replenishment arrives on the configured effective day."
+  ],
+  "limitations": [
+    "Stockout count records the first shortage encounter.",
+    "Results depend on the configured simulation horizon.",
+    "The recommendation uses the available demo data."
+  ]
+}
