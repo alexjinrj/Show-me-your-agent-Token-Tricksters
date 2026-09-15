@@ -224,3 +224,18 @@ class AccountingImpactRow(Base):
     object_id: Mapped[str] = mapped_column(String(36))
     simulated_hour: Mapped[Decimal] = mapped_column(Numeric(14, 4))
     lines: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+
+
+class ToolCallAuditRow(Base):
+    __tablename__ = "tool_call_audit"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    agent_case_id: Mapped[str] = mapped_column(String(80))
+    tool_name: Mapped[str] = mapped_column(String(80))
+    argument_hash: Mapped[str] = mapped_column(String(64))
+    result_reference: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    result_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(20))
+    error_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    duration_ms: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

@@ -1,0 +1,23 @@
+#!/bin/bash
+#PBS -N sme-sales-test
+#PBS -q normal
+#PBS -l select=1:ncpus=2:mem=4gb
+#PBS -l walltime=00:20:00
+#PBS -j oe
+
+set -euo pipefail
+cd "$PBS_O_WORKDIR"
+
+PYTHON="$PBS_O_WORKDIR/.conda-sales/bin/python"
+if [ ! -x "$PYTHON" ]; then
+    echo "Missing .conda-sales/bin/python; create the Python 3.12 environment first" >&2
+    exit 1
+fi
+
+"$PYTHON" -m pytest -q
+"$PYTHON" scripts/seed_demo_data.py --database sales_demo.db
+"$PYTHON" scripts/demo_sales_agent.py \
+    --database sales_demo.db \
+    --report-dir sales_report
+
+echo "Visual report: $PBS_O_WORKDIR/sales_report/index.html"

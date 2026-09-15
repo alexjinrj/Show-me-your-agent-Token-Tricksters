@@ -3,11 +3,21 @@
 .pytest_cache/
 .ruff_cache/
 .venv/
+.deps/
+.conda-sales/
+.env
+.env.*
+!.env.example
 *.db
 demo-output/
+sales_report/
 __pycache__/
 
 # Keep implementation notes and agent handoff documents local. Only the
 # repository's root README is published.
 *.md
 !/README.md
+!/docs/NSCC_SALES_TEST.md
+!/docs/SALES_LLM_EVAL_CASES.md
+!/skills/sales-order-exception-analysis/SKILL.md
+!/skills/sales-order-scenario-analysis/SKILL.md
