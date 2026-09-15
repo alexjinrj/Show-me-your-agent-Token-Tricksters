@@ -11,6 +11,7 @@ from business_coordinator.domain.models import ScenarioEvent, SnapshotBundle
 from business_coordinator.persistence.service import ActualStateService, commit_demo_files
 from business_coordinator.simulation import (
     expedited_supplier_delivery,
+    inventory_replenishment,
     run_simulation,
     snapshot_to_state,
     warehouse_capacity_increase,
@@ -114,6 +115,43 @@ def test_order_arrival_uses_shared_inventory_and_resources(
         item.event_type == "customer_invoiced" and item.details.get("amount") == "7.98"
         for item in result.event_trace
     )
+
+
+def test_inventory_replenishment_updates_detached_state_and_accounting(
+    service: ActualStateService, demo_path: Path
+) -> None:
+    bundle = snapshot(service, demo_path)
+    actual_state_before = service.actual_state_hash()
+    result = run_simulation(
+        bundle,
+        [
+            inventory_replenishment(
+                "TT-R982",
+                Decimal("5"),
+                effective_day=Decimal("3"),
+            )
+        ],
+        30,
+        42,
+    )
+
+    replenishment = next(
+        item for item in result.event_trace if item.event_type == "inventory_replenished"
+    )
+    assert replenishment.simulated_hour == Decimal("72")
+    assert replenishment.details["sku"] == "TT-R982"
+    assert replenishment.details["quantity"] == "5"
+
+    impact = next(
+        item for item in result.accounting_impacts if item.event_type == "inventory_replenishment"
+    )
+    assert impact.object_id == replenishment.object_id
+    assert impact.simulated_hour == Decimal("72")
+    assert impact.lines[0].account == "INVENTORY"
+    assert impact.lines[0].debit > 0
+    assert impact.lines[1].account == "CASH"
+    assert impact.lines[1].credit == impact.lines[0].debit
+    assert service.actual_state_hash() == actual_state_before
 
 
 def test_every_accounting_impact_balances(service: ActualStateService, demo_path: Path) -> None:

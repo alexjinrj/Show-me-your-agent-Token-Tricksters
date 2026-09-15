@@ -28,3 +28,17 @@ def expedited_supplier_delivery(
         effective_day=Decimal("0"),
         payload=payload,
     )
+
+
+def inventory_replenishment(
+    sku: str,
+    quantity: Decimal,
+    *,
+    effective_day: Decimal = Decimal("3"),
+) -> ScenarioEvent:
+    """Create a detached what-if replenishment for one inventory SKU."""
+    return ScenarioEvent(
+        event_type="inventory_replenishment",
+        effective_day=effective_day,
+        payload={"sku": sku, "quantity": str(quantity)},
+    )

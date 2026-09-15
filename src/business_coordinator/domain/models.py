@@ -43,6 +43,7 @@ ScenarioEventType = Literal[
     "order_arrival",
     "resource_capacity_changed",
     "supplier_delivery_delayed",
+    "inventory_replenishment",
 ]
 type MetricValue = int | Decimal
 
@@ -243,6 +244,7 @@ class ScenarioEvent(CanonicalModel):
             "order_arrival": {"sku", "quantity"},
             "resource_capacity_changed": {"resource_type", "capacity_delta"},
             "supplier_delivery_delayed": set(),
+            "inventory_replenishment": {"sku", "quantity"},
         }[self.event_type]
         missing = sorted(required - self.payload.keys())
         if missing:
@@ -260,6 +262,16 @@ class ScenarioEvent(CanonicalModel):
             priority = self.payload.get("priority", 0)
             if not isinstance(priority, int) or isinstance(priority, bool) or priority < 0:
                 raise ValueError("order arrival priority must be a nonnegative integer")
+        if self.event_type == "inventory_replenishment":
+            sku = str(self.payload["sku"]).strip()
+            if not sku:
+                raise ValueError("inventory replenishment SKU cannot be empty")
+            try:
+                quantity = Decimal(str(self.payload["quantity"]))
+            except InvalidOperation as exc:
+                raise ValueError("inventory replenishment quantity must be numeric") from exc
+            if not quantity.is_finite() or quantity <= 0:
+                raise ValueError("inventory replenishment quantity must be greater than zero")
         if self.event_type == "resource_capacity_changed":
             delta = self.payload["capacity_delta"]
             if not isinstance(delta, int) or isinstance(delta, bool) or delta == 0:
