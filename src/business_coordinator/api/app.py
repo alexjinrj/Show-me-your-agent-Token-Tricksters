@@ -1,67 +1,60 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
-from pathlib import Path
+from fastapi import FastAPI, HTTPException
 
-from fastapi import FastAPI, Request
+from business_coordinator.agent import (
+    InventoryAgentResponse,
+    build_inventory_agent_response,
+)
+from business_coordinator.inventory.recommendation import (
+    StrategyRecommendation,
+)
+from business_coordinator.tools.inventory import (
+    get_inventory_recommendation,
+)
 
-from business_coordinator.api.context import DemoContext
-from business_coordinator.api.encoding import DecimalJSONResponse
-from business_coordinator.api.settings import Settings, load_settings
-
-
-def get_context(request: Request) -> DemoContext:
-    context = getattr(request.app.state, "context", None)
-    if not isinstance(context, DemoContext):  # pragma: no cover - defensive
-        raise RuntimeError("demo context is not initialized")
-    return context
-
-
-def create_app(settings: Settings | None = None) -> FastAPI:
-    """Application factory for the Business Coordinator demo API."""
-    resolved = settings if settings is not None else load_settings()
-
-    @asynccontextmanager
-    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        app.state.context = DemoContext.bootstrap(resolved)
-        yield
-
-    app = FastAPI(
-        title="Business Coordinator Demo",
-        version="0.1.0",
-        default_response_class=DecimalJSONResponse,
-        lifespan=lifespan,
-    )
-    app.state.settings = resolved
-
-    @app.get("/healthz")
-    def healthz() -> dict[str, str]:
-        return {"status": "ok"}
-
-    from business_coordinator.api.routes_reference import router as reference_router
-
-    app.include_router(reference_router)
-
-    from business_coordinator.api.routes_sessions import router as sessions_router
-
-    app.include_router(sessions_router)
-
-    from business_coordinator.api.routes_simulation import router as simulation_router
-
-    app.include_router(simulation_router)
-
-    from business_coordinator.api.routes_assistant import router as assistant_router
-
-    app.include_router(assistant_router)
-
-    _mount_static(app, resolved.web_dir)
-
-    return app
+app = FastAPI(
+    title="SME Business State Coordinator",
+    version="0.1.0",
+    description=("Deterministic inventory and simulation recommendation API"),
+)
 
 
-def _mount_static(app: FastAPI, web_dir: Path) -> None:
-    from fastapi.staticfiles import StaticFiles
+@app.get(
+    "/api/v1/inventory/recommendation",
+    response_model=StrategyRecommendation,
+    tags=["inventory"],
+)
+def read_inventory_recommendation() -> StrategyRecommendation:
+    try:
+        return get_inventory_recommendation()
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Inventory recommendation is invalid",
+        ) from exc
 
-    if web_dir.is_dir():
-        app.mount("/", StaticFiles(directory=web_dir, html=True), name="web")
+
+@app.get(
+    "/api/v1/agent/inventory-recommendation",
+    response_model=InventoryAgentResponse,
+    tags=["agent"],
+)
+def read_inventory_agent_recommendation() -> InventoryAgentResponse:
+    try:
+        return build_inventory_agent_response()
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Inventory recommendation is invalid",
+        ) from exc
