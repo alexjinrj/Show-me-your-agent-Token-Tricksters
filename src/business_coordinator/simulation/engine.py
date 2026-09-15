@@ -520,6 +520,46 @@ def _apply_capacity_change(
     )
 
 
+def _apply_inventory_replenishment(
+    context: RunContext, event: ScenarioEvent
+) -> Generator[simpy.Event, None, None]:
+    yield context.env.timeout(float(event.effective_day * Decimal("24")))
+    sku = str(event.payload["sku"]).strip()
+    quantity = _decimal(event.payload["quantity"])
+    try:
+        inventory = context.state.related("inventory_position", "sku", sku)
+    except ValueError as exc:
+        raise ValueError(f"unknown inventory replenishment SKU: {sku}") from exc
+    container = context.availability[inventory.record_id]
+    if _decimal(container.level) + quantity > _decimal(container.capacity):
+        raise ValueError(f"inventory capacity exceeded for SKU: {sku}")
+
+    quantity_on_hand = _decimal(inventory.data["quantity_on_hand"]) + quantity
+    quantity_available = _decimal(inventory.data["quantity_available"]) + quantity
+    unit_cost = context.state.item_costs[sku]
+    total_cost = _money(quantity * unit_cost)
+
+    context.state.update(inventory.record_id, "quantity_on_hand", quantity_on_hand)
+    context.state.update(inventory.record_id, "quantity_available", quantity_available)
+    context.journal(
+        "inventory_replenishment",
+        inventory.record_id,
+        "INVENTORY",
+        "CASH",
+        total_cost,
+    )
+    context.record_system(
+        "inventory_replenished",
+        inventory.record_id,
+        "inventory_management",
+        sku=sku,
+        quantity=quantity,
+        unit_cost=unit_cost,
+        total_cost=total_cost,
+    )
+    yield container.put(float(quantity))
+
+
 def _apply_delivery_adjustment(
     context: RunContext, event: ScenarioEvent
 ) -> Generator[simpy.Event, None, None]:
@@ -724,6 +764,8 @@ def run_simulation(
     for event in events:
         if event.event_type == "resource_capacity_changed":
             env.process(_apply_capacity_change(context, event))
+        elif event.event_type == "inventory_replenishment":
+            env.process(_apply_inventory_replenishment(context, event))
         elif event.event_type == "supplier_delivery_delayed":
             env.process(_apply_delivery_adjustment(context, event))
         elif event.event_type == "order_arrival":
