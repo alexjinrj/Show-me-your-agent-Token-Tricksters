@@ -7,15 +7,15 @@ from pathlib import Path
 
 import yaml
 
-from business_coordinator.domain.models import ScenarioEvent, SnapshotBundle
-from business_coordinator.persistence.service import ActualStateService, commit_demo_files
-from business_coordinator.simulation import (
+from core.models import ScenarioEvent, SnapshotBundle
+from core.simulation import (
     expedited_supplier_delivery,
     inventory_replenishment,
     run_simulation,
     snapshot_to_state,
     warehouse_capacity_increase,
 )
+from enterprise_state.service import ActualStateService, commit_demo_files
 
 ORDER = (
     "customers",
@@ -170,7 +170,7 @@ def test_process_parameter_changes_runtime_without_python_business_logic_changes
         effective_day=Decimal("1"),
         payload={"sku": "TT-R982", "quantity": "1", "order_number": "YAML-DRIVEN"},
     )
-    source = Path(__file__).parents[2] / "config" / "processes"
+    source = Path(__file__).parents[2] / "src" / "core" / "process_definitions"
     for name in ("order_to_cash.yaml", "procure_to_pay.yaml"):
         (tmp_path / name).write_text((source / name).read_text(encoding="utf-8"), encoding="utf-8")
     raw = yaml.safe_load((tmp_path / "order_to_cash.yaml").read_text(encoding="utf-8"))

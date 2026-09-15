@@ -6,7 +6,7 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from business_coordinator.domain import (
+from core import (
     BusinessObject,
     Customer,
     ScenarioEvent,

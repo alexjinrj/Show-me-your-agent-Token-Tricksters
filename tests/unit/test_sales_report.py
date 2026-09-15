@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from business_coordinator.sales_agent.report import render_sales_report
+from interfaces.reports.sales_report import render_sales_report
 
 
 def test_report_is_offline_and_escapes_tool_text() -> None:

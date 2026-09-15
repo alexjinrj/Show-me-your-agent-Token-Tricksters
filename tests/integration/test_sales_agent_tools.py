@@ -7,9 +7,9 @@ from pathlib import Path
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from business_coordinator.persistence.models import ToolCallAuditRow
-from business_coordinator.persistence.service import ActualStateService, commit_demo_files
-from business_coordinator.sales_agent import SalesAgentTools
+from enterprise_state.models import ToolCallAuditRow
+from enterprise_state.service import ActualStateService, commit_demo_files
+from tools.sales import SalesAgentTools
 
 ORDER = (
     "customers",

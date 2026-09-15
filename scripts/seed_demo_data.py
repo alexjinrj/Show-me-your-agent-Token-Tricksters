@@ -5,8 +5,8 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
-from business_coordinator.persistence.database import create_schema, make_engine, sqlite_url
-from business_coordinator.persistence.service import ActualStateService, commit_demo_files
+from enterprise_state.database import create_schema, make_engine, sqlite_url
+from enterprise_state.service import ActualStateService, commit_demo_files
 
 ORDER = (
     "customers",
@@ -23,7 +23,7 @@ ORDER = (
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--database", default="actual_state.db")
-    parser.add_argument("--data", default="data/demo/raw")
+    parser.add_argument("--data", default="data/load_data/adventureworks_demo")
     arguments = parser.parse_args()
     engine = make_engine(sqlite_url(arguments.database))
     create_schema(engine)

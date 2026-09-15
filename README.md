@@ -27,37 +27,63 @@ deployment are not included yet.
 ## Runtime architecture
 
 ```text
-CSV files
-   ↓
-SQL Actual State
-   ↓ immutable snapshot
-EnterpriseState
-   ↓ validated activity YAML
-Generic SimPy interpreter
-   ↓
-metrics + events + accounting impacts + daily checkpoints
-   ↓
-FastAPI dashboard
+external files / APIs
+          |
+          v
+load_data adapters and validation
+          |
+          v
+enterprise_state database -- immutable SnapshotBundle --> core simulation
+          ^                                                |
+          |                                                v
+          +---------------- tools <---- Tool Registry <---- Agent runtime
+                                   |
+                                   v
+                          FastAPI --> frontend
 ```
+
+The dependency direction is intentional:
+
+- `core` owns enterprise objects, events, process YAML, and the generic SimPy
+  interpreter. It does not import databases, Agent code, or interfaces.
+- `load_data` adapts heterogeneous sources into validated rows. It does not run
+  simulations or contain business recommendations.
+- `enterprise_state` owns SQL persistence, Actual State, immutable snapshots,
+  simulation records, and audit records.
+- `tools` owns business logic and the callable wrappers for sales, inventory,
+  CRM, and simulation operations.
+- `agent_runtime` selects only registered tools and must not read the database
+  or calculate authoritative numbers directly.
+- `interfaces` and `frontend` expose the system without duplicating business
+  rules.
 
 The two configured processes meet at `inventory_position`. Sales allocation and
 shipping decrease its available, reserved, and on-hand quantities; purchasing
 receipts increase the same object. Python implements generic execution
 primitives, while activity bindings, durations, resources, operations, events,
-financial effects, and transitions are defined under `config/processes/`.
+financial effects, and transitions are defined under `src/core/process_definitions/`.
 
 ## Repository layout
 
 ```text
-config/processes/                 Executable process YAML
-data/demo/raw/                    Deterministic demo CSV fixture and source manifest
+src/core/                         Models, process contracts/YAML, SimPy engine
+src/load_data/                    Modular source inspection and validation
+src/enterprise_state/             SQL models, repositories, Actual State, snapshots
+src/tools/                        Business logic and Agent-callable tool wrappers
+src/agent_runtime/                Shared LLM tool-calling runtime
+src/interfaces/api/               FastAPI transport and response schemas
+src/interfaces/reports/           Offline deterministic report renderers
+data/load_data/adventureworks_demo/  Versioned demo input and provenance manifest
+data/expected/                    Versioned expected demo assertions
+runtime_data/                     Generated databases and outputs; Git ignored
+frontend/                         Browser UI; PR #5 is to be reduced into this boundary
 migrations/                       Alembic database migrations
-scripts/                          Data build, seeding, and visual demo commands
-src/business_coordinator/domain/  Pydantic state and process contracts
-src/business_coordinator/         Ingestion, persistence, simulation, and API code
-tests/                            Unit, persistence, simulation, and API tests
-web/                              No-build browser dashboard
+scripts/                          Data build, seeding, and demo entry points
+tests/                            Unit, integration, simulation, and API tests
 ```
+
+See `docs/ARCHITECTURE_RESTRUCTURE_HANDOFF.md` for the move map, interface
+alignment status, and the three follow-up workstreams.
 
 ## Setup and verification
 
@@ -77,7 +103,7 @@ commands with `PYTHONPATH=src`.
 ## Run the browser dashboard
 
 ```bash
-uv run uvicorn business_coordinator.api.main:app --reload
+uv run uvicorn interfaces.api.main:app --reload
 ```
 
 Open <http://127.0.0.1:8000>.
@@ -107,6 +133,7 @@ uv run python scripts/seed_demo_data.py --database actual_state.db
 The deterministic sales path can generate an offline report without an LLM:
 
 ```bash
+uv run python scripts/seed_demo_data.py --database sales_demo.db
 uv run python scripts/demo_sales_agent.py --database sales_demo.db --report-dir sales_report
 ```
 
@@ -128,7 +155,7 @@ The fixture is based on Microsoft AdventureWorks OLTP CSV data. Singapore/SGD
 rebasing, process statuses, resource capacity, opening balances, and embedded
 exceptions are explicitly labelled `derived` or `synthetic`. Source URLs,
 transformations, row counts, and hashes are retained in
-`data/demo/raw/SOURCE_MANIFEST.json`.
+`data/load_data/adventureworks_demo/SOURCE_MANIFEST.json`.
 
 The current fixture contains 500 sales orders, 50 purchase orders, 40 SKUs, 486
 customers, 8 suppliers, inventory positions, resource capacity, and opening

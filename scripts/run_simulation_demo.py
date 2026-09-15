@@ -9,15 +9,15 @@ from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 
-from business_coordinator.domain.models import ScenarioEvent, SimulationRunResult
-from business_coordinator.persistence.database import create_schema, make_engine
-from business_coordinator.persistence.service import ActualStateService, commit_demo_files
-from business_coordinator.simulation import (
-    SimulationService,
+from core.models import ScenarioEvent, SimulationRunResult
+from core.simulation import (
     expedited_supplier_delivery,
     warehouse_capacity_increase,
 )
-from business_coordinator.simulation.process_runtime import load_runtime_process_catalog
+from core.simulation.process_runtime import load_runtime_process_catalog
+from enterprise_state.database import create_schema, make_engine
+from enterprise_state.service import ActualStateService, commit_demo_files
+from tools.simulation.service import SimulationService
 
 INGESTION_ORDER = (
     "customers",
@@ -190,7 +190,7 @@ code {{ overflow-wrap: anywhere; }}
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the Token Tricksters visual simulation demo")
-    parser.add_argument("--data", type=Path, default=Path("data/demo/raw"))
+    parser.add_argument("--data", type=Path, default=Path("data/load_data/adventureworks_demo"))
     parser.add_argument("--output", type=Path, default=Path("demo-output/simulation-demo.html"))
     parser.add_argument(
         "--open", action="store_true", help="open the report in the default browser"

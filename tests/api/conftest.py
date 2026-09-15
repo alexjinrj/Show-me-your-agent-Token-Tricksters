@@ -6,10 +6,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from business_coordinator.api.app import create_app
-from business_coordinator.api.settings import Settings
+from interfaces.api.app import create_app
+from interfaces.api.settings import Settings
 
-DEMO_DATA_DIR = Path(__file__).parents[2] / "data/demo/raw"
+DEMO_DATA_DIR = Path(__file__).parents[2] / "data/load_data/adventureworks_demo"
 
 
 @pytest.fixture

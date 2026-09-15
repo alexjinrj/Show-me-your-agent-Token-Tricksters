@@ -4,11 +4,11 @@
 
 ## 1. 登录并确认项目目录
 
-按你获批的集群选择登录入口；NUS 用户的 ASPIRE2A 与 ASPIRE2A+ 主机名不同，校外通常需要先连接 NUS VPN。登录后切到**含有 `pyproject.toml`、`scripts/`、`data/demo/raw/` 的项目根目录**。上传时不要只传 `src/`；演示数据和脚本也必须在同一项目中。
+按你获批的集群选择登录入口；NUS 用户的 ASPIRE2A 与 ASPIRE2A+ 主机名不同，校外通常需要先连接 NUS VPN。登录后切到**含有 `pyproject.toml`、`scripts/`、`data/load_data/adventureworks_demo/` 的项目根目录**。上传时不要只传 `src/`；演示数据和脚本也必须在同一项目中。
 
 ```bash
 cd /path/to/Show-me-your-agent-Token-Tricksters-main
-ls pyproject.toml scripts/nscc_sales_test.pbs data/demo/raw/sales_orders.csv
+ls pyproject.toml scripts/nscc_sales_test.pbs data/load_data/adventureworks_demo/sales_orders.csv
 ```
 
 官方入口：[ASPIRE2A FAQ](https://help.nscc.sg/aspire2a/faqs/)；[ASPIRE2A+ FAQ](https://help.nscc.sg/aspire2aplus/faqs/)。
@@ -59,7 +59,7 @@ scp USER@LOGIN_HOST:/absolute/path/to/project/sales_report/index.html .
 
 ## 5. 用 LLM 输入问题并查看 Agent 轨迹
 
-上传新增的 `scripts/chat_sales_agent.py` 和 `src/business_coordinator/sales_agent/llm_runner.py`，保留已生成的 `sales_demo.db`。此入口直接调用现有销售工具，不需要额外安装 LLM SDK。你需要一个支持 Chat Completions 函数调用的 API、模型名和密钥；在 NSCC 可访问该 API 的计算节点上运行。不要把密钥写进脚本、PBS 文件或版本库。
+上传新增的 `scripts/chat_sales_agent.py` 和 `src/agent_runtime/llm_runner.py`，保留已生成的 `sales_demo.db`。此入口直接调用现有销售工具，不需要额外安装 LLM SDK。你需要一个支持 Chat Completions 函数调用的 API、模型名和密钥；在 NSCC 可访问该 API 的计算节点上运行。不要把密钥写进脚本、PBS 文件或版本库。
 
 先在计算节点申请交互任务（把 Project ID 改成自己的）：
 

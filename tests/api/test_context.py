@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from business_coordinator.api.context import DemoContext
-from business_coordinator.api.settings import Settings
+from interfaces.api.context import DemoContext
+from interfaces.api.settings import Settings
 
 
 def test_bootstrap_seeds_expected_counts(settings: Settings) -> None:

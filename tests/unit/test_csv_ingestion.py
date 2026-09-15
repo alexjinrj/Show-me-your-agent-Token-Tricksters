@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from business_coordinator.ingestion.csv_ingestion import inspect_csv, parse_and_validate
+from load_data.csv_ingestion import inspect_csv, parse_and_validate
 
 
 def test_inspection_detects_fixed_mapping(demo_path: Path) -> None:
