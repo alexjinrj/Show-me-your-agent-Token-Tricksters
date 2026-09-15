@@ -1,0 +1,117 @@
+openapi: 3.1.0
+info:
+  title: HomeNest CRM Integration Contract
+  version: 0.2.0
+  description: >-
+    Stable frontend API contract. Read endpoints fall back to the bundled Olist
+    demo until TEAM_API_BASE_URL points to the team FastAPI service. Proposed
+    actions require human review and must not execute refunds, messages or
+    inventory changes automatically.
+paths:
+  /api/integration/status:
+    get:
+      summary: Check whether the team FastAPI service is reachable
+      responses:
+        "200":
+          description: Integration state
+  /api/crm/summary:
+    get:
+      summary: Read CRM command-centre metrics
+      responses:
+        "200":
+          description: CRM summary
+  /api/crm/customers:
+    get:
+      summary: List scored customers
+      responses:
+        "200":
+          description: Customer list
+  /api/crm/customers/{customer_id}:
+    get:
+      summary: Read Customer 360 evidence
+      parameters:
+        - in: path
+          name: customer_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Customer 360
+        "404":
+          description: Customer not found
+  /api/crm/complaints:
+    get:
+      summary: List complaints by service priority
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 24
+      responses:
+        "200":
+          description: Prioritised complaint list
+  /api/crm/complaints/{complaint_id}:
+    get:
+      summary: Read one complaint and its priority evidence
+      parameters:
+        - in: path
+          name: complaint_id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Complaint details
+        "404":
+          description: Complaint not found
+  /api/crm/proposals:
+    post:
+      summary: Submit a draft resolution for human review
+      description: >-
+        Reserved write endpoint. A successful response records a proposal only;
+        it does not send a message, issue a refund or change inventory.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [complaintId, resolutionId]
+              properties:
+                complaintId:
+                  type: string
+                resolutionId:
+                  type: string
+                  enum: [refund, reship, credit, monitor]
+                replyDraft:
+                  type: string
+                internalDraft:
+                  type: string
+      responses:
+        "201":
+          description: Proposal stored for review
+        "503":
+          description: Team backend has not been configured
+  /api/agent:
+    post:
+      summary: Ask the CRM investigation agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [question]
+              properties:
+                question:
+                  type: string
+                  maxLength: 800
+      responses:
+        "200":
+          description: Grounded response and visible tool trace
