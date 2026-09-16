@@ -30,8 +30,8 @@ DEFAULT_CONTAINER_NAME = "app"
 
 
 def _repo_root() -> Path:
-    # config.py lives at src/deploy/aws_lightsail/config.py -> repo root is 3 up.
-    return Path(__file__).resolve().parents[3]
+    # config.py lives at deploy/aws_lightsail/config.py -> repo root is 2 up.
+    return Path(__file__).resolve().parents[2]
 
 
 def _env(name: str, default: str) -> str:

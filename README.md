@@ -77,6 +77,7 @@ data/load_data/adventureworks_demo/  Versioned demo input and provenance manifes
 data/expected/                    Versioned expected demo assertions
 runtime_data/                     Generated databases and outputs; Git ignored
 frontend/                         Browser UI; PR #5 is to be reduced into this boundary
+deploy/aws_lightsail/             DevOps automation to ship the image to AWS Lightsail
 migrations/                       Alembic database migrations
 scripts/                          Data build, seeding, and demo entry points
 tests/                            Unit, integration, simulation, and API tests

@@ -5,6 +5,10 @@ Deploy the app (FastAPI API + static SPA, built as one Docker image) to an
 know anything about Lightsail — build your frontend into `frontend/`, then run
 the deploy.
 
+This module lives at the repository root (`deploy/aws_lightsail/`), deliberately
+outside `src/`: it is DevOps automation, not part of the packaged business
+library. Run all commands below from the repository root.
+
 ## What it does
 
 1. Builds the Docker image from the repository `Dockerfile`.

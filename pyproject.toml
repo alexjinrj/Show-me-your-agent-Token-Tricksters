@@ -35,11 +35,13 @@ packages = [
   "src/tools",
   "src/agent_runtime",
   "src/interfaces",
-  "src/deploy",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# `src` holds the packaged business library; `.` (repo root) makes the
+# non-packaged `deploy` DevOps module importable during tests.
+pythonpath = ["src", "."]
 
 [tool.ruff]
 line-length = 100
@@ -51,7 +53,7 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["src"]
+files = ["src", "deploy"]
 
 [[tool.mypy.overrides]]
 module = ["boto3", "boto3.*", "botocore", "botocore.*"]
