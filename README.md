@@ -149,6 +149,19 @@ The terminal shows every tool call. `sales_report/llm_trace.html` and
 See `docs/NSCC_SALES_TEST.md` and `docs/SALES_LLM_EVAL_CASES.md` for cluster and
 sales-only validation steps.
 
+## Run with OpenClaw
+
+The shared Agent runtime exposes the bounded, audited business tools to
+OpenClaw through a local MCP server:
+
+```bash
+uv run python -m interfaces.mcp.server
+```
+
+See `docs/OPENCLAW_INTEGRATION.md` for OpenClaw registration, probing, skill
+loading, and the security boundary. OpenClaw is a runtime client; authoritative
+calculations remain in deterministic Python tools.
+
 ## Demo data provenance
 
 The fixture is based on Microsoft AdventureWorks OLTP CSV data. Singapore/SGD
