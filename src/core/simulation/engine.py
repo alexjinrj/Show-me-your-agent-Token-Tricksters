@@ -15,6 +15,7 @@ import simpy
 from core.models import (
     AccountingImpact,
     AccountingLine,
+    EnterpriseState,
     ProcessId,
     ScenarioEvent,
     SimulationCheckpoint,
@@ -37,7 +38,11 @@ from core.simulation.process_runtime import (
     RuntimeProcessCatalog,
     load_runtime_process_catalog,
 )
-from core.simulation.state import SimulationState, snapshot_to_state
+from core.simulation.state import (
+    SimulationState,
+    enterprise_state_to_simulation_state,
+    snapshot_to_state,
+)
 
 MONEY = Decimal("0.01")
 NUMBER = Decimal("0.0001")
@@ -709,7 +714,7 @@ def _result_metrics(context: RunContext) -> SimulationMetrics:
 
 
 def run_simulation(
-    snapshot: SnapshotBundle,
+    snapshot: SnapshotBundle | EnterpriseState,
     scenario_events: list[ScenarioEvent],
     horizon_days: int,
     random_seed: int,
@@ -719,7 +724,16 @@ def run_simulation(
     """Interpret validated activity YAML against a detached EnterpriseState."""
     if horizon_days <= 0:
         raise ValueError("horizon_days must be greater than zero")
-    state = snapshot_to_state(snapshot)
+    if isinstance(snapshot, EnterpriseState):
+        if snapshot.as_of_time is None:
+            raise ValueError("EnterpriseState must include as_of_time for simulation")
+        state = enterprise_state_to_simulation_state(snapshot)
+        snapshot_time = snapshot.as_of_time
+        snapshot_hash = _hash(snapshot.snapshot().model_dump(mode="json"))
+    else:
+        state = snapshot_to_state(snapshot)
+        snapshot_time = snapshot.manifest.as_of_time
+        snapshot_hash = snapshot.manifest.content_hash
     config = load_runtime_process_catalog(config_dir)
     events = sorted(
         scenario_events,
@@ -746,7 +760,7 @@ def run_simulation(
         horizon_hours=horizon_hours,
         pools=pools,
         availability=availability,
-        snapshot_time=snapshot.manifest.as_of_time,
+        snapshot_time=snapshot_time,
         minimum_cash=state.balance("CASH"),
     )
 
@@ -792,7 +806,7 @@ def run_simulation(
         process_id: definition.version for process_id, definition in config.definitions.items()
     }
     deterministic = {
-        "snapshot_hash": snapshot.manifest.content_hash,
+        "snapshot_hash": snapshot_hash,
         "process_definition_versions": versions,
         "process_definition_hash": config.content_hash,
         "scenario_event_hash": scenario_hash,
@@ -807,7 +821,7 @@ def run_simulation(
     run_id = str(uuid.uuid5(RUN_NAMESPACE, result_hash))
     return SimulationRunResult(
         simulation_run_id=run_id,
-        snapshot_hash=snapshot.manifest.content_hash,
+        snapshot_hash=snapshot_hash,
         process_definition_version=config.version_label,
         process_definition_versions=versions,
         process_definition_hash=config.content_hash,

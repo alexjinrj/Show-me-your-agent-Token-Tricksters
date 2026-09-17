@@ -13,11 +13,15 @@ from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
 from core.models import (
+    EnterpriseState,
     ProcessId,
     SnapshotBundle,
     SnapshotManifest,
     SnapshotRecord,
+    StateRecord,
 )
+from core.simulation.process_runtime import load_runtime_process_catalog
+from core.simulation.state import snapshot_to_state
 from enterprise_state.models import (
     BalanceRow,
     BusinessEventRow,
@@ -359,6 +363,79 @@ class ActualStateService:
 
     def actual_state_hash(self) -> str:
         return _hash(self._snapshot_content())
+
+    def get_enterprise_state(
+        self,
+        as_of_time: datetime,
+        company_id: str = "SG-SME-001",
+    ) -> EnterpriseState:
+        """Build the canonical state document without persisting a separate snapshot."""
+
+        if as_of_time.tzinfo is None:
+            raise ValueError("as_of_time must be timezone-aware")
+        normalized = _from_storage_time(_to_storage_time(as_of_time))
+        serialized = self._snapshot_content(normalized)
+        content_hash = _hash(serialized)
+        bundle = SnapshotBundle(
+            manifest=SnapshotManifest(
+                snapshot_id=_id(
+                    "enterprise-state", company_id, normalized.isoformat(), content_hash
+                ),
+                company_id=company_id,
+                as_of_time=normalized,
+                created_at=normalized,
+                source_event_watermark=None,
+                process_definition_versions={"order_to_cash": 2, "procure_to_pay": 2},
+                content_hash=content_hash,
+            ),
+            records=tuple(
+                SnapshotRecord(
+                    record_type=record["record_type"],
+                    record_key=record["record_key"],
+                    data=record["data"],
+                )
+                for record in serialized
+            ),
+        )
+        simulation_state = snapshot_to_state(bundle)
+        actual_records = {
+            record_id: record.model_copy(update={"state_type": "actual"}, deep=True)
+            for record_id, record in simulation_state.records.items()
+        }
+        with Session(self.engine) as session:
+            event_rows = session.scalars(
+                select(BusinessEventRow)
+                .where(BusinessEventRow.business_timestamp <= _to_storage_time(normalized))
+                .order_by(BusinessEventRow.business_timestamp, BusinessEventRow.id)
+            ).all()
+            for row in event_rows:
+                actual_records[row.id] = StateRecord(
+                    record_id=row.id,
+                    record_kind="event",
+                    record_type=row.event_type,
+                    project_id=company_id,
+                    data={
+                        "occurred_at": _from_storage_time(row.business_timestamp),
+                        "source_system": row.source_system,
+                        "source_record_id": row.source_record_id,
+                        "mapping_version": row.mapping_version,
+                        "data_origin": row.data_origin,
+                        "semantic_status": "baseline",
+                        "payload": json.loads(_canonical_json(row.payload)),
+                    },
+                    references=(row.object_id,),
+                    state_type="actual",
+                )
+        process_catalog = load_runtime_process_catalog()
+        return EnterpriseState(
+            scope_id=bundle.manifest.snapshot_id,
+            project_id=company_id,
+            state_version=0,
+            as_of_time=normalized,
+            process_definition_hash=process_catalog.content_hash,
+            records=actual_records,
+            state_type="actual",
+        )
 
     def _snapshot_content(self, as_of_time: datetime | None = None) -> list[dict[str, Any]]:
         lineage_fields = (

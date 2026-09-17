@@ -34,11 +34,20 @@ from core.models import (
     Supplier,
     UUIDString,
 )
+from core.object_schema import (
+    ObjectAttributeDefinition,
+    ObjectDefinition,
+    ObjectSchemaError,
+    ObjectSchemaRegistry,
+    load_object_schema_registry,
+    validate_process_object_contract,
+)
 from core.processes import (
     ConditionDefinition,
     CycleMetricDefinition,
     DurationDefinition,
     EventOutputDefinition,
+    ExecutionInputDefinition,
     FinancialEffectDefinition,
     ObjectBindingDefinition,
     ProcessDefinition,
@@ -61,6 +70,7 @@ __all__ = [
     "Customer",
     "DataOrigin",
     "DurationDefinition",
+    "ExecutionInputDefinition",
     "EnterpriseState",
     "EventOutputDefinition",
     "FinancialEffectDefinition",
@@ -69,6 +79,10 @@ __all__ = [
     "Lineage",
     "MetricValue",
     "ObjectType",
+    "ObjectAttributeDefinition",
+    "ObjectDefinition",
+    "ObjectSchemaError",
+    "ObjectSchemaRegistry",
     "ObjectBindingDefinition",
     "ProcessDefinition",
     "ProcessId",
@@ -96,4 +110,6 @@ __all__ = [
     "canonical_data",
     "canonical_hash",
     "canonical_json",
+    "load_object_schema_registry",
+    "validate_process_object_contract",
 ]

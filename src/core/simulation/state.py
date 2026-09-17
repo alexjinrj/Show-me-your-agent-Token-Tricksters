@@ -182,6 +182,7 @@ class SimulationState:
             state_version=self.state_version,
             simulated_hour=simulated_hour,
             records=dict(self.records),
+            state_type="simulated",
         )
 
     def state_hash(self, simulated_hour: Decimal) -> str:
@@ -315,5 +316,23 @@ def snapshot_to_state(snapshot: SnapshotBundle) -> SimulationState:
     missing_resources = sorted(required_resources - state.resource_capacities.keys())
     if missing_resources:
         raise ValueError(f"snapshot is missing resource capacity: {missing_resources}")
+    state.drain_checkpoint_changes()
+    return state
+
+
+def enterprise_state_to_simulation_state(source: EnterpriseState) -> SimulationState:
+    """Detach a canonical EnterpriseState without involving persisted snapshot tables."""
+
+    snapshot = source.snapshot(include_history=False)
+    records = {
+        record_id: record.model_copy(update={"state_type": "simulated"}, deep=True)
+        for record_id, record in snapshot.records.items()
+    }
+    state = SimulationState(
+        scope_id=snapshot.scope_id,
+        project_id=snapshot.project_id,
+        records=records,
+        state_version=snapshot.state_version,
+    )
     state.drain_checkpoint_changes()
     return state
