@@ -19,7 +19,9 @@ back to Actual State.
 - A FastAPI application and browser dashboard for running and inspecting the
   demo.
 - Daily simulation checkpoints for future incremental frontend playback.
-- Bounded, audited sales-order tools with prompt-driven LLM trajectory testing.
+- Bounded, audited sales, inventory and CRM tools with prompt-driven LLM trajectory testing.
+- CRM customer-value/risk scoring, complaint triage, service-recovery comparison,
+  persisted proposals and explicit human approval records.
 
 Arbitrary database-query tools, ERP submission, authentication, and production
 deployment are not included yet.
@@ -112,6 +114,13 @@ The application seeds an idempotent local SQLite database, loads the validated
 process catalog, and runs baseline and alternative simulations without changing
 Actual State.
 
+The English dashboard is organised by business responsibility: **Executive
+Overview, Sales, Inventory, Accounting, Operations, Customer Relationships,
+and AI Coordinator**. Sales, Inventory, Accounting and Operations read the same
+immutable snapshot through `/api/v1/modules/*`; CRM uses its versioned Olist
+demo contract. Process design, scenario simulation, comparison and trace
+playback are grouped under Operations.
+
 ## Run the standalone demo
 
 ```bash
@@ -148,6 +157,34 @@ The terminal shows every tool call. `sales_report/llm_trace.html` and
 `sales_report/llm_trace.json` record the trajectory and API-reported token use.
 See `docs/NSCC_SALES_TEST.md` and `docs/SALES_LLM_EVAL_CASES.md` for cluster and
 sales-only validation steps.
+
+## Run with OpenClaw
+
+The web assistant now runs the complete Gateway handoff chain: request context,
+OpenClaw reasoning, 23 bounded sales/inventory/CRM tools, persisted simulation
+evidence, audit, and final response. Configure `BC_OPENCLAW_URL`,
+`BC_OPENCLAW_TOKEN` and `BC_OPENCLAW_AGENT_ID` in the backend environment.
+Without configuration, the assistant reports `disabled` and executes no tools.
+
+See [runtime setup and handoff](docs/AGENT_RUNTIME_HANDOFF.md) for the dedicated
+Gateway agent configuration, API contracts, live smoke test and deployment limits.
+
+See [CRM runtime integration](docs/CRM_RUNTIME_INTEGRATION.md) for the Olist
+provenance boundary, CRM endpoints, shared Agent tools and human-review workflow.
+
+接入已有 AWS Lightsail OpenClaw 实例的中文步骤见
+[Lightsail 接入说明](docs/AWS_LIGHTSAIL_OPENCLAW_接入说明.md)，包括本地 SSH 联调、
+同实例部署、凭证轮换与验收。
+
+The same tools remain available through a standalone local MCP server:
+
+```bash
+uv run python -m interfaces.mcp.server
+```
+
+See `docs/OPENCLAW_INTEGRATION.md` for OpenClaw registration, probing, skill
+loading, and the security boundary. OpenClaw is a runtime client; authoritative
+calculations remain in deterministic Python tools.
 
 ## Demo data provenance
 

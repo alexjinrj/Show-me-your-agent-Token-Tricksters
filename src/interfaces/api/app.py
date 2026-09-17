@@ -25,6 +25,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.context = DemoContext.bootstrap(resolved)
+        from interfaces.runtime import build_runtime
+
+        app.state.runtime = build_runtime(app.state.context)
         yield
 
     app = FastAPI(
@@ -54,6 +57,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from interfaces.api.routes_assistant import router as assistant_router
 
     app.include_router(assistant_router)
+
+    from interfaces.api.routes_crm import legacy_router as legacy_crm_router
+    from interfaces.api.routes_crm import router as crm_router
+
+    app.include_router(crm_router)
+    app.include_router(legacy_crm_router)
+
+    from interfaces.api.routes_modules import router as modules_router
+
+    app.include_router(modules_router)
 
     _mount_static(app, resolved.web_dir)
 

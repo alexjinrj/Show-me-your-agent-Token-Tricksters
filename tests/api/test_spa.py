@@ -42,6 +42,10 @@ def test_spa_references_endpoints_and_controls() -> None:
     assert "toISOString" in app_js
     # Task 10: assistant panel posts to the stub endpoint.
     assert "/api/assistant" in app_js
+    assert "/api/v1/crm/complaints" in app_js
+    assert "/api/v1/crm/proposals" in app_js
+    for module in ("overview", "sales", "inventory", "accounting", "operations"):
+        assert f'/api/v1/modules/{module}' in app_js
 
 
 def test_index_has_playback_and_chat_panels() -> None:
@@ -50,3 +54,9 @@ def test_index_has_playback_and_chat_panels() -> None:
         assert control_id in index
     assert 'id="chat-form"' in index
     assert 'id="comparison-table"' in index
+    assert 'id="crm-panel"' in index
+    assert 'id="crm-proposal-form"' in index
+    for module in ("overview", "sales", "inventory", "accounting", "operations", "crm"):
+        assert f'data-page="{module}"' in index
+    assert "Executive Overview" in index
+    assert "Customer Relationships" in index
