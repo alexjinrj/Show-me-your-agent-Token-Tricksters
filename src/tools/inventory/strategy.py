@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict
@@ -126,6 +127,7 @@ def run_inventory_strategy_analysis(
     horizon_days: int = 30,
     random_seed: int = 42,
     effective_day: Decimal = Decimal("3"),
+    runner: Callable[[str, list[ScenarioEvent]], SimulationRunResult] | None = None,
 ) -> InventoryStrategyToolResult:
     """
     Run deterministic inventory strategies
@@ -179,7 +181,9 @@ def run_inventory_strategy_analysis(
         str,
         SimulationRunResult,
     ] = {
-        strategy: run_simulation(
+        strategy: runner(strategy, events)
+        if runner
+        else run_simulation(
             snapshot,
             events,
             horizon_days,

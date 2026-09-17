@@ -297,3 +297,10 @@ summary {
     padding: 0.75rem;
   }
 }
+/* Runtime evidence stays readable without widening the chat panel. */
+.chat-evidence pre {
+  max-height: 20rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

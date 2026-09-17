@@ -3,21 +3,22 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any, Literal
+from uuid import uuid4
 
 from mcp.server import MCPServer
 
-from agent_runtime import ToolRegistry, build_sales_tool_registry
+from agent_runtime import ToolRegistry
+from agent_runtime.service import RuntimeService
 from interfaces.api.context import DemoContext
 from interfaces.api.settings import load_settings
-from tools.sales import SalesAgentTools
-
-AGENT_CASE_ID = "openclaw-mcp"
+from interfaces.runtime import build_runtime
 
 
 @dataclass(frozen=True)
 class CoordinatorRuntime:
     context: DemoContext
     registry: ToolRegistry
+    service: RuntimeService
 
 
 @lru_cache(maxsize=1)
@@ -25,17 +26,18 @@ def get_runtime() -> CoordinatorRuntime:
     """Build the composition root lazily so MCP tool discovery stays side-effect light."""
 
     context = DemoContext.bootstrap(load_settings())
-    registry = build_sales_tool_registry(SalesAgentTools(context.engine))
-    return CoordinatorRuntime(context=context, registry=registry)
+    service = build_runtime(context, use_gateway=False)
+    return CoordinatorRuntime(context=context, registry=service.executor.registry, service=service)
 
 
 def _invoke(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     return (
         get_runtime()
-        .registry.call(
+        .service.executor.execute(
             name,
             arguments,
-            agent_case_id=AGENT_CASE_ID,
+            snapshot_id=get_runtime().context.base_snapshot_id,
+            run_id=str(uuid4()),
         )
         .model_dump(mode="json", exclude_none=True)
     )
@@ -232,6 +234,42 @@ def compare_simulation_runs(
         {
             "baseline_run_id": baseline_run_id,
             "alternative_run_id": alternative_run_id,
+        },
+    )
+
+
+@mcp.tool()
+def list_inventory_reorder_candidates(
+    snapshot_id: str,
+    risk_level: Literal["all", "critical", "high", "medium", "low"] = "all",
+    top_n: int = 10,
+) -> dict[str, Any]:
+    """List actual inventory reorder candidates from the scoped snapshot."""
+    return _invoke(
+        "list_inventory_reorder_candidates",
+        {
+            "snapshot_id": snapshot_id,
+            "risk_level": risk_level,
+            "top_n": top_n,
+        },
+    )
+
+
+@mcp.tool()
+def compare_inventory_replenishment_strategies(
+    snapshot_id: str,
+    horizon_days: int = 30,
+    random_seed: int = 42,
+    effective_day: float = 3,
+) -> dict[str, Any]:
+    """Compare four deterministic inventory strategies and persist their evidence."""
+    return _invoke(
+        "compare_inventory_replenishment_strategies",
+        {
+            "snapshot_id": snapshot_id,
+            "horizon_days": horizon_days,
+            "random_seed": random_seed,
+            "effective_day": effective_day,
         },
     )
 

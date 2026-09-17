@@ -25,6 +25,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.context = DemoContext.bootstrap(resolved)
+        from interfaces.runtime import build_runtime
+
+        app.state.runtime = build_runtime(app.state.context)
         yield
 
     app = FastAPI(

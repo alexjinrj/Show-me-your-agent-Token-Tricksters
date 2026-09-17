@@ -1,14 +1,19 @@
 # OpenClaw Agent Runtime Integration
 
-OpenClaw connects to this project through a local Model Context Protocol (MCP)
+The web application now uses the Gateway client-function handoff. See
+[unified runtime handoff](AGENT_RUNTIME_HANDOFF.md) for the full web chain and
+setup. This document covers the alternative standalone MCP client path; do not
+attach it to the web agent as a duplicate business-tool route.
+
+Standalone OpenClaw connects through a local Model Context Protocol (MCP)
 server. The transport is intentionally outside the business layers:
 
 ```text
-OpenClaw -> interfaces.mcp -> agent_runtime.ToolRegistry -> tools
+OpenClaw -> interfaces.mcp -> ToolExecutor -> ToolRegistry -> tools
 ```
 
-The MCP process exposes one context-discovery tool and the eleven bounded,
-audited sales tools. It does not expose SQL, filesystem, shell, or writable
+The MCP process exposes one context-discovery tool, eleven audited sales tools
+and two snapshot-backed inventory tools. It does not expose SQL, filesystem, shell, or writable
 Actual State access. Scenario tools write only isolated simulation-session and
 audit records.
 
@@ -55,8 +60,8 @@ openclaw mcp doctor sme-business-coordinator --probe
 openclaw mcp tools sme-business-coordinator
 ```
 
-The probe should list `get_business_context`, five Actual State diagnostics,
-and six isolated simulation tools. Start each business conversation with
+The probe should list `get_business_context`, eleven sales tools and two inventory
+tools. Start each business conversation with
 `get_business_context`; it returns the current base snapshot ID.
 
 ## Skill installation

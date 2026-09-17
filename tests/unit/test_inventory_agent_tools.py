@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -6,6 +7,8 @@ import pytest
 
 import tools.inventory.tools as inventory_tools_module
 from core.models import (
+    ScenarioEvent,
+    SimulationRunResult,
     SnapshotBundle,
     SnapshotManifest,
     SnapshotRecord,
@@ -154,7 +157,9 @@ def test_compares_replenishment_strategies(
         horizon_days: int,
         random_seed: int,
         effective_day: Decimal,
+        runner: Callable[[str, list[ScenarioEvent]], SimulationRunResult],
     ) -> FakeStrategyResult:
+        assert callable(runner)
         observed.update(
             {
                 "snapshot": received_snapshot,

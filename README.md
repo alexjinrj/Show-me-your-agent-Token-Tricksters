@@ -151,8 +151,20 @@ sales-only validation steps.
 
 ## Run with OpenClaw
 
-The shared Agent runtime exposes the bounded, audited business tools to
-OpenClaw through a local MCP server:
+The web assistant now runs the complete Gateway handoff chain: request context,
+OpenClaw reasoning, 13 bounded sales/inventory tools, persisted simulation
+evidence, audit, and final response. Configure `BC_OPENCLAW_URL`,
+`BC_OPENCLAW_TOKEN` and `BC_OPENCLAW_AGENT_ID` in the backend environment.
+Without configuration, the assistant reports `disabled` and executes no tools.
+
+See [runtime setup and handoff](docs/AGENT_RUNTIME_HANDOFF.md) for the dedicated
+Gateway agent configuration, API contracts, live smoke test and deployment limits.
+
+接入已有 AWS Lightsail OpenClaw 实例的中文步骤见
+[Lightsail 接入说明](docs/AWS_LIGHTSAIL_OPENCLAW_接入说明.md)，包括本地 SSH 联调、
+同实例部署、凭证轮换与验收。
+
+The same tools remain available through a standalone local MCP server:
 
 ```bash
 uv run python -m interfaces.mcp.server

@@ -226,6 +226,15 @@ class AccountingImpactRow(Base):
     lines: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
 
 
+class AgentRunRow(Base):
+    __tablename__ = "agent_runs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    conversation_id: Mapped[str] = mapped_column(String(36), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
 class ToolCallAuditRow(Base):
     __tablename__ = "tool_call_audit"
 

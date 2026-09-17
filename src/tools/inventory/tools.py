@@ -4,6 +4,7 @@ from typing import Any
 
 from sqlalchemy import Engine
 
+from core.models import ScenarioEvent, SimulationRunResult
 from enterprise_state.service import ActualStateService
 from tools.inventory.contracts import (
     INVENTORY_TOOL_INPUTS,
@@ -19,6 +20,7 @@ from tools.inventory.snapshot_adapter import (
 from tools.inventory.strategy import (
     run_inventory_strategy_analysis,
 )
+from tools.simulation.service import SimulationService
 
 RISK_ORDER = {
     "critical": 0,
@@ -33,6 +35,7 @@ class InventoryAgentTools:
 
     def __init__(self, engine: Engine) -> None:
         self.actual = ActualStateService(engine)
+        self.simulations = SimulationService(engine)
 
     @staticmethod
     def schemas() -> dict[str, dict[str, Any]]:
@@ -105,11 +108,23 @@ class InventoryAgentTools:
     ) -> dict[str, Any]:
         snapshot = self.actual.load_snapshot(request.snapshot_id)
 
+        def persist(strategy: str, events: list[ScenarioEvent]) -> SimulationRunResult:
+            session = self.simulations.create_session(request.snapshot_id, f"Inventory: {strategy}")
+            for event in events:
+                self.simulations.add_event(session.simulation_session_id, event)
+            return self.simulations.run_session(
+                session.simulation_session_id,
+                snapshot,
+                horizon_days=request.horizon_days,
+                random_seed=request.random_seed,
+            )
+
         result = run_inventory_strategy_analysis(
             snapshot,
             horizon_days=request.horizon_days,
             random_seed=request.random_seed,
             effective_day=request.effective_day,
+            runner=persist,
         )
 
         return {

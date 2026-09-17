@@ -5,6 +5,8 @@
 
 const state = {
   sessionId: null,
+  conversationId: null,
+  chatBusy: false,
   events: [],
   processes: [],
   lastRun: null,
@@ -469,18 +471,36 @@ async function sendChat(event) {
   event.preventDefault();
   const input = document.getElementById("chat-input");
   const message = input.value.trim();
-  if (!message) return;
+  if (!message || state.chatBusy) return;
   appendChat("user", message);
   input.value = "";
-  const reply = await api("/api/assistant", {
-    method: "POST",
-    body: JSON.stringify({
-      message,
-      session_id: state.sessionId,
-      run_id: state.lastRun ? state.lastRun.simulation_run_id : null,
-    }),
-  });
-  appendChat("assistant", `${reply.reply} [${reply.status}]`);
+  state.chatBusy = true;
+  const button = document.querySelector("#chat-form button");
+  button.disabled = true;
+  try {
+    const reply = await api("/api/assistant", {
+      method: "POST",
+      body: JSON.stringify({
+        message,
+        conversation_id: state.conversationId,
+        session_id: state.sessionId,
+        run_id: state.lastRun ? state.lastRun.simulation_run_id : null,
+      }),
+    });
+    appendChat("assistant", `${reply.reply} [${reply.status}]`);
+    state.conversationId = reply.conversation_id;
+    const trace = el("details", "chat-evidence");
+    trace.appendChild(el("summary", null,
+      `Evidence: ${reply.evidence.length} tool calls · Run ${reply.agent_run_id}`));
+    trace.appendChild(el("pre", null, JSON.stringify(reply.evidence, null, 2)));
+    document.getElementById("chat-log").appendChild(trace);
+  } catch (error) {
+    appendChat("assistant", `Request failed: ${error.message}`);
+    throw error;
+  } finally {
+    state.chatBusy = false;
+    button.disabled = false;
+  }
 }
 
 // ---- Wiring -----------------------------------------------------------------
@@ -519,10 +539,15 @@ function init() {
     .getElementById("scrub")
     .addEventListener("input", (e) => applyPlaybackFrame(Number(e.target.value)));
   document.getElementById("chat-form").addEventListener("submit", (event) =>
-    runAction("Contacting assistant stub…", () => sendChat(event))
+    runAction("OpenClaw is analysing…", () => sendChat(event))
   );
 
   renderEventFields();
+  api("/api/assistant/status").then((runtime) => {
+    document.getElementById("assistant-badge").textContent = runtime.enabled ? "OpenClaw" : "not configured";
+  }).catch(() => {
+    document.getElementById("assistant-badge").textContent = "unavailable";
+  });
   runAction("Loading Actual State and process configuration…", loadReference);
 }
 
