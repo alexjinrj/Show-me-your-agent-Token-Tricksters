@@ -165,39 +165,39 @@ The CRM interface work is now implemented on top of `feature/agent-runtime`:
   shipment or Actual State write.
 - The original green frontend has temporary `/api/crm/*` compatibility routes.
 
-更新：CRM 已按项目选择改为直接读取现有 AdventureWorks `SnapshotBundle`，
-不使用 Olist 数据。服务案件是 backlog/逾期待履约订单的派生投影，不是原始投诉。
-上文主体中的 Olist 对齐待办属于历史方案，本次不执行。详见 `CRM_RUNTIME_INTEGRATION.md`。
+The Olist demonstration fixture remains explicitly separate from the canonical
+AdventureWorks `SnapshotBundle`. Mapping Olist into canonical Enterprise State
+is still owned by data alignment. See `CRM_RUNTIME_INTEGRATION.md`.
 
 ## Agent Runtime integration update — 2026-09-17
 
 发布分支：`feature/agent-runtime`，尚未合并到 `main`。本节更新 Runtime 工作流状态，不将上述历史基线中的待办自动视为全部完成。
 
-### 已构建的 Sales / Inventory / CRM 链路
+### 已构建的 Sales / Inventory 链路
 
 ```text
 frontend -> FastAPI /api/assistant -> RuntimeService
          -> OpenClaw Gateway /v1/chat/completions
          -> function tool calls -> shared ToolExecutor
-         -> sales / inventory / CRM tools -> shared snapshots / persisted simulations
+         -> sales / inventory tools -> snapshots / persisted simulations
          -> tool evidence -> Gateway final reply -> persisted AgentRun -> frontend
 ```
 
-- `interfaces/runtime.py` 是装配入口，注册 11 个 Sales、2 个 Inventory 和 10 个 CRM 工具；Web 与 MCP 共享执行器。MCP 是独立工具入口，不是 Web 请求的重复执行路径。
+- `interfaces/runtime.py` 是装配入口，注册 11 个 Sales 工具和 2 个 Inventory 工具；Web 与 MCP 共享执行器。MCP 是独立工具入口，不是 Web 请求的重复执行路径。
 - Runtime 通过注入的 Gateway、存储和作用域检查接口工作，不直接访问数据库或模拟器；权威业务计算仍在工具层。
 - 统一结果封装包含工具调用标识、快照/模拟运行引用和 Actual/Simulated 区分。Inventory 策略模拟现在通过 SimulationService 持久化。
 - AgentRun、工具轨迹及证据由 Enterprise State 持久化；新增 `0004_agent_runs` 迁移。会话历史由应用维护，后续事实仍需重新调用工具查询。
-- CRM 提案通过 `0005_crm_proposals`、`0006_crm_runtime_evidence` 持久化审核与证据关联；可从聊天建议进入审核表单。后端验证来源并保存证据，审批为原子状态更新，不执行真实交易。
 - 执行器仅允许 read/simulate，校验快照及会话/模拟运行作用域，保留审计；Runtime 限制工具轮数、调用次数及上下文大小。
 - 浏览器展示真实回复、证据和运行标识，禁止并发重复提交；未配置 Gateway 时明确返回 disabled，不伪装成已完成业务回答。
 
 ### 验证与未完成边界
 
-- 统一数据版本完整 Python 回归通过 121 项，前端测试通过 3 项；快照/金额/库存一致性、迁移及审核作用域专项验证通过。Ruff、mypy、前端语法检查通过。本地默认数据库已备份后迁移，实际 API 读取通过，Actual State 哈希未变。
+- 完整 Python 测试曾通过 107 项；最近的 Runtime/API/MCP/策略/迁移专项复核通过 15 项，前端测试通过 2 项。Ruff、mypy 和前端语法检查通过。
 - Gateway 合同测试使用模拟 HTTP 服务；MCP、业务工具和数据库测试实际执行。尚未完成真实 Lightsail OpenClaw / 模型端到端验收；配置状态接口不等于 Gateway 健康证明。
-- CRM 已注册 10 个只读工具，使用与 Sales/Inventory 相同的快照和 SGD 金额；
-  真实投诉、评论、首次响应、投诉 SLA 尚无源数据，返回不可用，不编造记录。
-- 数据对齐分支的后续工作需另行审查合并。本次直接复用现有统一快照，不执行 Olist 映射，也不代表其他分支或全部导入契约已经合并。
+- CRM interface follow-up has now registered 10 read-only tools, added backend
+  proposal/review persistence and replaced frontend-local scoring. Olist-to-canonical
+  SnapshotBundle mapping remains unfinished and is still a separate data-alignment task.
+- 数据对齐分支的后续工作需另行审查合并。本次 Runtime 上传不代表 Olist 映射、全部导入契约或其他分支已合并。
 - 当前面向私有、单企业、单进程演示；尚无用户鉴权、多租户隔离、分布式作业、断点恢复或真实业务写入审批链路。
 
 详细构建、接口、工具及限制见 [Agent Runtime handoff](AGENT_RUNTIME_HANDOFF.md)；部署步骤见 [AWS Lightsail OpenClaw 接入说明](AWS_LIGHTSAIL_OPENCLAW_接入说明.md)。

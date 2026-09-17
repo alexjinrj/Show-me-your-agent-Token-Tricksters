@@ -114,6 +114,13 @@ The application seeds an idempotent local SQLite database, loads the validated
 process catalog, and runs baseline and alternative simulations without changing
 Actual State.
 
+The English dashboard is organised by business responsibility: **Executive
+Overview, Sales, Inventory, Accounting, Operations, Customer Relationships,
+and AI Coordinator**. Sales, Inventory, Accounting and Operations read the same
+immutable snapshot through `/api/v1/modules/*`; CRM uses its versioned Olist
+demo contract. Process design, scenario simulation, comparison and trace
+playback are grouped under Operations.
+
 ## Run the standalone demo
 
 ```bash
@@ -162,8 +169,8 @@ Without configuration, the assistant reports `disabled` and executes no tools.
 See [runtime setup and handoff](docs/AGENT_RUNTIME_HANDOFF.md) for the dedicated
 Gateway agent configuration, API contracts, live smoke test and deployment limits.
 
-See [CRM runtime integration](docs/CRM_RUNTIME_INTEGRATION.md) for the unified
-snapshot projection, derived order-service cases, shared tools and human-review workflow.
+See [CRM runtime integration](docs/CRM_RUNTIME_INTEGRATION.md) for the Olist
+provenance boundary, CRM endpoints, shared Agent tools and human-review workflow.
 
 接入已有 AWS Lightsail OpenClaw 实例的中文步骤见
 [Lightsail 接入说明](docs/AWS_LIGHTSAIL_OPENCLAW_接入说明.md)，包括本地 SSH 联调、

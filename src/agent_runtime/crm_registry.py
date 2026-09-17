@@ -8,28 +8,28 @@ from tools.crm.tools import CRMAgentTools
 
 CRM_TOOL_DESCRIPTIONS = {
     "get_crm_summary": "Read the CRM service-recovery summary and its data provenance.",
-    "list_priority_complaints": "List derived order-service cases, not customer complaints.",
+    "list_priority_complaints": "List open complaints ordered by deterministic service priority.",
     "get_customer_360": (
-        "Read ordered value, derived fulfilment risk and linked order-service cases. "
+        "Read customer value, relationship risk and linked complaint evidence. "
         "This is not a credit rating."
     ),
-    "get_complaint_detail": "Read a derived CASE-SO... service case, order due date and priority.",
+    "get_complaint_detail": "Read one complaint's SLA, priority evidence, owner and next action.",
     "get_order_timeline": (
-        "Trace canonical snapshot order dates/status for a derived service case."
+        "Trace Olist order dates and labelled CRM replay events for one complaint."
     ),
     "get_inventory_availability": (
-        "Read same-snapshot SKU stock net of pending sales obligations, not actual reservations."
+        "Read labelled demo replacement-stock assumptions for one complaint."
     ),
     "estimate_refund_impact": (
-        "Read snapshot order amount and standard cost in SGD; refund eligibility is unknown."
+        "Estimate labelled demo refund, replacement and service-credit exposure."
     ),
     "compare_resolution_options": (
-        "Compare review options for a derived service case; unknown policies remain unavailable."
+        "Compare refund, replacement, credit and monitor options without executing any action."
     ),
     "recommend_resolution": (
-        "Investigate a CASE-SO... order-service case and return a snapshot-grounded recommendation."
+        "Investigate one complaint and return a grounded service-recovery recommendation."
     ),
-    "draft_customer_reply": "Create an unsent reply draft grounded in snapshot order facts.",
+    "draft_customer_reply": "Create an unsent reply draft grounded in the complaint evidence.",
 }
 
 

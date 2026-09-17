@@ -4,7 +4,7 @@ from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 from interfaces.api.context import DemoContext
 
@@ -17,31 +17,16 @@ class CRMRequest(BaseModel):
 
 
 class ProposalCreate(CRMRequest):
-    complaint_id: str = Field(alias="complaintId", pattern=r"^CASE-SO\d{1,12}$")
+    complaint_id: str = Field(alias="complaintId", pattern=r"^TKT-\d{3}$")
     resolution_id: Literal["refund", "reship", "credit", "monitor"] = Field(alias="resolutionId")
     reply_draft: str = Field(default="", alias="replyDraft", max_length=4000)
     internal_draft: str = Field(default="", alias="internalDraft", max_length=4000)
-    source_agent_run_id: UUID | None = Field(default=None, alias="sourceAgentRunId")
-    source_tool_call_id: UUID | None = Field(default=None, alias="sourceToolCallId")
-
-    @model_validator(mode="after")
-    def paired_evidence(self) -> ProposalCreate:
-        if (self.source_agent_run_id is None) != (self.source_tool_call_id is None):
-            raise ValueError("Agent run and tool evidence references must be supplied together")
-        return self
 
 
 class ProposalDecision(CRMRequest):
     decision: Literal["Approved", "Rejected"]
     reviewer: str = Field(min_length=1, max_length=120)
     note: str = Field(default="", max_length=1000)
-
-    @field_validator("reviewer")
-    @classmethod
-    def nonblank_reviewer(cls, value: str) -> str:
-        if not value.strip():
-            raise ValueError("Reviewer must not be blank")
-        return value.strip()
 
 
 def _context(request: Request) -> DemoContext:
@@ -128,8 +113,6 @@ def create_proposal(body: ProposalCreate, request: Request) -> dict[str, Any]:
             body.resolution_id,
             body.reply_draft,
             body.internal_draft,
-            str(body.source_agent_run_id) if body.source_agent_run_id else None,
-            str(body.source_tool_call_id) if body.source_tool_call_id else None,
         )
         return _envelope(context, result)
     except ValueError as exc:

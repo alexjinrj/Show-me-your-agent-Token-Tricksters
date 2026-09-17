@@ -18,11 +18,11 @@ class ComplaintListInput(CRMToolInput):
 
 
 class CustomerInput(CRMToolInput):
-    customer_id: str = Field(pattern=r"^AW\d{8}$")
+    customer_id: str = Field(pattern=r"^CUS-\d{3}$")
 
 
 class ComplaintInput(CRMToolInput):
-    complaint_id: str = Field(pattern=r"^CASE-SO\d{1,12}$")
+    complaint_id: str = Field(pattern=r"^TKT-\d{3}$")
 
 
 class DraftReplyInput(ComplaintInput):

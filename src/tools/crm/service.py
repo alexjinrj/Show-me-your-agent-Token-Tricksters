@@ -1,258 +1,295 @@
 from __future__ import annotations
 
-from collections import defaultdict
+import json
+import math
 from copy import deepcopy
 from datetime import datetime
-from decimal import ROUND_HALF_UP, Decimal
-from typing import Any
-
-from core.models import SnapshotBundle
-from core.serialization import canonical_data
+from hashlib import sha256
+from pathlib import Path
+from typing import Any, Literal
 
 
-def _money(value: Decimal) -> str:
-    return format(value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP), "f")
+def _hours_between(later: str, earlier: str) -> float:
+    return max(
+        0.0,
+        (datetime.fromisoformat(later) - datetime.fromisoformat(earlier)).total_seconds() / 3600,
+    )
 
 
-def _percentile(value: Decimal, values: list[Decimal]) -> float:
+def _percentile(value: float, values: list[float]) -> float:
     return sum(candidate <= value for candidate in values) / len(values) if values else 0.0
 
 
+def _js_round(value: float) -> int:
+    return math.floor(value + 0.5)
+
+
+def _money(value: float) -> float:
+    return math.floor(value * 100 + 0.5) / 100
+
+
 class CRMService:
-    """Read-only CRM projection of the same immutable snapshot used by Sales/Inventory.
+    """Read-only CRM demo state with explicit Olist/replay/assumption provenance."""
 
-    Cases are derived order-service exceptions, NOT imported customer complaints.
-    No reviews, response records, replacement stock or policy assumptions are fabricated.
-    """
-
-    def __init__(self, snapshot: SnapshotBundle) -> None:
-        self.snapshot = snapshot
-        self.snapshot_time = snapshot.manifest.as_of_time.isoformat()
-        self.dataset_fingerprint = snapshot.manifest.content_hash
-        self.currency = "SGD"
-        self.customers = {
-            record.record_key: deepcopy(record.data)
-            for record in snapshot.records
-            if record.record_type == "customer"
-        }
-        self.items = {
-            str(record.data["sku"]): deepcopy(record.data)
-            for record in snapshot.records
-            if record.record_type == "item"
-        }
-        sku_by_id = {str(row["id"]): sku for sku, row in self.items.items()}
-        self.stock: dict[str, Decimal] = defaultdict(Decimal)
-        self.warehouses: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        for record in snapshot.records:
-            if record.record_type == "inventory":
-                sku = sku_by_id.get(str(record.data["item_id"]))
-                if sku:
-                    self.stock[sku] += Decimal(str(record.data["quantity"]))
-                    self.warehouses[sku].append(deepcopy(record.data))
-        self.orders = {
-            str(record.data["object_number"]): deepcopy(record.data)
-            for record in snapshot.records
-            if record.record_type == "business_object"
-            and record.data["object_type"] == "sales_order"
-        }
-        self.pending: dict[str, Decimal] = defaultdict(Decimal)
-        self.cases: dict[str, dict[str, Any]] = {}
-        as_of = snapshot.manifest.as_of_time
-        for number, order in sorted(self.orders.items()):
-            details = order["details"]
-            if details["customer_number"] not in self.customers:
-                raise ValueError("Sales order customer is missing from the canonical snapshot")
-            if details["sku"] not in self.items:
-                raise ValueError("Sales order item is missing from the canonical snapshot")
-            if order["status"] not in {"open", "backlog"}:
-                continue
-            self.pending[str(details["sku"])] += Decimal(str(order["quantity"]))
-            due = datetime.fromisoformat(str(details["due_date"]))
-            if order["status"] != "backlog" and due >= as_of:
-                continue
-            overdue = max(0.0, (as_of - due).total_seconds() / 3600)
-            case_id = f"CASE-{number}"
-            self.cases[case_id] = {
-                "id": case_id,
-                "customerId": str(details["customer_number"]),
-                "orderId": number,
-                "orderObjectId": str(order["id"]),
-                "sku": str(details["sku"]),
-                "quantity": str(order["quantity"]),
-                "issue": f"Order {order['status']}; fulfilment requires review",
-                "status": "WAITING_FULFILMENT",
-                "openedAt": None,
-                "firstResponseAt": None,
-                "reviewScore": None,
-                "dueAt": due.isoformat(),
-                "orderDate": str(details["order_date"]),
-                "lateDays": int(overdue // 24),
-                "overdueHours": round(overdue, 2),
-                "caseKind": "derived_order_service_exception",
-                "dueBasis": "Order due date, not a complaint SLA",
-                "orderStatus": str(order["status"]),
-                "orderAmount": _money(Decimal(str(order["amount"]))),
-                "snapshotId": self.reference_id,
-                "snapshotHash": self.dataset_fingerprint,
-                "lineage": {
-                    key: order[key]
-                    for key in (
-                        "source_system",
-                        "source_file_id",
-                        "source_record_id",
-                        "ingestion_run_id",
-                        "data_origin",
-                    )
-                },
-            }
+    def __init__(self, dataset_path: Path) -> None:
+        raw = dataset_path.read_bytes()
+        payload = json.loads(raw)
+        self.dataset_path = dataset_path
+        self.dataset_fingerprint = sha256(raw).hexdigest()
+        self.meta: dict[str, Any] = payload["meta"]
+        self.snapshot_time = str(self.meta["replayAsOf"])
+        self.customers: list[dict[str, Any]] = [
+            self._normalise_customer(row) for row in payload["customers"]
+        ]
+        self.complaints: list[dict[str, Any]] = [
+            self._normalise_complaint(row) for row in payload["complaints"]
+        ]
 
     @property
     def reference_id(self) -> str:
-        return self.snapshot.manifest.snapshot_id
+        return f"olist-crm-demo:{self.dataset_fingerprint[:16]}"
 
     def provenance(self) -> dict[str, Any]:
         return {
-            "dataset_id": "adventureworks-unified-snapshot-v1",
+            "dataset_id": "olist-crm-demo-v1",
             "reference_id": self.reference_id,
-            "snapshot_id": self.reference_id,
-            "company_id": self.snapshot.manifest.company_id,
-            "dataset": "Unified AdventureWorks Enterprise State",
-            "as_of": self.snapshot_time,
+            "dataset": self.meta["dataset"],
+            "source_url": self.meta["sourceUrl"],
+            "source_period": self.meta["sourcePeriod"],
+            "replay_as_of": self.snapshot_time,
             "fingerprint": self.dataset_fingerprint,
-            "currency": self.currency,
             "boundaries": {
-                "source": [
-                    "Detached snapshot customer/item/order/inventory records and their lineage"
-                ],
+                "source": self.meta["realFields"],
                 "derived": [
-                    "Order-service exceptions from backlog/overdue pending orders",
-                    "Customer ordered-value score (not payment/spend)",
-                    "Fulfilment risk and service priority",
-                    "Pending SKU obligations (not warehouse reservations)",
+                    "customer value score and tier",
+                    "relationship risk score and level",
+                    "complaint priority and recommended next action",
                 ],
-                "synthetic": [],
+                "synthetic": self.meta["simulatedFields"]
+                + ["replacement inventory", "resolution cost assumptions"],
             },
-            "upstream_data_origins": sorted(
-                {
-                    str(record.data["data_origin"])
-                    for record in self.snapshot.records
-                    if "data_origin" in record.data
-                }
-            ),
-            "unavailable": [
-                "Customer complaints/reviews",
-                "First-response records",
-                "Complaint SLA",
-                "Confirmed delivery timestamp",
-                "Refund eligibility/payment detail",
-                "Credit policy",
-                "Logistics cost",
-                "Promised resolution ETA",
-            ],
             "warning": (
-                "Customer value and relationship risk are service signals, not credit ratings. "
-                "Cases are derived order exceptions, not actual customer complaints. "
-                "Upstream source/derived/synthetic lineage remains unchanged."
+                "Customer value and relationship risk are service signals, not credit ratings."
             ),
         }
 
+    @staticmethod
+    def _normalise_customer(row: dict[str, Any]) -> dict[str, Any]:
+        result = deepcopy(row)
+        result["name"] = f"Olist Anonymous Customer {str(row['id'])[-3:]}"
+        result["type"] = "Anonymous"
+        result["onboarding"] = "Not provided"
+        if result.get("paymentTerms") == "数据未提供":
+            result["paymentTerms"] = "Not provided"
+        return result
+
+    @staticmethod
+    def _normalise_complaint(row: dict[str, Any]) -> dict[str, Any]:
+        result = deepcopy(row)
+        review = row.get("reviewScore")
+        late_days = int(row.get("lateDays", 0))
+        if review is not None and late_days > 0:
+            result["issue"] = f"{review}/5 review; delivered {late_days} days late"
+        elif review is not None:
+            result["issue"] = f"{review}/5 customer review"
+        else:
+            result["issue"] = f"Delivery exception; {late_days} days late"
+        return result
+
+    def _value_score(self, customer: dict[str, Any]) -> int:
+        if not customer["orderCount"]:
+            return 0
+        spend = _percentile(float(customer["spend"]), [float(c["spend"]) for c in self.customers])
+        frequency = _percentile(
+            float(customer["orderCount"]), [float(c["orderCount"]) for c in self.customers]
+        )
+        recency = _percentile(
+            datetime.fromisoformat(customer["lastOrderAt"]).timestamp(),
+            [datetime.fromisoformat(c["lastOrderAt"]).timestamp() for c in self.customers],
+        )
+        return min(100, _js_round(spend * 50 + frequency * 30 + recency * 20))
+
+    @staticmethod
+    def _value_tier(score: int, order_count: int) -> str:
+        if not order_count:
+            return "Prospect"
+        if score >= 75:
+            return "A"
+        if score >= 50:
+            return "B"
+        return "C"
+
+    @staticmethod
+    def _risk_score(
+        open_count: int,
+        overdue: int,
+        unresponded: int,
+        review_penalty: int,
+        late_deliveries: int,
+    ) -> int:
+        return min(
+            100,
+            open_count * 10
+            + overdue * 15
+            + unresponded * 20
+            + review_penalty
+            + min(20, late_deliveries * 10),
+        )
+
     def rate_customers(self) -> list[dict[str, Any]]:
-        own_orders: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        own_cases: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        for order in self.orders.values():
-            own_orders[str(order["details"]["customer_number"])].append(order)
-        for case in self.cases.values():
-            own_cases[str(case["customerId"])].append(case)
-        totals = {
-            key: sum((Decimal(str(row["amount"])) for row in rows), Decimal(0))
-            for key, rows in own_orders.items()
-        }
-        counts = {key: Decimal(len(own_orders[key])) for key in self.customers}
-        result = []
-        for key, customer in sorted(self.customers.items()):
-            orders, cases = own_orders[key], own_cases[key]
-            total = totals.get(key, Decimal(0))
-            value = (
-                round(
-                    70 * _percentile(total, list(totals.values()))
-                    + 30 * _percentile(counts[key], list(counts.values()))
-                )
-                if orders
-                else 0
+        rated: list[dict[str, Any]] = []
+        replay_as_of = datetime.fromisoformat(self.snapshot_time)
+        for customer in self.customers:
+            own = [ticket for ticket in self.complaints if ticket["customerId"] == customer["id"]]
+            overdue = sum(datetime.fromisoformat(ticket["dueAt"]) < replay_as_of for ticket in own)
+            unresponded = sum(not ticket.get("firstResponseAt") for ticket in own)
+            low_reviews = [
+                ticket
+                for ticket in own
+                if ticket.get("reviewScore") is not None and ticket["reviewScore"] <= 2
+            ]
+            review_penalty = sum(20 if ticket["reviewScore"] == 1 else 10 for ticket in low_reviews)
+            value = self._value_score(customer)
+            risk = self._risk_score(
+                len(own), overdue, unresponded, review_penalty, int(customer["lateDeliveryCount"])
             )
-            overdue = sum(case["overdueHours"] > 0 for case in cases)
-            risk = min(100, len(cases) * 20 + overdue * 15)
-            result.append(
+            rated.append(
                 {
-                    "id": key,
-                    "customerNumber": key,
-                    "name": customer["name"],
-                    "active": customer["active"],
-                    "orderCount": len(orders),
-                    "orderedValue": _money(total),
-                    "currency": self.currency,
-                    "lastOrderAt": max(
-                        (str(row["details"]["order_date"]) for row in orders), default=None
-                    ),
+                    **deepcopy(customer),
                     "valueScore": value,
-                    "valueTier": "A"
-                    if value >= 75
-                    else "B"
-                    if value >= 50
-                    else "C"
-                    if orders
-                    else "Prospect",
+                    "valueTier": self._value_tier(value, int(customer["orderCount"])),
                     "riskScore": risk,
                     "riskLevel": "High" if risk >= 65 else "Medium" if risk >= 35 else "Low",
-                    "openCases": len(cases),
-                    "overdueCases": overdue,
-                    "unrespondedComplaints": None,
+                    "openComplaints": len(own),
+                    "overdueComplaints": overdue,
+                    "unrespondedComplaints": unresponded,
                     "scoreReasons": [
-                        f"{len(orders)} orders; SGD {total:.2f} ordered value, not paid spend.",
-                        f"{len(cases)} derived service cases; {overdue} orders past due.",
+                        (
+                            f"Olist facts: R$ {float(customer['spend']):.2f} paid, "
+                            f"{customer['orderCount']} order(s), last order "
+                            f"{customer['lastOrderAt'][:10]}"
+                        ),
+                        (
+                            f"Experience signals: {len(low_reviews)} low review(s), "
+                            f"{customer['lateDeliveryCount']} late delivery event(s); "
+                            f"CRM replay: {len(own)} open, {overdue} overdue, "
+                            f"{unresponded} unresponded"
+                        ),
                     ],
-                    "nextAction": "Review fulfilment with warehouse before preparing an update."
-                    if cases
-                    else "No pending order-service exception.",
-                    "lineage": {
-                        field: customer[field]
-                        for field in (
-                            "source_system",
-                            "source_file_id",
-                            "source_record_id",
-                            "data_origin",
+                    "nextAction": (
+                        (
+                            "Verify that no reply is missing, then acknowledge the "
+                            "complaint immediately."
                         )
-                    },
+                        if unresponded
+                        else (
+                            "Ask fulfilment to verify the order timeline and provide "
+                            "a fact-based update."
+                        )
+                        if overdue
+                        else (
+                            "Review the original feedback and prepare an evidence-based "
+                            "recovery plan."
+                        )
+                        if low_reviews
+                        else "No urgent relationship action; continue normal engagement."
+                    ),
                 }
             )
-        return result
+        return rated
 
     def customer(self, customer_id: str) -> dict[str, Any]:
         identifier = customer_id.upper()
         customer = next((row for row in self.rate_customers() if row["id"] == identifier), None)
         if customer is None:
-            raise ValueError(f"Customer {identifier} was not found in the request snapshot")
+            raise ValueError(f"Customer {identifier} was not found")
         return {
             **customer,
-            "cases": [
+            "complaints": [
                 row for row in self.prioritize_complaints() if row["customerId"] == identifier
             ],
-            "boundary": "Ordered value and derived risk; not payments or credit ratings.",
+            "boundary": (
+                "Value uses Olist payment, frequency and recency. Risk uses Olist "
+                "review/delivery signals plus labelled CRM replay fields. This is "
+                "not a credit rating."
+            ),
         }
 
     def prioritize_complaints(self) -> list[dict[str, Any]]:
-        """Compatibility name: returns derived order-service cases, NOT complaints."""
-        customers = {row["id"]: row for row in self.rate_customers()}
-        rows = []
-        for case in self.cases.values():
-            customer = customers[case["customerId"]]
+        customers = {customer["id"]: customer for customer in self.rate_customers()}
+        ownership: dict[str, tuple[str, str]] = {
+            "READY": (
+                "Customer Service",
+                "Verify the review and order timeline before responding.",
+            ),
+            "WAITING_WAREHOUSE": (
+                "CRM + Fulfilment",
+                "Verify promised and actual delivery dates and the delay cause.",
+            ),
+            "WAITING_FINANCE": (
+                "CRM + Finance",
+                "Verify refund eligibility and status before making a commitment.",
+            ),
+            "WAITING_CUSTOMER": (
+                "Customer Service",
+                "Send one clear request for the missing customer information.",
+            ),
+        }
+        results: list[dict[str, Any]] = []
+        for ticket in self.complaints:
+            customer = customers[ticket["customerId"]]
+            overdue_hours = _hours_between(self.snapshot_time, ticket["dueAt"])
+            age_hours = _hours_between(self.snapshot_time, ticket["openedAt"])
+            sla_points = min(40.0, overdue_hours / 48 * 40)
+            review_points = (
+                20
+                if ticket.get("reviewScore") == 1
+                else 12
+                if ticket.get("reviewScore") == 2
+                else 0
+            )
+            late_points = min(10.0, int(ticket["lateDays"]) / 2)
             priority = min(
                 100,
-                round(35 + min(50, case["overdueHours"] / 24 * 5) + customer["riskScore"] * 0.1),
+                _js_round(
+                    sla_points
+                    + (25 if not ticket.get("firstResponseAt") else 0)
+                    + review_points
+                    + late_points
+                    + customer["riskScore"] * 0.05
+                    + customer["valueScore"] * 0.02
+                ),
             )
-            rows.append(
+            owner, base_action = ownership[ticket["status"]]
+            reasons = [
+                f"Olist fact: {ticket.get('reviewScore', 'no')}-star review"
+                + (f" and {ticket['lateDays']} days late" if ticket["lateDays"] > 0 else ""),
+                f"CRM replay: SLA overdue by {overdue_hours:.1f} hours"
+                if overdue_hours
+                else (
+                    "CRM replay: "
+                    f"{_hours_between(ticket['dueAt'], self.snapshot_time):.1f} "
+                    "hours before SLA"
+                ),
+                "CRM replay: first response recorded"
+                if ticket.get("firstResponseAt")
+                else "CRM replay: no first response recorded",
+                (
+                    f"Customer value {customer['valueTier']}/"
+                    f"{customer['valueScore']} contributes only 2% of priority"
+                ),
+            ]
+            next_action = (
+                (
+                    "Confirm there is no unsynchronised reply, acknowledge the "
+                    f"customer, then {base_action.lower()}"
+                )
+                if not ticket.get("firstResponseAt")
+                else base_action
+            )
+            results.append(
                 {
-                    **deepcopy(case),
+                    **deepcopy(ticket),
                     "customer": customer,
                     "priorityScore": priority,
                     "priorityLevel": "Critical"
@@ -260,203 +297,237 @@ class CRMService:
                     else "High"
                     if priority >= 50
                     else "Standard",
-                    "reasons": [
-                        f"Snapshot order status: {case['orderStatus']}",
-                        f"{case['overdueHours']:.2f}h past order due date; not complaint SLA",
-                        "Derived priority; reviews and first-response data are unavailable",
-                    ],
-                    "ownerRole": "CRM + Fulfilment",
-                    "nextAction": "Verify stock and fulfilment before confirming next steps.",
-                    "replyDraft": self.draft_reply(case["id"], "professional")["draft"],
-                    "internalDraft": f"{case['orderId']}/{case['sku']}; {self.reference_id}.",
+                    "overdueHours": round(overdue_hours, 2),
+                    "ageHours": round(age_hours, 2),
+                    "reasons": reasons,
+                    "ownerRole": owner,
+                    "nextAction": next_action,
+                    "replyDraft": (
+                        "Hello, we have received your feedback about order "
+                        f"{ticket['orderId']}. We are verifying the order and "
+                        "delivery timeline and will update you after review. "
+                        "This draft has not been sent."
+                    ),
+                    "internalDraft": (
+                        f"{owner}: verify {ticket['id']} / {ticket['orderId']}, "
+                        "record the evidence and response time, then return the "
+                        "case to CRM."
+                    ),
                 }
             )
-        return sorted(rows, key=lambda row: (-row["priorityScore"], row["id"]))
+        return sorted(results, key=lambda row: (-row["priorityScore"], row["id"]))
 
     def complaint(self, complaint_id: str) -> dict[str, Any]:
         identifier = complaint_id.upper()
-        row = next((row for row in self.prioritize_complaints() if row["id"] == identifier), None)
-        if row is None:
-            raise ValueError(f"Service case {identifier} was not found in the request snapshot")
-        return row
+        complaint = next(
+            (row for row in self.prioritize_complaints() if row["id"] == identifier), None
+        )
+        if complaint is None:
+            raise ValueError(f"Complaint {identifier} was not found")
+        return complaint
 
     def summary(self) -> dict[str, Any]:
         customers = self.rate_customers()
-        cases = self.prioritize_complaints()
+        complaints = self.prioritize_complaints()
         return {
             "customerCount": len(customers),
-            "salesOrderCount": len(self.orders),
-            "serviceCaseCount": len(cases),
-            "complaintCount": None,
+            "complaintCount": len(complaints),
             "highRiskCustomers": sum(row["riskLevel"] == "High" for row in customers),
-            "overdueOrders": sum(row["overdueHours"] > 0 for row in cases),
-            "overdueComplaints": None,
-            "unrespondedComplaints": None,
+            "overdueComplaints": sum(row["overdueHours"] > 0 for row in complaints),
+            "unrespondedComplaints": sum(not row.get("firstResponseAt") for row in complaints),
             "aTierCustomers": sum(row["valueTier"] == "A" for row in customers),
-            "currency": self.currency,
-            "snapshotId": self.reference_id,
-            "caseBasis": "Derived backlog/overdue pending-order exceptions; no imported complaints",
+            "lowReviewComplaints": sum((row.get("reviewScore") or 5) <= 2 for row in complaints),
+            "lateDeliveryComplaints": sum(row["lateDays"] > 0 for row in complaints),
         }
 
     def order_timeline(self, complaint_id: str) -> list[dict[str, Any]]:
-        case = self.complaint(complaint_id)
+        ticket = self.complaint(complaint_id)
         return [
             {
                 "label": "Order placed",
-                "at": case["orderDate"],
-                "kind": "Snapshot record",
-                "detail": case["orderId"],
+                "at": ticket["sourcePurchaseAt"],
+                "kind": "Olist fact",
+                "detail": ticket["sourceOrderId"],
             },
             {
-                "label": "Order due date",
-                "at": case["dueAt"],
-                "kind": "Snapshot record",
-                "detail": "Order deadline; no complaint SLA",
+                "label": "Promised delivery",
+                "at": ticket["sourceEstimatedDeliveryAt"],
+                "kind": "Olist fact",
+                "detail": "Estimated delivery date in the Olist source record",
             },
             {
-                "label": "Status at snapshot",
-                "at": self.snapshot_time,
-                "kind": "Snapshot record",
-                "detail": case["orderStatus"],
+                "label": "Delivered",
+                "at": ticket["sourceDeliveredAt"],
+                "kind": "Olist fact",
+                "detail": f"{ticket['lateDays']} days after the estimate"
+                if ticket["lateDays"] > 0
+                else "No recorded delay",
+            },
+            {
+                "label": "Complaint opened",
+                "at": ticket["openedAt"],
+                "kind": "CRM replay",
+                "detail": ticket["issue"],
+            },
+            {
+                "label": "SLA deadline",
+                "at": ticket["dueAt"],
+                "kind": "CRM replay",
+                "detail": f"{ticket['overdueHours']:.1f} hours overdue"
+                if ticket["overdueHours"] > 0
+                else "Within SLA",
             },
         ]
 
     def inventory_availability(self, complaint_id: str) -> dict[str, Any]:
-        case = self.complaint(complaint_id)
-        sku = case["sku"]
-        on_hand, obligations = self.stock[sku], self.pending[sku]
+        ticket = self.complaint(complaint_id)
+        numeric_id = int(ticket["id"][-3:])
         return {
-            "sku": sku,
-            "onHandUnits": str(on_hand),
-            "pendingOrderUnits": str(obligations),
-            "availableUnits": str(max(Decimal(0), on_hand - obligations)),
-            "availableForThisOrder": str(
-                max(Decimal(0), on_hand - max(Decimal(0), obligations - Decimal(case["quantity"])))
-            ),
-            "orderQuantity": case["quantity"],
-            "warehouses": canonical_data(self.warehouses[sku]),
-            "snapshotId": self.reference_id,
-            "replenishmentDays": None,
-            "basis": "Same snapshot inventory; availability nets ALL pending sales obligations. "
-            "availableForThisOrder excludes the current order's own obligation. "
-            "This is not a warehouse reservation or replacement-stock record.",
+            "replacementSku": f"REPL-{ticket['sourceOrderId'][:6].upper()}",
+            "availableUnits": (numeric_id * 7) % 5,
+            "reservedUnits": numeric_id % 3,
+            "replenishmentDays": 4 + numeric_id % 5,
+            "kind": "Demo assumption",
         }
 
     def financial_impact(self, complaint_id: str) -> dict[str, Any]:
-        case = self.complaint(complaint_id)
-        item = self.items[case["sku"]]
-        amount = Decimal(case["orderAmount"])
-        standard_cost = Decimal(str(item["standard_cost"])) * Decimal(case["quantity"])
+        ticket = self.complaint(complaint_id)
+        proxy = _money(
+            float(ticket["customer"]["spend"]) / max(int(ticket["customer"]["orderCount"]), 1)
+        )
         return {
-            "currency": self.currency,
-            "orderAmount": _money(amount),
-            "fullRefundExposure": _money(amount),
-            "fulfilmentStandardCost": _money(standard_cost),
-            "serviceCreditEstimate": None,
-            "paymentVerified": False,
+            "currency": "BRL",
+            "orderValueProxy": proxy,
+            "fullRefundExposure": proxy,
+            "replacementCostEstimate": _money(proxy * 0.42 + 35),
+            "serviceCreditEstimate": _money(min(proxy * 0.1, 150)),
             "basis": [
-                "Order amount is from the same immutable snapshot, not an average-spend proxy.",
-                "Refund exposure is conditional; paid amount and refund eligibility are unknown.",
-                "Snapshot standard cost times quantity; not a booked expense.",
-                "Credit, logistics fees and resolution ETA are unavailable; no policy is invented.",
+                "Order value is proxied from customer payment total divided by order count.",
+                "Replacement cost assumes 42% product cost plus R$35 handling and delivery.",
+                "Service credit is 10% of proxy order value, capped at R$150.",
+                "All cost estimates are demo assumptions, not Olist accounting facts.",
             ],
         }
 
     def resolution_options(self, complaint_id: str) -> list[dict[str, Any]]:
-        case = self.complaint(complaint_id)
-        inventory, financial = (
-            self.inventory_availability(complaint_id),
-            self.financial_impact(complaint_id),
+        ticket = self.complaint(complaint_id)
+        inventory = self.inventory_availability(complaint_id)
+        financial = self.financial_impact(complaint_id)
+        recommended: Literal["refund", "reship"] = (
+            "refund"
+            if ticket.get("reviewScore") == 1 and ticket["lateDays"] >= 30
+            else "reship"
+            if inventory["availableUnits"] > 0
+            else "refund"
         )
-        stock_feasible = Decimal(inventory["availableForThisOrder"]) >= Decimal(case["quantity"])
-        recommended = "reship" if stock_feasible else "monitor"
         return [
             {
                 "id": "refund",
-                "label": "Review cancellation / refund eligibility",
+                "label": "Full refund",
                 "estimatedCost": financial["fullRefundExposure"],
-                "currency": self.currency,
-                "resolutionDays": None,
+                "resolutionDays": 2,
+                "relationshipRecovery": "High",
                 "feasible": True,
-                "recommended": False,
-                "conditions": "Finance must verify payment, cancellation and refund eligibility.",
-                "risk": "Exposure estimate only; no payment or refund is confirmed.",
+                "conditions": "Requires finance approval and verified refund eligibility.",
+                "risk": "Highest direct cost; does not replace the product.",
+                "recommended": recommended == "refund",
             },
             {
                 "id": "reship",
-                "label": "Review stock allocation / fulfilment",
-                "estimatedCost": financial["fulfilmentStandardCost"],
-                "currency": self.currency,
-                "resolutionDays": None,
-                "feasible": stock_feasible,
+                "label": "Priority replacement",
+                "estimatedCost": financial["replacementCostEstimate"],
+                "resolutionDays": 3
+                if inventory["availableUnits"] > 0
+                else inventory["replenishmentDays"] + 3,
+                "relationshipRecovery": "High",
+                "feasible": inventory["availableUnits"] > 0,
+                "conditions": (
+                    f"{inventory['availableUnits']} assumed replacement unit(s) available."
+                )
+                if inventory["availableUnits"] > 0
+                else f"Wait {inventory['replenishmentDays']} assumed replenishment days.",
+                "risk": "Another fulfilment failure would further damage the relationship.",
                 "recommended": recommended == "reship",
-                "conditions": "Snapshot stock net of OTHER pending orders must cover this order.",
-                "risk": "Derived obligations, not actual reservations; warehouse must verify.",
             },
             {
                 "id": "credit",
-                "label": "Service credit (policy unavailable)",
-                "estimatedCost": None,
-                "currency": self.currency,
-                "resolutionDays": None,
-                "feasible": False,
+                "label": "Service credit",
+                "estimatedCost": financial["serviceCreditEstimate"],
+                "resolutionDays": 1,
+                "relationshipRecovery": "Low" if ticket["lateDays"] >= 30 else "Medium",
+                "feasible": True,
+                "conditions": "Requires customer acceptance and a valid future purchase channel.",
+                "risk": "May be inadequate for a severe delay or one-star review.",
                 "recommended": False,
-                "conditions": "No credit policy was provided.",
-                "risk": "Do not invent compensation.",
             },
             {
                 "id": "monitor",
-                "label": "Investigate fulfilment and prepare update",
-                "estimatedCost": "0.00",
-                "currency": self.currency,
-                "resolutionDays": None,
+                "label": "Explain and monitor",
+                "estimatedCost": 0,
+                "resolutionDays": 7,
+                "relationshipRecovery": "Low",
                 "feasible": True,
-                "recommended": recommended == "monitor",
-                "conditions": "Verify fulfilment and shortage before making commitments.",
-                "risk": "Delay possible; zero means no proposed transaction, not no service cost.",
+                "conditions": "Provide a fact-based update and monitor the case.",
+                "risk": "Low financial cost but high relationship risk for severe complaints.",
+                "recommended": False,
             },
         ]
 
     def investigate(self, complaint_id: str) -> dict[str, Any]:
-        case = self.complaint(complaint_id)
+        ticket = self.complaint(complaint_id)
         options = self.resolution_options(complaint_id)
-        recommendation = next(row for row in options if row["recommended"])
+        recommendation = next(option for option in options if option["recommended"])
         return {
-            "complaintId": case["id"],
-            "caseKind": case["caseKind"],
-            "customerId": case["customerId"],
-            "orderId": case["orderId"],
-            "orderObjectId": case["orderObjectId"],
-            "priority": f"{case['priorityLevel']}/{case['priorityScore']}",
+            "complaintId": ticket["id"],
+            "customerId": ticket["customerId"],
+            "priority": f"{ticket['priorityLevel']}/{ticket['priorityScore']}",
             "timeline": self.order_timeline(complaint_id),
             "inventory": self.inventory_availability(complaint_id),
             "financial": self.financial_impact(complaint_id),
             "options": options,
             "recommendation": recommendation,
-            "rationale": "Snapshot availability supports a fulfilment review."
-            if recommendation["id"] == "reship"
-            else "Pending demand consumes snapshot stock; investigate before making commitments.",
-            "boundary": "Same canonical AdventureWorks snapshot as Sales/Inventory. "
-            "Cases/priorities are derived order exceptions, not customer complaints. "
-            "No reviews, complaint SLA, payment eligibility or resolution ETA is provided.",
+            "rationale": (
+                "A one-star review with an extreme delivery delay makes a fast "
+                "refund the strongest recovery option under the demo policy."
+            )
+            if recommendation["id"] == "refund"
+            else (
+                "A replacement is available and can resolve the fulfilment "
+                "failure at lower estimated cost than a full refund."
+            ),
+            "boundary": (
+                "Order, review and delivery dates are Olist facts. Ticket SLA is "
+                "CRM replay. Inventory and financial impacts are labelled demo "
+                "assumptions."
+            ),
         }
 
     def draft_reply(self, complaint_id: str, tone: str) -> dict[str, Any]:
-        case = self.cases.get(complaint_id.upper())
-        if case is None:
-            raise ValueError("Service case was not found in the request snapshot")
+        ticket = self.complaint(complaint_id)
         prefix = (
-            "Hello, we are sorry about the fulfilment delay." if tone == "empathetic" else "Hello,"
+            "Hello, we are sorry that this experience has taken so long to resolve."
+            if tone == "empathetic"
+            else "Hello, we have received your service request."
         )
         return {
-            "complaintId": case["id"],
+            "complaintId": ticket["id"],
             "status": "Unsent draft",
-            "draft": f"{prefix} We are checking the fulfilment of order {case['orderId']}. "
-            "A team member will verify stock and the next step before confirming a resolution.",
+            "draft": (
+                f"{prefix} We are reviewing order {ticket['orderId']}, including "
+                "its delivery timeline. A team member will verify the proposed "
+                "resolution before confirming the next step."
+            ),
             "verifiedFacts": {
-                "orderId": case["orderId"],
-                "orderStatus": case["orderStatus"],
-                "dueAt": case["dueAt"],
-                "snapshotId": self.reference_id,
+                key: ticket[key]
+                for key in (
+                    "id",
+                    "customerId",
+                    "orderId",
+                    "issue",
+                    "priorityScore",
+                    "priorityLevel",
+                    "reasons",
+                    "nextAction",
+                )
             },
         }

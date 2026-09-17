@@ -14,7 +14,6 @@ const state = {
   baselineRunId: null,
   crmComplaintId: null,
   crmComplaint: null,
-  crmSource: null,
   playback: { timer: null, index: 0, trace: [], hours: [] },
 };
 
@@ -461,6 +460,221 @@ function renderAudit(result) {
   );
 }
 
+// ---- Business module views -------------------------------------------------
+
+function moduleData(envelope) {
+  if (!envelope || envelope.schema_version !== "business-modules-v1") {
+    throw new Error("Unsupported business module response contract");
+  }
+  return envelope.data;
+}
+
+function formatSgd(value) {
+  return new Intl.NumberFormat("en-SG", {
+    style: "currency",
+    currency: "SGD",
+    maximumFractionDigits: 0,
+  }).format(Number(value));
+}
+
+function formatNumber(value, maximumFractionDigits = 0) {
+  return new Intl.NumberFormat("en-SG", { maximumFractionDigits }).format(Number(value));
+}
+
+function formatPercent(value) {
+  return `${(Number(value) * 100).toFixed(1)}%`;
+}
+
+function humanize(value) {
+  return String(value)
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function renderModuleStats(containerId, entries) {
+  const container = document.getElementById(containerId);
+  container.classList.remove("loading-block");
+  container.innerHTML = "";
+  entries.forEach(([label, value, tone = ""]) => {
+    const card = el("div", `module-stat ${tone}`.trim());
+    card.appendChild(el("strong", null, String(value)));
+    card.appendChild(el("span", null, label));
+    container.appendChild(card);
+  });
+}
+
+function renderDistribution(containerId, rows, total) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = "";
+  rows.forEach(([label, value, tone = ""]) => {
+    const row = el("div", "distribution-row");
+    const heading = el("div", "distribution-label");
+    heading.appendChild(el("span", null, humanize(label)));
+    heading.appendChild(el("b", null, String(value)));
+    row.appendChild(heading);
+    const track = el("div", "distribution-track");
+    const fill = el("div", `distribution-fill ${tone}`.trim());
+    fill.style.width = `${total ? Math.max(2, Number(value) / total * 100) : 0}%`;
+    track.appendChild(fill);
+    row.appendChild(track);
+    container.appendChild(row);
+  });
+}
+
+function renderOverview(data) {
+  const h = data.headline;
+  renderModuleStats("overview-kpis", [
+    ["Current order value", formatSgd(h.current_order_value)],
+    ["Sales backlog", formatNumber(h.backlog_count), "attention"],
+    ["Reorder candidates", formatNumber(h.reorder_candidate_count), "attention"],
+    ["Cash balance", formatSgd(h.cash)],
+    ["Open complaints", formatNumber(h.open_complaints), "attention"],
+    ["Overdue complaints", formatNumber(h.overdue_complaints), "critical"],
+  ]);
+  const container = document.getElementById("overview-modules");
+  container.innerHTML = "";
+  data.modules.forEach((item, index) => {
+    const button = el("button", "module-launch");
+    button.type = "button";
+    button.appendChild(el("span", "module-launch-number", String(index + 1).padStart(2, "0")));
+    const copy = el("span", "module-launch-copy");
+    copy.appendChild(el("b", null, item.label));
+    copy.appendChild(el("small", null, item.signal));
+    button.appendChild(copy);
+    button.appendChild(el("span", "module-launch-arrow", "→"));
+    button.addEventListener("click", () => showFunctionPage(item.id));
+    container.appendChild(button);
+  });
+}
+
+function renderSales(data) {
+  const s = data.summary;
+  renderModuleStats("sales-kpis", [
+    ["Orders", formatNumber(s.order_count)],
+    ["Current order value", formatSgd(s.current_order_value)],
+    ["Fulfilment rate", formatPercent(s.fulfilment_rate)],
+    ["Backlog orders", formatNumber(s.backlog_count), "attention"],
+    ["Backlog value", formatSgd(s.backlog_value), "attention"],
+  ]);
+  const statusRows = Object.entries(data.status_counts);
+  renderDistribution("sales-status", statusRows, s.order_count);
+  renderTable(
+    "sales-skus",
+    ["SKU", "Orders", "Order value"],
+    data.top_skus.map((row) => [row.sku, row.order_count, formatSgd(row.order_value)])
+  );
+  renderTable(
+    "sales-backlog",
+    ["Order", "SKU", "Amount", "Qty", "Current step", "Priority"],
+    data.backlog_orders.map((row) => [
+      row.order_number,
+      row.sku,
+      formatSgd(row.amount),
+      formatNumber(row.quantity),
+      humanize(row.current_step),
+      row.priority,
+    ])
+  );
+  document.getElementById("sales-note").textContent = data.measurement_note;
+}
+
+function renderInventory(data) {
+  const s = data.summary;
+  renderModuleStats("inventory-kpis", [
+    ["Active SKUs", formatNumber(s.sku_count)],
+    ["Warehouses", formatNumber(s.warehouse_count)],
+    ["On-hand units", formatNumber(s.on_hand_units)],
+    ["Value at standard cost", formatSgd(s.inventory_value_at_standard_cost)],
+    ["Reorder candidates", formatNumber(s.reorder_candidate_count), "attention"],
+    ["Critical", formatNumber(s.critical_candidate_count), "critical"],
+  ]);
+  const riskOrder = ["critical", "high", "medium", "low"];
+  const riskRows = riskOrder
+    .filter((risk) => Object.hasOwn(data.risk_counts, risk))
+    .map((risk) => [risk, data.risk_counts[risk], risk]);
+  renderDistribution("inventory-risks", riskRows, s.sku_count);
+  renderTable(
+    "inventory-candidates",
+    ["SKU", "Item", "Stock", "Reorder point", "Recommended", "Risk"],
+    data.reorder_candidates.map((row) => [
+      row.sku,
+      row.name,
+      formatNumber(row.current_stock),
+      formatNumber(row.reorder_point),
+      formatNumber(row.recommended_quantity),
+      humanize(row.risk_level),
+    ])
+  );
+  document.getElementById("inventory-note").textContent = data.measurement_note;
+}
+
+function renderAccounting(data) {
+  const s = data.summary;
+  renderModuleStats("accounting-kpis", [
+    ["Cash", formatSgd(s.cash)],
+    ["Accounts receivable", formatSgd(s.accounts_receivable)],
+    ["Accounts payable", formatSgd(s.accounts_payable)],
+    ["Gross profit", formatSgd(s.gross_profit)],
+    ["Gross margin", formatPercent(s.gross_margin)],
+    ["Working capital", formatSgd(s.working_capital)],
+  ]);
+  renderTable(
+    "accounting-balances",
+    ["Account", "Amount", "Currency", "Origin"],
+    data.balances.map((row) => [
+      humanize(row.account_code),
+      formatSgd(row.amount),
+      row.currency,
+      humanize(row.data_origin),
+    ])
+  );
+  document.getElementById("accounting-note").textContent = data.measurement_note;
+}
+
+function renderOperations(data) {
+  const s = data.summary;
+  renderModuleStats("operations-kpis", [
+    ["Business objects", formatNumber(s.business_object_count)],
+    ["Processes", formatNumber(s.process_count)],
+    ["Active steps", formatNumber(s.active_node_count)],
+    ["Resource pools", formatNumber(s.resource_count)],
+    ["Order to cash", formatNumber(s.order_to_cash_objects)],
+    ["Procure to pay", formatNumber(s.procure_to_pay_objects)],
+  ]);
+  renderTable(
+    "operations-nodes",
+    ["Current process step", "Objects"],
+    data.objects_by_current_node.map((row) => [humanize(row.node_id), row.object_count])
+  );
+  renderTable(
+    "operations-resources",
+    ["Process", "Step", "Resource", "Capacity", "Origin"],
+    data.resources.map((row) => [
+      humanize(row.process_id),
+      humanize(row.node_id),
+      humanize(row.resource_type),
+      formatNumber(row.capacity_units),
+      humanize(row.data_origin),
+    ])
+  );
+  document.getElementById("operations-note").textContent = data.measurement_note;
+}
+
+async function loadBusinessModules() {
+  const [overview, sales, inventory, accounting, operations] = await Promise.all([
+    api("/api/v1/modules/overview"),
+    api("/api/v1/modules/sales"),
+    api("/api/v1/modules/inventory"),
+    api("/api/v1/modules/accounting"),
+    api("/api/v1/modules/operations"),
+  ]);
+  renderOverview(moduleData(overview));
+  renderSales(moduleData(sales));
+  renderInventory(moduleData(inventory));
+  renderAccounting(moduleData(accounting));
+  renderOperations(moduleData(operations));
+}
+
 // ---- Assistant chat (Task 10) -----------------------------------------------
 
 function appendChat(role, text) {
@@ -497,19 +711,6 @@ async function sendChat(event) {
       `Evidence: ${reply.evidence.length} tool calls · Run ${reply.agent_run_id}`));
     trace.appendChild(el("pre", null, JSON.stringify(reply.evidence, null, 2)));
     document.getElementById("chat-log").appendChild(trace);
-    if (reply.status === "completed") {
-      reply.evidence.filter((item) =>
-        item.status === "ok" && item.tool_name === "recommend_resolution"
-      ).forEach((item) => {
-        const complaintId = item.data.result.complaintId;
-        const review = el("button", null, `Review CRM recommendation · ${complaintId}`);
-        review.type = "button";
-        review.addEventListener("click", () =>
-          runAction("Loading CRM evidence…", () => openCrmRecommendation(reply, item))
-        );
-        trace.appendChild(review);
-      });
-    }
   } catch (error) {
     appendChat("assistant", `Request failed: ${error.message}`);
     throw error;
@@ -533,15 +734,15 @@ function renderCrmSummary(summary) {
   container.innerHTML = "";
   const entries = [
     ["Customers", summary.customerCount],
-    ["Order-service cases", summary.serviceCaseCount],
+    ["Open complaints", summary.complaintCount],
     ["High relationship risk", summary.highRiskCustomers],
-    ["Orders past due", summary.overdueOrders],
-    ["First-response records", summary.unrespondedComplaints],
+    ["SLA overdue", summary.overdueComplaints],
+    ["No first response", summary.unrespondedComplaints],
     ["A-tier value", summary.aTierCustomers],
   ];
   for (const [label, value] of entries) {
     const card = el("div", "crm-stat");
-    card.appendChild(el("strong", null, value == null ? "Unavailable" : String(value)));
+    card.appendChild(el("strong", null, String(value)));
     card.appendChild(el("span", null, label));
     container.appendChild(card);
   }
@@ -552,7 +753,7 @@ function renderCrmComplaints(rows) {
   container.innerHTML = "";
   const table = el("table");
   const head = el("tr");
-  ["Case", "Customer", "Priority", "Order due date", "Owner"].forEach((label) =>
+  ["Case", "Customer", "Priority", "SLA", "Owner"].forEach((label) =>
     head.appendChild(el("th", null, label))
   );
   table.appendChild(head);
@@ -568,7 +769,7 @@ function renderCrmComplaints(rows) {
     tr.appendChild(linkCell);
     tr.appendChild(el("td", null, item.customerId));
     tr.appendChild(el("td", `priority-${item.priorityLevel.toLowerCase()}`, `${item.priorityLevel} · ${item.priorityScore}`));
-    tr.appendChild(el("td", null, item.overdueHours > 0 ? `${item.overdueHours.toFixed(1)}h past due` : "Not overdue"));
+    tr.appendChild(el("td", null, item.overdueHours > 0 ? `${item.overdueHours.toFixed(1)}h overdue` : "Within SLA"));
     tr.appendChild(el("td", null, item.ownerRole));
     table.appendChild(tr);
   });
@@ -590,7 +791,7 @@ function renderCrmDetail(item) {
   detail.appendChild(evidence);
   const recommendation = investigation.recommendation;
   detail.appendChild(el("p", "crm-recommendation",
-    `Recommended review: ${recommendation.label} · ${recommendation.currency || "SGD"} ${recommendation.estimatedCost ?? "unavailable"} · ETA ${recommendation.resolutionDays ?? "unknown"}. ${investigation.rationale}`));
+    `Recommended draft: ${recommendation.label} · R$ ${recommendation.estimatedCost.toFixed(2)} · ${recommendation.resolutionDays} day(s). ${investigation.rationale}`));
   detail.appendChild(el("p", "muted", investigation.boundary));
 
   const select = document.getElementById("crm-resolution");
@@ -598,9 +799,8 @@ function renderCrmDetail(item) {
   investigation.options.forEach((option) => {
     const node = document.createElement("option");
     node.value = option.id;
-    node.textContent = `${option.recommended ? "Recommended · " : ""}${option.label} · ${option.currency || "SGD"} ${option.estimatedCost ?? "unavailable"} · ${option.feasible ? "feasible for review" : "not currently feasible"}`;
+    node.textContent = `${option.recommended ? "Recommended · " : ""}${option.label} · R$ ${option.estimatedCost.toFixed(2)} · ${option.feasible ? "feasible" : "not currently feasible"}`;
     node.selected = option.recommended;
-    node.disabled = !option.feasible;
     select.appendChild(node);
   });
   document.getElementById("crm-reply").value = item.replyDraft;
@@ -612,19 +812,7 @@ async function selectCrmComplaint(complaintId) {
   const envelope = await api(`/api/v1/crm/complaints/${encodeURIComponent(complaintId)}`);
   state.crmComplaintId = complaintId;
   state.crmComplaint = crmData(envelope);
-  state.crmSource = null;
   renderCrmDetail(state.crmComplaint);
-}
-
-async function openCrmRecommendation(run, evidence) {
-  await selectCrmComplaint(evidence.data.result.complaintId);
-  state.crmSource = {
-    sourceAgentRunId: run.agent_run_id,
-    sourceToolCallId: evidence.tool_call_id,
-  };
-  document.getElementById("crm-detail").appendChild(
-    el("p", "muted", `Source AgentRun ${run.agent_run_id} · Evidence ${evidence.tool_call_id}`)
-  );
 }
 
 function renderCrmProposals(rows) {
@@ -659,16 +847,6 @@ function renderCrmProposals(rows) {
     } else {
       actions.appendChild(el("span", "muted", item.reviewer || "Reviewed"));
     }
-    const audit = el("details");
-    audit.appendChild(el("summary", null, "Evidence / review audit"));
-    audit.appendChild(el("pre", null, JSON.stringify({
-      datasetReference: item.datasetReference,
-      sourceAgentRunId: item.sourceAgentRunId,
-      sourceToolCallId: item.sourceToolCallId,
-      audit: item.audit,
-      effect: item.effect,
-    }, null, 2)));
-    actions.appendChild(audit);
     tr.appendChild(actions);
     table.appendChild(tr);
   });
@@ -690,7 +868,6 @@ async function submitCrmProposal(event) {
       resolutionId: document.getElementById("crm-resolution").value,
       replyDraft: document.getElementById("crm-reply").value,
       internalDraft: document.getElementById("crm-internal").value,
-      ...(state.crmSource || {}),
     }),
   });
   await loadCrmProposals();
@@ -725,9 +902,86 @@ async function loadCrm() {
     JSON.stringify(crmData(provenanceEnvelope), null, 2);
 }
 
+// ---- Business module navigation ---------------------------------------------
+
+const FUNCTION_PAGES = {
+  overview: {
+    eyebrow: "BUSINESS PERFORMANCE",
+    title: "Executive Overview",
+    description: "See the most important signals across sales, inventory, finance, operations and customer relationships.",
+  },
+  sales: {
+    eyebrow: "ORDER TO CASH",
+    title: "Sales",
+    description: "Track order value, fulfilment progress and the backlog investigation queue.",
+  },
+  inventory: {
+    eyebrow: "STOCK CONTROL",
+    title: "Inventory",
+    description: "Monitor on-hand stock and review deterministic replenishment signals.",
+  },
+  accounting: {
+    eyebrow: "FINANCIAL ANCHOR",
+    title: "Accounting",
+    description: "Review labelled balances, margin and working-capital indicators.",
+  },
+  operations: {
+    eyebrow: "PROCESS STATE AND SIMULATION",
+    title: "Operations",
+    description: "Observe workload, test what-if events and inspect simulation evidence.",
+  },
+  crm: {
+    eyebrow: "CUSTOMER OPERATIONS",
+    title: "Customer Relationships",
+    description: "Rate customer value and relationship risk, then handle complaints with human review.",
+  },
+  assistant: {
+    eyebrow: "AGENT COORDINATION",
+    title: "AI Coordinator",
+    description: "Ask the shared Runtime to select grounded tools across sales, inventory, CRM and simulation.",
+  },
+};
+
+function showFunctionPage(pageId, updateHash = true) {
+  const config = FUNCTION_PAGES[pageId] || FUNCTION_PAGES.overview;
+  const resolvedId = FUNCTION_PAGES[pageId] ? pageId : "overview";
+  document.querySelectorAll("[data-page]").forEach((view) => {
+    const active = view.dataset.page === resolvedId;
+    view.hidden = !active;
+    view.classList.toggle("active", active);
+  });
+  document.querySelectorAll("[data-page-target]").forEach((button) => {
+    const active = button.dataset.pageTarget === resolvedId;
+    button.classList.toggle("active", active);
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
+  document.getElementById("page-eyebrow").textContent = config.eyebrow;
+  document.getElementById("page-title").textContent = config.title;
+  document.getElementById("page-description").textContent = config.description;
+  document.title = `${config.title} · HomeNest`;
+  if (updateHash && window.location.hash !== `#${resolvedId}`) {
+    window.history.replaceState(null, "", `#${resolvedId}`);
+  }
+  document.querySelector(".app-main")?.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function initFunctionNavigation() {
+  document.querySelectorAll("[data-page-target]").forEach((button) => {
+    button.addEventListener("click", () => showFunctionPage(button.dataset.pageTarget));
+  });
+  const requested = window.location.hash.slice(1);
+  showFunctionPage(FUNCTION_PAGES[requested] ? requested : "overview", false);
+  window.addEventListener("hashchange", () => {
+    const pageId = window.location.hash.slice(1);
+    if (FUNCTION_PAGES[pageId]) showFunctionPage(pageId, false);
+  });
+}
+
 // ---- Wiring -----------------------------------------------------------------
 
 function init() {
+  initFunctionNavigation();
   document.getElementById("session-form").addEventListener("submit", (event) =>
     runAction("Creating session…", () => createSession(event))
   );
@@ -774,6 +1028,7 @@ function init() {
     document.getElementById("assistant-badge").textContent = "unavailable";
   });
   runAction("Loading Actual State and process configuration…", loadReference);
+  runAction("Loading connected business modules…", loadBusinessModules);
   runAction("Loading CRM service-recovery state…", loadCrm);
 }
 
