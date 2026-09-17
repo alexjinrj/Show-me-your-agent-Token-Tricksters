@@ -35,6 +35,12 @@ def main() -> None:
             "请调用库存策略比较工具，比较未来3天补货策略，种子42，说明结果是模拟而非实际采购。",
             {"compare_inventory_replenishment_strategies"},
         ),
+        (
+            "请调用 get_crm_summary、recommend_resolution 分析 CASE-SO74695，并调用 "
+            "draft_customer_reply 起草回复。引用统一快照证据，标明订单服务异常是派生而非真实投诉；"
+            "不要发送回复、创建审批、退款或发货。",
+            {"get_crm_summary", "recommend_resolution", "draft_customer_reply"},
+        ),
     ):
         run = call("/api/assistant", {"message": prompt, "conversation_id": conversation_id})
         if run["status"] != "completed" or not run["evidence"]:

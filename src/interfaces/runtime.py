@@ -7,6 +7,7 @@ from typing import Any, Literal
 from uuid import uuid4
 
 from agent_runtime.contracts import RuntimeToolResult
+from agent_runtime.crm_registry import register_crm_tools
 from agent_runtime.executor import ToolExecutor
 from agent_runtime.openclaw import OpenClawGateway
 from agent_runtime.registry import RegisteredTool, ToolHandler
@@ -14,12 +15,14 @@ from agent_runtime.sales_registry import build_sales_tool_registry
 from agent_runtime.service import RuntimeService
 from enterprise_state.runtime_store import SQLRuntimeStore
 from interfaces.api.context import DemoContext
+from tools.crm.tools import CRMAgentTools
 from tools.inventory.tools import InventoryAgentTools
 from tools.sales.tools import SalesAgentTools
 
 
 def build_runtime(context: DemoContext, *, use_gateway: bool = True) -> RuntimeService:
     registry = build_sales_tool_registry(SalesAgentTools(context.engine))
+    register_crm_tools(registry, CRMAgentTools(context.crm))
     inventory = InventoryAgentTools(context.engine)
 
     def inventory_handler(name: str) -> ToolHandler:

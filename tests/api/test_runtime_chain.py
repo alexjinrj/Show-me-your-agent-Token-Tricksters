@@ -54,7 +54,10 @@ def test_http_gateway_to_tools_to_persisted_evidence(client: TestClient) -> None
             payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             received.append(payload)
             assert payload["model"] == "openclaw/business-coordinator"
-            assert len(payload["tools"]) == 13
+            assert len(payload["tools"]) == 23
+            assert any(
+                tool["function"]["name"] == "recommend_resolution" for tool in payload["tools"]
+            )
             if len(received) == 1:
                 reply = tool_call(
                     "get_actual_state_summary", {"snapshot_id": context.base_snapshot_id}

@@ -92,12 +92,18 @@ label {
 }
 
 input,
-select {
+select,
+textarea {
   background: var(--panel-2);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 0.35rem 0.5rem;
+}
+
+textarea {
+  resize: vertical;
+  font: inherit;
 }
 
 button {
@@ -303,4 +309,125 @@ summary {
   overflow: auto;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+#crm-panel {
+  grid-column: 1 / -1;
+  border-color: #2f855a;
+  background: linear-gradient(135deg, #122b28 0%, var(--panel) 55%);
+}
+
+.crm-badge {
+  background: #34d399;
+  color: #052e25;
+}
+
+.crm-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  gap: 0.6rem;
+  margin: 0.8rem 0 1rem;
+}
+
+.crm-stat {
+  background: rgba(6, 78, 59, 0.45);
+  border: 1px solid #2f855a;
+  border-radius: 8px;
+  padding: 0.65rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.crm-stat strong {
+  color: #6ee7b7;
+  font-size: 1.3rem;
+}
+
+.crm-stat span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.crm-grid {
+  display: grid;
+  grid-template-columns: minmax(420px, 1.2fr) minmax(320px, 1fr);
+  gap: 1rem;
+}
+
+.crm-grid h3,
+.crm-review h3 {
+  color: #6ee7b7;
+  font-size: 0.95rem;
+}
+
+.text-button {
+  background: transparent;
+  color: #6ee7b7;
+  padding: 0;
+}
+
+.priority-critical {
+  color: #fca5a5;
+}
+
+.priority-high {
+  color: #fdba74;
+}
+
+.crm-detail {
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.crm-detail h4 {
+  margin: 0 0 0.5rem;
+  color: #6ee7b7;
+}
+
+.crm-evidence {
+  padding-left: 1.2rem;
+  color: var(--muted);
+  font-size: 0.83rem;
+}
+
+.crm-recommendation {
+  border-left: 3px solid #34d399;
+  padding-left: 0.65rem;
+}
+
+.crm-review {
+  border-top: 1px solid #2f855a;
+  margin-top: 1rem;
+  padding-top: 0.6rem;
+}
+
+.review-actions {
+  display: flex;
+  gap: 0.3rem;
+  justify-content: flex-end;
+}
+
+.review-actions .approve {
+  background: #34d399;
+  color: #052e25;
+}
+
+.review-actions .reject {
+  background: #fb7185;
+  color: #3f0712;
+}
+
+#crm-provenance {
+  max-height: 18rem;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 900px) {
+  .crm-grid {
+    grid-template-columns: 1fr;
+  }
 }

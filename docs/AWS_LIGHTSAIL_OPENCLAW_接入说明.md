@@ -20,7 +20,7 @@ Lightsail OpenClaw Gateway /v1/chat/completions
 最终回答 + 工具证据 + 持久化运行记录 → 浏览器
 ```
 
-工具和数据库在项目后端所在机器执行；OpenClaw 在 Lightsail 上负责模型推理。目前有 11 个销售工具、2 个库存工具，CRM 尚未接入。模拟不会执行真实采购或修改 Actual State。
+工具和数据库在项目后端所在机器执行；OpenClaw 在 Lightsail 上负责模型推理。目前有 11 个销售工具、2 个库存工具和 10 个只读 CRM 工具。模拟不会执行真实采购或修改 Actual State；CRM 提案与审批只记录人工审核状态，不执行退款、补发或客户联系。
 
 建议分两步：
 
@@ -227,7 +227,9 @@ Invoke-RestMethod -Uri "$env:BC_OPENCLAW_URL/v1/chat/completions" -Method Post -
 
 ### 5.1 确保部署的是完整 Runtime 代码
 
-最新 Sales/Inventory Runtime 代码与交接文档发布在 `feature/agent-runtime` 分支，尚未合并到 `main`。实例部署时明确选择该分支，并记录 `git rev-parse HEAD` 输出的提交号；不要默认克隆 `main` 后就认为拿到了完整 Runtime 链路。
+Sales/Inventory/CRM 统一数据版 Runtime 完整链路发布在 `feature/agent-runtime` 分支，尚未合并到 `main`。CRM 原型来源为 `main@ac9d327` 的 `repo-overlay/`，已改造接入正式目录并复用统一快照。部署前确认所选提交同时包含 CRM 注册、API 与 `0006_crm_runtime_evidence` 迁移，不要直接运行 overlay 或默认 `main` 已完成集成。记录 `git rev-parse HEAD` 的提交号。
+
+对已有数据库，先停后端并备份；使用与后端相同的 `BC_DB_PATH`，运行 `uv run python scripts/migrate_runtime.py` 核对目标，再加 `--apply` 升级到最新迁移。迁移脚本在主机部署目录运行，不假设它已复制进容器镜像。CRM 使用同一 AdventureWorks 快照，不配置 Olist 路径；服务案件是订单异常派生投影。真实退款、发货和客户联系不在本链路范围内。
 
 可以克隆该分支，或将经过验证的提交打包传输。不要提交或打包 `.env`、Token、私钥或现有数据库。注意 `git archive HEAD` 只包含已提交文件，不包含本地未提交修改。
 

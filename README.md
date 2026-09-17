@@ -19,7 +19,9 @@ back to Actual State.
 - A FastAPI application and browser dashboard for running and inspecting the
   demo.
 - Daily simulation checkpoints for future incremental frontend playback.
-- Bounded, audited sales-order tools with prompt-driven LLM trajectory testing.
+- Bounded, audited sales, inventory and CRM tools with prompt-driven LLM trajectory testing.
+- CRM customer-value/risk scoring, complaint triage, service-recovery comparison,
+  persisted proposals and explicit human approval records.
 
 Arbitrary database-query tools, ERP submission, authentication, and production
 deployment are not included yet.
@@ -152,13 +154,16 @@ sales-only validation steps.
 ## Run with OpenClaw
 
 The web assistant now runs the complete Gateway handoff chain: request context,
-OpenClaw reasoning, 13 bounded sales/inventory tools, persisted simulation
+OpenClaw reasoning, 23 bounded sales/inventory/CRM tools, persisted simulation
 evidence, audit, and final response. Configure `BC_OPENCLAW_URL`,
 `BC_OPENCLAW_TOKEN` and `BC_OPENCLAW_AGENT_ID` in the backend environment.
 Without configuration, the assistant reports `disabled` and executes no tools.
 
 See [runtime setup and handoff](docs/AGENT_RUNTIME_HANDOFF.md) for the dedicated
 Gateway agent configuration, API contracts, live smoke test and deployment limits.
+
+See [CRM runtime integration](docs/CRM_RUNTIME_INTEGRATION.md) for the unified
+snapshot projection, derived order-service cases, shared tools and human-review workflow.
 
 接入已有 AWS Lightsail OpenClaw 实例的中文步骤见
 [Lightsail 接入说明](docs/AWS_LIGHTSAIL_OPENCLAW_接入说明.md)，包括本地 SSH 联调、

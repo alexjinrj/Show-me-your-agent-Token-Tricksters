@@ -60,8 +60,8 @@ openclaw mcp doctor sme-business-coordinator --probe
 openclaw mcp tools sme-business-coordinator
 ```
 
-The probe should list `get_business_context`, eleven sales tools and two inventory
-tools. Start each business conversation with
+The probe should list `get_business_context`, eleven sales tools, two inventory
+tools and ten CRM tools. Start each business conversation with
 `get_business_context`; it returns the current base snapshot ID.
 
 ## Skill installation

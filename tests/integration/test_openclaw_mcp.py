@@ -21,6 +21,9 @@ def test_openclaw_mcp_discovers_context_and_audited_sales_tools() -> None:
             assert "compare_simulation_runs" in names
             assert "list_inventory_reorder_candidates" in names
             assert "compare_inventory_replenishment_strategies" in names
+            assert "recommend_resolution" in names
+            assert "draft_customer_reply" in names
+            assert len(names) == 24  # 23 business tools plus get_business_context.
 
             context_result = await client.call_tool("get_business_context", {})
             context = context_result.structured_content
@@ -47,6 +50,11 @@ def test_openclaw_mcp_discovers_context_and_audited_sales_tools() -> None:
             assert inventory.structured_content is not None
             assert inventory.structured_content["state_type"] == "actual"
             assert len(inventory.structured_content["data"]["candidates"]) <= 3
+            crm = await client.call_tool("recommend_resolution", {"complaint_id": "CASE-SO74695"})
+            assert crm.structured_content is not None
+            assert crm.structured_content["status"] == "ok"
+            assert crm.structured_content["reference_id"] == context["crm_dataset_reference"]
+            assert crm.structured_content["data"]["result"]["complaintId"] == "CASE-SO74695"
 
     asyncio.run(exercise_server())
 

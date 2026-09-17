@@ -58,6 +58,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(assistant_router)
 
+    from interfaces.api.routes_crm import legacy_router as legacy_crm_router
+    from interfaces.api.routes_crm import router as crm_router
+
+    app.include_router(crm_router)
+    app.include_router(legacy_crm_router)
+
     _mount_static(app, resolved.web_dir)
 
     return app

@@ -85,11 +85,52 @@
         </details>
       </section>
 
+      <section class="panel" id="crm-panel">
+        <h2>CRM Service Recovery <span class="badge crm-badge">Unified snapshot</span></h2>
+        <p class="muted">
+          Customer value and relationship risk are service signals, not credit ratings.
+          Same AdventureWorks snapshot as Sales/Inventory. Cases are derived order exceptions,
+          not imported complaints. Missing reviews, response records and complaint SLA are unavailable.
+        </p>
+        <div id="crm-summary" class="crm-summary"></div>
+        <div class="crm-grid">
+          <div>
+            <h3>Priority order-service case queue</h3>
+            <div id="crm-complaints" class="scroll-table"></div>
+          </div>
+          <div>
+            <h3>Investigation and proposal</h3>
+            <div id="crm-detail" class="crm-detail muted">Select an order-service case to investigate.</div>
+            <form id="crm-proposal-form" class="stacked" hidden>
+              <label>
+                Resolution option
+                <select id="crm-resolution"></select>
+              </label>
+              <label>Unsent customer reply <textarea id="crm-reply" rows="4"></textarea></label>
+              <label>Internal note <textarea id="crm-internal" rows="3"></textarea></label>
+              <button type="submit">Submit for human review</button>
+            </form>
+          </div>
+        </div>
+        <div class="crm-review">
+          <h3>Human review queue</h3>
+          <div class="row">
+            <label>Reviewer <input id="crm-reviewer" value="Demo Reviewer" /></label>
+            <label>Review note <input id="crm-review-note" placeholder="Optional decision note" /></label>
+          </div>
+          <div id="crm-proposals" class="scroll-table"></div>
+        </div>
+        <details>
+          <summary>CRM data provenance</summary>
+          <pre id="crm-provenance" class="mono"></pre>
+        </details>
+      </section>
+
       <section class="panel" id="assistant-panel">
         <h2>Business Assistant <span class="badge" id="assistant-badge">OpenClaw</span></h2>
         <div id="chat-log" class="chat-log" aria-live="polite"></div>
         <form id="chat-form" class="row">
-          <input id="chat-input" maxlength="8000" placeholder="Ask about sales, inventory or a scenario" />
+          <input id="chat-input" maxlength="8000" placeholder="Ask about sales, inventory, CRM or a scenario" />
           <button type="submit">Send</button>
         </form>
       </section>

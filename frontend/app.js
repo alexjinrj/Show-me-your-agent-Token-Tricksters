@@ -12,6 +12,9 @@ const state = {
   lastRun: null,
   baselineSessionId: null,
   baselineRunId: null,
+  crmComplaintId: null,
+  crmComplaint: null,
+  crmSource: null,
   playback: { timer: null, index: 0, trace: [], hours: [] },
 };
 
@@ -494,6 +497,19 @@ async function sendChat(event) {
       `Evidence: ${reply.evidence.length} tool calls · Run ${reply.agent_run_id}`));
     trace.appendChild(el("pre", null, JSON.stringify(reply.evidence, null, 2)));
     document.getElementById("chat-log").appendChild(trace);
+    if (reply.status === "completed") {
+      reply.evidence.filter((item) =>
+        item.status === "ok" && item.tool_name === "recommend_resolution"
+      ).forEach((item) => {
+        const complaintId = item.data.result.complaintId;
+        const review = el("button", null, `Review CRM recommendation · ${complaintId}`);
+        review.type = "button";
+        review.addEventListener("click", () =>
+          runAction("Loading CRM evidence…", () => openCrmRecommendation(reply, item))
+        );
+        trace.appendChild(review);
+      });
+    }
   } catch (error) {
     appendChat("assistant", `Request failed: ${error.message}`);
     throw error;
@@ -501,6 +517,212 @@ async function sendChat(event) {
     state.chatBusy = false;
     button.disabled = false;
   }
+}
+
+// ---- CRM service recovery ---------------------------------------------------
+
+function crmData(envelope) {
+  if (!envelope || envelope.schema_version !== "crm-api-v1") {
+    throw new Error("Unsupported CRM response contract");
+  }
+  return envelope.data;
+}
+
+function renderCrmSummary(summary) {
+  const container = document.getElementById("crm-summary");
+  container.innerHTML = "";
+  const entries = [
+    ["Customers", summary.customerCount],
+    ["Order-service cases", summary.serviceCaseCount],
+    ["High relationship risk", summary.highRiskCustomers],
+    ["Orders past due", summary.overdueOrders],
+    ["First-response records", summary.unrespondedComplaints],
+    ["A-tier value", summary.aTierCustomers],
+  ];
+  for (const [label, value] of entries) {
+    const card = el("div", "crm-stat");
+    card.appendChild(el("strong", null, value == null ? "Unavailable" : String(value)));
+    card.appendChild(el("span", null, label));
+    container.appendChild(card);
+  }
+}
+
+function renderCrmComplaints(rows) {
+  const container = document.getElementById("crm-complaints");
+  container.innerHTML = "";
+  const table = el("table");
+  const head = el("tr");
+  ["Case", "Customer", "Priority", "Order due date", "Owner"].forEach((label) =>
+    head.appendChild(el("th", null, label))
+  );
+  table.appendChild(head);
+  rows.forEach((item) => {
+    const tr = el("tr", "crm-case-row");
+    const linkCell = el("td");
+    const button = el("button", "text-button", item.id);
+    button.type = "button";
+    button.addEventListener("click", () =>
+      runAction(`Investigating ${item.id}…`, () => selectCrmComplaint(item.id))
+    );
+    linkCell.appendChild(button);
+    tr.appendChild(linkCell);
+    tr.appendChild(el("td", null, item.customerId));
+    tr.appendChild(el("td", `priority-${item.priorityLevel.toLowerCase()}`, `${item.priorityLevel} · ${item.priorityScore}`));
+    tr.appendChild(el("td", null, item.overdueHours > 0 ? `${item.overdueHours.toFixed(1)}h past due` : "Not overdue"));
+    tr.appendChild(el("td", null, item.ownerRole));
+    table.appendChild(tr);
+  });
+  container.appendChild(table);
+}
+
+function renderCrmDetail(item) {
+  const detail = document.getElementById("crm-detail");
+  detail.innerHTML = "";
+  detail.classList.remove("muted");
+  const investigation = item.investigation;
+  const customer = item.customer;
+  detail.appendChild(el("h4", null, `${item.id} · ${item.issue}`));
+  detail.appendChild(el("p", null,
+    `${customer.name} · value ${customer.valueTier}/${customer.valueScore} · relationship risk ${customer.riskLevel}/${customer.riskScore}`));
+  detail.appendChild(el("p", null, `Next action: ${item.nextAction}`));
+  const evidence = el("ul", "crm-evidence");
+  item.reasons.forEach((reason) => evidence.appendChild(el("li", null, reason)));
+  detail.appendChild(evidence);
+  const recommendation = investigation.recommendation;
+  detail.appendChild(el("p", "crm-recommendation",
+    `Recommended review: ${recommendation.label} · ${recommendation.currency || "SGD"} ${recommendation.estimatedCost ?? "unavailable"} · ETA ${recommendation.resolutionDays ?? "unknown"}. ${investigation.rationale}`));
+  detail.appendChild(el("p", "muted", investigation.boundary));
+
+  const select = document.getElementById("crm-resolution");
+  select.innerHTML = "";
+  investigation.options.forEach((option) => {
+    const node = document.createElement("option");
+    node.value = option.id;
+    node.textContent = `${option.recommended ? "Recommended · " : ""}${option.label} · ${option.currency || "SGD"} ${option.estimatedCost ?? "unavailable"} · ${option.feasible ? "feasible for review" : "not currently feasible"}`;
+    node.selected = option.recommended;
+    node.disabled = !option.feasible;
+    select.appendChild(node);
+  });
+  document.getElementById("crm-reply").value = item.replyDraft;
+  document.getElementById("crm-internal").value = item.internalDraft;
+  document.getElementById("crm-proposal-form").hidden = false;
+}
+
+async function selectCrmComplaint(complaintId) {
+  const envelope = await api(`/api/v1/crm/complaints/${encodeURIComponent(complaintId)}`);
+  state.crmComplaintId = complaintId;
+  state.crmComplaint = crmData(envelope);
+  state.crmSource = null;
+  renderCrmDetail(state.crmComplaint);
+}
+
+async function openCrmRecommendation(run, evidence) {
+  await selectCrmComplaint(evidence.data.result.complaintId);
+  state.crmSource = {
+    sourceAgentRunId: run.agent_run_id,
+    sourceToolCallId: evidence.tool_call_id,
+  };
+  document.getElementById("crm-detail").appendChild(
+    el("p", "muted", `Source AgentRun ${run.agent_run_id} · Evidence ${evidence.tool_call_id}`)
+  );
+}
+
+function renderCrmProposals(rows) {
+  const container = document.getElementById("crm-proposals");
+  container.innerHTML = "";
+  if (!rows.length) {
+    container.appendChild(el("p", "muted", "No proposals have been submitted."));
+    return;
+  }
+  const table = el("table");
+  const head = el("tr");
+  ["Case", "Resolution", "Cost", "Status", "Review"].forEach((label) =>
+    head.appendChild(el("th", null, label))
+  );
+  table.appendChild(head);
+  rows.forEach((item) => {
+    const tr = el("tr");
+    tr.appendChild(el("td", null, item.complaintId));
+    tr.appendChild(el("td", null, item.resolutionLabel));
+    tr.appendChild(el("td", "mono", `${item.currency} ${item.estimatedCost}`));
+    tr.appendChild(el("td", null, item.status));
+    const actions = el("td", "review-actions");
+    if (item.status === "Pending Review") {
+      ["Approved", "Rejected"].forEach((decision) => {
+        const button = el("button", decision === "Approved" ? "approve" : "reject", decision);
+        button.type = "button";
+        button.addEventListener("click", () =>
+          runAction(`${decision} ${item.id}…`, () => decideCrmProposal(item.id, decision))
+        );
+        actions.appendChild(button);
+      });
+    } else {
+      actions.appendChild(el("span", "muted", item.reviewer || "Reviewed"));
+    }
+    const audit = el("details");
+    audit.appendChild(el("summary", null, "Evidence / review audit"));
+    audit.appendChild(el("pre", null, JSON.stringify({
+      datasetReference: item.datasetReference,
+      sourceAgentRunId: item.sourceAgentRunId,
+      sourceToolCallId: item.sourceToolCallId,
+      audit: item.audit,
+      effect: item.effect,
+    }, null, 2)));
+    actions.appendChild(audit);
+    tr.appendChild(actions);
+    table.appendChild(tr);
+  });
+  container.appendChild(table);
+}
+
+async function loadCrmProposals() {
+  const envelope = await api("/api/v1/crm/proposals");
+  renderCrmProposals(crmData(envelope));
+}
+
+async function submitCrmProposal(event) {
+  event.preventDefault();
+  if (!state.crmComplaintId) return;
+  await api("/api/v1/crm/proposals", {
+    method: "POST",
+    body: JSON.stringify({
+      complaintId: state.crmComplaintId,
+      resolutionId: document.getElementById("crm-resolution").value,
+      replyDraft: document.getElementById("crm-reply").value,
+      internalDraft: document.getElementById("crm-internal").value,
+      ...(state.crmSource || {}),
+    }),
+  });
+  await loadCrmProposals();
+}
+
+async function decideCrmProposal(proposalId, decision) {
+  const reviewer = document.getElementById("crm-reviewer").value.trim();
+  if (!reviewer) throw new Error("Enter a reviewer name before deciding");
+  await api(`/api/v1/crm/proposals/${proposalId}/decision`, {
+    method: "POST",
+    body: JSON.stringify({
+      decision,
+      reviewer,
+      note: document.getElementById("crm-review-note").value.trim(),
+    }),
+  });
+  await loadCrmProposals();
+}
+
+async function loadCrm() {
+  const [summaryEnvelope, complaintsEnvelope, proposalsEnvelope, provenanceEnvelope] =
+    await Promise.all([
+      api("/api/v1/crm/summary"),
+      api("/api/v1/crm/complaints?limit=24"),
+      api("/api/v1/crm/proposals"),
+      api("/api/v1/crm/provenance"),
+    ]);
+  renderCrmSummary(crmData(summaryEnvelope));
+  renderCrmComplaints(crmData(complaintsEnvelope));
+  renderCrmProposals(crmData(proposalsEnvelope));
+  document.getElementById("crm-provenance").textContent =
+    JSON.stringify(crmData(provenanceEnvelope), null, 2);
 }
 
 // ---- Wiring -----------------------------------------------------------------
@@ -541,6 +763,9 @@ function init() {
   document.getElementById("chat-form").addEventListener("submit", (event) =>
     runAction("OpenClaw is analysing…", () => sendChat(event))
   );
+  document.getElementById("crm-proposal-form").addEventListener("submit", (event) =>
+    runAction("Submitting a review-only proposal…", () => submitCrmProposal(event))
+  );
 
   renderEventFields();
   api("/api/assistant/status").then((runtime) => {
@@ -549,6 +774,7 @@ function init() {
     document.getElementById("assistant-badge").textContent = "unavailable";
   });
   runAction("Loading Actual State and process configuration…", loadReference);
+  runAction("Loading CRM service-recovery state…", loadCrm);
 }
 
 document.addEventListener("DOMContentLoaded", init);
