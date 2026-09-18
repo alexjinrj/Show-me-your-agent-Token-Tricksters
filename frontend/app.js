@@ -14,6 +14,7 @@ const state = {
   baselineRunId: null,
   crmComplaintId: null,
   crmComplaint: null,
+  crmSource: null,
   playback: { timer: null, index: 0, trace: [], hours: [] },
 };
 
@@ -528,8 +529,8 @@ function renderOverview(data) {
     ["Sales backlog", formatNumber(h.backlog_count), "attention"],
     ["Reorder candidates", formatNumber(h.reorder_candidate_count), "attention"],
     ["Cash balance", formatSgd(h.cash)],
-    ["Open complaints", formatNumber(h.open_complaints), "attention"],
-    ["Overdue complaints", formatNumber(h.overdue_complaints), "critical"],
+    ["Derived service cases", formatNumber(h.service_case_count), "attention"],
+    ["Overdue orders", formatNumber(h.overdue_orders), "critical"],
   ]);
   const container = document.getElementById("overview-modules");
   container.innerHTML = "";
@@ -711,6 +712,19 @@ async function sendChat(event) {
       `Evidence: ${reply.evidence.length} tool calls · Run ${reply.agent_run_id}`));
     trace.appendChild(el("pre", null, JSON.stringify(reply.evidence, null, 2)));
     document.getElementById("chat-log").appendChild(trace);
+    if (reply.status === "completed") {
+      reply.evidence.filter((item) =>
+        item.status === "ok" && item.tool_name === "recommend_resolution"
+      ).forEach((item) => {
+        const complaintId = item.data.result.complaintId;
+        const review = el("button", null, `Review CRM recommendation · ${complaintId}`);
+        review.type = "button";
+        review.addEventListener("click", () =>
+          runAction("Loading CRM evidence…", () => openCrmRecommendation(reply, item))
+        );
+        trace.appendChild(review);
+      });
+    }
   } catch (error) {
     appendChat("assistant", `Request failed: ${error.message}`);
     throw error;
@@ -734,15 +748,15 @@ function renderCrmSummary(summary) {
   container.innerHTML = "";
   const entries = [
     ["Customers", summary.customerCount],
-    ["Open complaints", summary.complaintCount],
+    ["Order-service cases", summary.serviceCaseCount],
     ["High relationship risk", summary.highRiskCustomers],
-    ["SLA overdue", summary.overdueComplaints],
-    ["No first response", summary.unrespondedComplaints],
+    ["Orders past due", summary.overdueOrders],
+    ["First-response records", summary.unrespondedComplaints],
     ["A-tier value", summary.aTierCustomers],
   ];
   for (const [label, value] of entries) {
     const card = el("div", "crm-stat");
-    card.appendChild(el("strong", null, String(value)));
+    card.appendChild(el("strong", null, value == null ? "Unavailable" : String(value)));
     card.appendChild(el("span", null, label));
     container.appendChild(card);
   }
@@ -753,7 +767,7 @@ function renderCrmComplaints(rows) {
   container.innerHTML = "";
   const table = el("table");
   const head = el("tr");
-  ["Case", "Customer", "Priority", "SLA", "Owner"].forEach((label) =>
+  ["Case", "Customer", "Priority", "Order due date", "Owner"].forEach((label) =>
     head.appendChild(el("th", null, label))
   );
   table.appendChild(head);
@@ -769,7 +783,7 @@ function renderCrmComplaints(rows) {
     tr.appendChild(linkCell);
     tr.appendChild(el("td", null, item.customerId));
     tr.appendChild(el("td", `priority-${item.priorityLevel.toLowerCase()}`, `${item.priorityLevel} · ${item.priorityScore}`));
-    tr.appendChild(el("td", null, item.overdueHours > 0 ? `${item.overdueHours.toFixed(1)}h overdue` : "Within SLA"));
+    tr.appendChild(el("td", null, item.overdueHours > 0 ? `${item.overdueHours.toFixed(1)}h past due` : "Not overdue"));
     tr.appendChild(el("td", null, item.ownerRole));
     table.appendChild(tr);
   });
@@ -791,7 +805,7 @@ function renderCrmDetail(item) {
   detail.appendChild(evidence);
   const recommendation = investigation.recommendation;
   detail.appendChild(el("p", "crm-recommendation",
-    `Recommended draft: ${recommendation.label} · R$ ${recommendation.estimatedCost.toFixed(2)} · ${recommendation.resolutionDays} day(s). ${investigation.rationale}`));
+    `Recommended review: ${recommendation.label} · ${recommendation.currency || "SGD"} ${recommendation.estimatedCost ?? "unavailable"} · ETA ${recommendation.resolutionDays ?? "unknown"}. ${investigation.rationale}`));
   detail.appendChild(el("p", "muted", investigation.boundary));
 
   const select = document.getElementById("crm-resolution");
@@ -799,8 +813,9 @@ function renderCrmDetail(item) {
   investigation.options.forEach((option) => {
     const node = document.createElement("option");
     node.value = option.id;
-    node.textContent = `${option.recommended ? "Recommended · " : ""}${option.label} · R$ ${option.estimatedCost.toFixed(2)} · ${option.feasible ? "feasible" : "not currently feasible"}`;
+    node.textContent = `${option.recommended ? "Recommended · " : ""}${option.label} · ${option.currency || "SGD"} ${option.estimatedCost ?? "unavailable"} · ${option.feasible ? "feasible for review" : "not currently feasible"}`;
     node.selected = option.recommended;
+    node.disabled = !option.feasible;
     select.appendChild(node);
   });
   document.getElementById("crm-reply").value = item.replyDraft;
@@ -812,7 +827,20 @@ async function selectCrmComplaint(complaintId) {
   const envelope = await api(`/api/v1/crm/complaints/${encodeURIComponent(complaintId)}`);
   state.crmComplaintId = complaintId;
   state.crmComplaint = crmData(envelope);
+  state.crmSource = null;
   renderCrmDetail(state.crmComplaint);
+}
+
+async function openCrmRecommendation(run, evidence) {
+  showFunctionPage("crm");
+  await selectCrmComplaint(evidence.data.result.complaintId);
+  state.crmSource = {
+    sourceAgentRunId: run.agent_run_id,
+    sourceToolCallId: evidence.tool_call_id,
+  };
+  document.getElementById("crm-detail").appendChild(
+    el("p", "muted", `Source AgentRun ${run.agent_run_id} · Evidence ${evidence.tool_call_id}`)
+  );
 }
 
 function renderCrmProposals(rows) {
@@ -847,6 +875,16 @@ function renderCrmProposals(rows) {
     } else {
       actions.appendChild(el("span", "muted", item.reviewer || "Reviewed"));
     }
+    const audit = el("details");
+    audit.appendChild(el("summary", null, "Evidence / review audit"));
+    audit.appendChild(el("pre", null, JSON.stringify({
+      datasetReference: item.datasetReference,
+      sourceAgentRunId: item.sourceAgentRunId,
+      sourceToolCallId: item.sourceToolCallId,
+      audit: item.audit,
+      effect: item.effect,
+    }, null, 2)));
+    actions.appendChild(audit);
     tr.appendChild(actions);
     table.appendChild(tr);
   });
@@ -868,6 +906,7 @@ async function submitCrmProposal(event) {
       resolutionId: document.getElementById("crm-resolution").value,
       replyDraft: document.getElementById("crm-reply").value,
       internalDraft: document.getElementById("crm-internal").value,
+      ...(state.crmSource || {}),
     }),
   });
   await loadCrmProposals();
@@ -933,7 +972,7 @@ const FUNCTION_PAGES = {
   crm: {
     eyebrow: "CUSTOMER OPERATIONS",
     title: "Customer Relationships",
-    description: "Rate customer value and relationship risk, then handle complaints with human review.",
+    description: "Rate customer value and relationship risk, then review derived order-service cases with human approval.",
   },
   assistant: {
     eyebrow: "AGENT COORDINATION",
@@ -963,7 +1002,7 @@ function showFunctionPage(pageId, updateHash = true) {
   if (updateHash && window.location.hash !== `#${resolvedId}`) {
     window.history.replaceState(null, "", `#${resolvedId}`);
   }
-  document.querySelector(".app-main")?.scrollTo({ top: 0, behavior: "smooth" });
+  document.querySelector(".app-main")?.scrollTo?.({ top: 0, behavior: "smooth" });
 }
 
 function initFunctionNavigation() {

@@ -59,10 +59,14 @@ def get_business_context() -> dict[str, Any]:
     runtime = get_runtime()
     return {
         "base_snapshot_id": runtime.context.base_snapshot_id,
+        "crm_dataset_reference": runtime.context.crm.reference_id,
+        "crm_provenance": runtime.context.crm.provenance(),
         "company_id": "SG-SME-001",
         "rules": [
             "Actual State is immutable and authoritative.",
             "Simulation results never modify Actual State.",
+            "CRM shares the snapshot; cases are derived order exceptions, not complaints.",
+            "CRM drafts and human-review records never execute contact, refunds or shipments.",
             "Cite tool_call_id or reference_id for material claims.",
         ],
         "tools": [
@@ -294,25 +298,25 @@ def get_customer_360(customer_id: str) -> dict[str, Any]:
 
 @mcp.tool()
 def get_complaint_detail(complaint_id: str) -> dict[str, Any]:
-    """Read one complaint's SLA, priority, owner and next action."""
+    """Read a derived order-service case, order deadline and priority."""
     return _invoke("get_complaint_detail", {"complaint_id": complaint_id})
 
 
 @mcp.tool()
 def get_order_timeline(complaint_id: str) -> dict[str, Any]:
-    """Trace source order dates and CRM replay events for a complaint."""
+    """Trace same-snapshot order dates and status for a derived service case."""
     return _invoke("get_order_timeline", {"complaint_id": complaint_id})
 
 
 @mcp.tool()
 def get_inventory_availability(complaint_id: str) -> dict[str, Any]:
-    """Read labelled demo replacement-stock assumptions."""
+    """Read same-snapshot SKU stock and derived pending-order obligations."""
     return _invoke("get_inventory_availability", {"complaint_id": complaint_id})
 
 
 @mcp.tool()
 def estimate_refund_impact(complaint_id: str) -> dict[str, Any]:
-    """Estimate labelled demo resolution costs in BRL."""
+    """Read SGD order exposure and standard cost; payment/refund eligibility is unknown."""
     return _invoke("estimate_refund_impact", {"complaint_id": complaint_id})
 
 

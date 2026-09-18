@@ -9,38 +9,12 @@ import urllib.request
 from collections.abc import Callable
 from typing import Any, Protocol
 
+from agent_runtime.sales_registry import (
+    EXCEPTION_TOOLS,
+    SCENARIO_TOOLS,
+    build_sales_tool_registry,
+)
 from tools.sales.tools import SalesAgentTools
-
-TOOL_DESCRIPTIONS = {
-    "get_actual_state_summary": "Read current sales orders, backlog, and snapshot lineage.",
-    "list_exceptions": "List current sales backlog and inventory exceptions.",
-    "trace_process_bottleneck": "Inspect current O2C queues and capacity evidence.",
-    "trace_business_object": "Trace a sales order by its order number.",
-    "get_metric_history": "Check whether an actual historical metric is available.",
-    "create_simulation_session": "Create an isolated scenario session from an actual snapshot.",
-    "get_simulation_state": "Inspect an isolated simulation session and its events.",
-    "fork_simulation_session": "Fork a baseline simulation session for an alternative.",
-    "add_simulation_event": "Add a permitted warehouse or supplier scenario event.",
-    "run_simulation": "Run an isolated scenario with explicit horizon and seed.",
-    "compare_simulation_runs": "Compare compatible baseline and alternative runs.",
-}
-
-EXCEPTION_TOOLS = (
-    "get_actual_state_summary",
-    "list_exceptions",
-    "trace_business_object",
-    "get_metric_history",
-)
-SCENARIO_TOOLS = (
-    "get_actual_state_summary",
-    "list_exceptions",
-    "create_simulation_session",
-    "get_simulation_state",
-    "fork_simulation_session",
-    "add_simulation_event",
-    "run_simulation",
-    "compare_simulation_runs",
-)
 
 
 class CompletionClient(Protocol):
@@ -156,13 +130,14 @@ def run_sales_agent(
     if mode not in {"exceptions", "scenario"}:
         raise ValueError("Unknown sales mode")
     selected = EXCEPTION_TOOLS if mode == "exceptions" else SCENARIO_TOOLS
-    schemas = tools.schemas()
+    registry = build_sales_tool_registry(tools)
+    schemas = registry.schemas(selected)
     definitions = [
         {
             "type": "function",
             "function": {
                 "name": name,
-                "description": TOOL_DESCRIPTIONS[name],
+                "description": registry.description(name),
                 "parameters": schemas[name],
             },
         }
@@ -271,9 +246,11 @@ def run_sales_agent(
                     result = {"status": "error", "error_code": "TOOL_BUDGET_EXCEEDED"}
                 else:
                     call_count += 1
-                    result = tools.call(name, arguments, agent_case_id="sales-llm-demo").model_dump(
-                        mode="json", exclude_none=True
-                    )
+                    result = registry.call(
+                        name,
+                        arguments,
+                        agent_case_id="sales-llm-demo",
+                    ).model_dump(mode="json", exclude_none=True)
             event = {
                 "kind": "tool",
                 "round": round_number,

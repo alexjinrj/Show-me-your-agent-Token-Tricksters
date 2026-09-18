@@ -11,10 +11,13 @@ def test_crm_versioned_read_contract_and_legacy_compatibility(client: TestClient
     assert summary.status_code == 200
     body = summary.json()
     assert body["schema_version"] == "crm-api-v1"
-    assert body["data"]["customerCount"] == 30
-    assert body["data"]["complaintCount"] == 24
-    assert body["provenance"]["dataset_id"] == "olist-crm-demo-v1"
-    assert body["provenance"]["boundaries"]["synthetic"]
+    assert body["data"]["customerCount"] == 486
+    assert body["data"]["salesOrderCount"] == 500
+    assert body["data"]["serviceCaseCount"] == 100
+    assert body["data"]["complaintCount"] is None
+    assert body["provenance"]["dataset_id"] == "adventureworks-unified-snapshot-v1"
+    assert body["dataset_reference"] == client.app.state.context.base_snapshot_id
+    assert body["provenance"]["boundaries"]["synthetic"] == []
 
     complaints = client.get("/api/v1/crm/complaints?limit=3").json()["data"]
     assert len(complaints) == 3
@@ -22,8 +25,9 @@ def test_crm_versioned_read_contract_and_legacy_compatibility(client: TestClient
     assert client.get("/api/crm/complaints?limit=3").json() == complaints
 
     detail = client.get(f"/api/v1/crm/complaints/{complaints[0]['id']}").json()["data"]
-    assert detail["investigation"]["recommendation"]["id"] in {"refund", "reship"}
-    assert "Olist facts" in detail["investigation"]["boundary"]
+    assert detail["investigation"]["recommendation"]["id"] in {"monitor", "reship"}
+    assert "canonical AdventureWorks snapshot" in detail["investigation"]["boundary"]
+    assert detail["caseKind"] == "derived_order_service_exception"
 
 
 def test_crm_proposal_and_human_decision_are_persisted(client: TestClient) -> None:
@@ -31,7 +35,7 @@ def test_crm_proposal_and_human_decision_are_persisted(client: TestClient) -> No
     created = client.post(
         "/api/v1/crm/proposals",
         json={
-            "complaintId": "TKT-004",
+            "complaintId": "CASE-SO74695",
             "resolutionId": "refund",
             "replyDraft": "Unsent draft",
             "internalDraft": "Verify before action",
@@ -76,13 +80,13 @@ def test_crm_tool_runs_through_shared_assistant_runtime(client: TestClient) -> N
                             "type": "function",
                             "function": {
                                 "name": "recommend_resolution",
-                                "arguments": json.dumps({"complaint_id": "TKT-004"}),
+                                "arguments": json.dumps({"complaint_id": "CASE-SO74695"}),
                             },
                         }
                     ],
                 }
             evidence = json.loads(messages[-1]["content"])
-            assert evidence["reference_id"].startswith("olist-crm-demo:")
+            assert evidence["reference_id"] == client.app.state.context.base_snapshot_id
             assert evidence["data"]["result"]["boundary"]
             return {
                 "role": "assistant",
@@ -90,7 +94,7 @@ def test_crm_tool_runs_through_shared_assistant_runtime(client: TestClient) -> N
             }
 
     runtime.gateway = CRMGateway()
-    response = client.post("/api/assistant", json={"message": "Investigate TKT-004"})
+    response = client.post("/api/assistant", json={"message": "Investigate CASE-SO74695"})
     assert response.status_code == 200
     result = response.json()
     assert result["status"] == "completed"

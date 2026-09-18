@@ -78,7 +78,7 @@ class DemoContext:
             manifest.snapshot_id,
             load_runtime_process_catalog(settings.config_dir),
             json.loads((root / "SOURCE_MANIFEST.json").read_text(encoding="utf-8")),
-            CRMService(settings.crm_data_path),
+            CRMService(service.load_snapshot(manifest.snapshot_id)),
         )
 
     def base_snapshot(self) -> SnapshotBundle:

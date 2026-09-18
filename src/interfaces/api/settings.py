@@ -8,7 +8,6 @@ DEFAULT_DB_PATH = "runtime_data/enterprise_state.db"
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_HOST_PORT = 8000
 DEFAULT_DEMO_DATA_DIR = "data/load_data/adventureworks_demo"
-DEFAULT_CRM_DATA_PATH = "data/load_data/olist_crm_demo/olist-snapshot.json"
 DEFAULT_CONFIG_DIR = "src/core/process_definitions"
 DEFAULT_WEB_DIR = "frontend"
 
@@ -26,7 +25,6 @@ class Settings:
     host: str
     host_port: int
     demo_data_dir: Path
-    crm_data_path: Path = Path(DEFAULT_CRM_DATA_PATH)
     config_dir: Path = Path(DEFAULT_CONFIG_DIR)
     web_dir: Path = Path(DEFAULT_WEB_DIR)
 
@@ -52,9 +50,6 @@ def load_settings(environ: dict[str, str] | None = None) -> Settings:
     db_path = env.get("BC_DB_PATH", DEFAULT_DB_PATH).strip() or DEFAULT_DB_PATH
     host = env.get("BC_HOST", DEFAULT_HOST).strip() or DEFAULT_HOST
     demo_dir = env.get("BC_DEMO_DATA_DIR", DEFAULT_DEMO_DATA_DIR).strip() or DEFAULT_DEMO_DATA_DIR
-    crm_data_path = (
-        env.get("BC_CRM_DATA_PATH", DEFAULT_CRM_DATA_PATH).strip() or DEFAULT_CRM_DATA_PATH
-    )
     config_dir = env.get("BC_CONFIG_DIR", DEFAULT_CONFIG_DIR).strip() or DEFAULT_CONFIG_DIR
     web_dir = env.get("BC_WEB_DIR", DEFAULT_WEB_DIR).strip() or DEFAULT_WEB_DIR
     return Settings(
@@ -62,7 +57,6 @@ def load_settings(environ: dict[str, str] | None = None) -> Settings:
         host=host,
         host_port=_env_int(dict(env), "BC_HOST_PORT", DEFAULT_HOST_PORT),
         demo_data_dir=Path(demo_dir),
-        crm_data_path=Path(crm_data_path),
         config_dir=Path(config_dir),
         web_dir=Path(web_dir),
     )

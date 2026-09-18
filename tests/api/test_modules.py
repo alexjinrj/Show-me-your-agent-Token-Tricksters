@@ -43,4 +43,14 @@ def test_overview_links_all_business_modules(client: TestClient) -> None:
         "operations",
         "crm",
     ]
-    assert overview["headline"]["open_complaints"] == 24  # type: ignore[index]
+    assert overview["headline"]["service_case_count"] == 100  # type: ignore[index]
+
+
+def test_crm_and_module_overview_share_the_same_snapshot(client: TestClient) -> None:
+    overview = client.get("/api/v1/modules/overview").json()
+    crm = client.get("/api/v1/crm/summary").json()
+    snapshot = client.get("/api/snapshot").json()["manifest"]
+    assert overview["snapshot_reference"] == crm["dataset_reference"] == snapshot["snapshot_id"]
+    assert overview["data"]["headline"]["service_case_count"] == crm["data"]["serviceCaseCount"]
+    assert overview["data"]["headline"]["overdue_orders"] == crm["data"]["overdueOrders"]
+    assert crm["data"]["complaintCount"] is None

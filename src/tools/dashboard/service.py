@@ -245,8 +245,8 @@ class BusinessDashboardService:
                 "backlog_count": sales["backlog_count"],
                 "reorder_candidate_count": inventory["reorder_candidate_count"],
                 "cash": accounting["cash"],
-                "open_complaints": crm_summary["complaintCount"],
-                "overdue_complaints": crm_summary["overdueComplaints"],
+                "service_case_count": crm_summary["serviceCaseCount"],
+                "overdue_orders": crm_summary["overdueOrders"],
             },
             "modules": [
                 {
@@ -272,7 +272,7 @@ class BusinessDashboardService:
                 {
                     "id": "crm",
                     "label": "Customer Relationships",
-                    "signal": f"{crm_summary['complaintCount']} complaints in queue",
+                    "signal": f"{crm_summary['serviceCaseCount']} derived order-service cases",
                 },
             ],
         }

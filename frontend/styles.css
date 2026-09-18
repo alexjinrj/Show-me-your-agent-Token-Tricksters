@@ -1485,3 +1485,16 @@ summary {
     grid-template-columns: 1fr;
   }
 }
+
+/* Keep module names discoverable in narrow browser panels. */
+@media (max-width: 920px) {
+  .function-nav button { flex-direction: column; gap: 0.3rem; }
+  .function-nav button > span:last-child { display: block; }
+  .function-nav b { font-size: 0.62rem; line-height: 1.2; white-space: normal; }
+  .function-nav small { display: none; }
+}
+@media (max-width: 620px) {
+  .function-nav { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+[hidden] { display: none !important; }

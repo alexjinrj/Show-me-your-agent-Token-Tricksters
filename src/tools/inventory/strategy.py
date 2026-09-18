@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict
@@ -24,6 +25,9 @@ from tools.inventory.recommendation import (
 )
 from tools.inventory.reorder import (
     build_reorder_recommendations,
+)
+from tools.inventory.snapshot_adapter import (
+    extract_inventory_strategy_rows,
 )
 
 
@@ -119,19 +123,23 @@ def total_replenishment_quantity(
 
 def run_inventory_strategy_analysis(
     snapshot: SnapshotBundle,
-    item_rows: list[dict[str, str]],
-    inventory_rows: list[dict[str, str]],
-    sales_rows: list[dict[str, str]],
-    purchase_rows: list[dict[str, str]],
     *,
     horizon_days: int = 30,
     random_seed: int = 42,
     effective_day: Decimal = Decimal("3"),
+    runner: Callable[[str, list[ScenarioEvent]], SimulationRunResult] | None = None,
 ) -> InventoryStrategyToolResult:
     """
     Run deterministic inventory strategies
     against a detached snapshot.
     """
+
+    rows = extract_inventory_strategy_rows(snapshot)
+
+    item_rows = list(rows.item_rows)
+    inventory_rows = list(rows.inventory_rows)
+    sales_rows = list(rows.sales_rows)
+    purchase_rows = list(rows.purchase_rows)
 
     reorder_recommendations = build_reorder_recommendations(
         item_rows,
@@ -173,7 +181,9 @@ def run_inventory_strategy_analysis(
         str,
         SimulationRunResult,
     ] = {
-        strategy: run_simulation(
+        strategy: runner(strategy, events)
+        if runner
+        else run_simulation(
             snapshot,
             events,
             horizon_days,
