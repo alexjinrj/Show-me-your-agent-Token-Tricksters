@@ -78,7 +78,7 @@ src/interfaces/reports/           Offline deterministic report renderers
 data/load_data/adventureworks_demo/  Versioned demo input and provenance manifest
 data/expected/                    Versioned expected demo assertions
 runtime_data/                     Generated databases and outputs; Git ignored
-frontend/                         Browser UI; PR #5 is to be reduced into this boundary
+frontend/                         English green SPA with seven functional pages
 migrations/                       Alembic database migrations
 scripts/                          Data build, seeding, and demo entry points
 tests/                            Unit, integration, simulation, and API tests
@@ -87,39 +87,88 @@ tests/                            Unit, integration, simulation, and API tests
 See `docs/ARCHITECTURE_RESTRUCTURE_HANDOFF.md` for the move map, interface
 alignment status, and the three follow-up workstreams.
 
-## Setup and verification
+## Start from a fresh download (Mac / Windows / Linux)
 
-Python 3.12 and `uv` are required.
+Download **Code → Download ZIP** from the integrated `main` branch and unzip it,
+or clone this private repository using your GitHub account. Open a terminal **inside
+the extracted project folder**: it must contain `pyproject.toml`, `uv.lock`, `src/`
+and `frontend/`. Do not run these commands from your home directory or inside `frontend/`.
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) first.
+With Python already installed, `python -m pip install uv` is another option
+(on macOS you may need `python3`). Then run:
 
 ```bash
-uv sync --all-groups
-uv run ruff format --check .
-uv run ruff check .
-uv run mypy src
+uv python install 3.12
+uv sync --locked --all-groups
+uv run uvicorn interfaces.api.main:app --app-dir src --host 127.0.0.1 --port 8000
+```
+
+Open **http://127.0.0.1:8000** in your browser. Keep this terminal open; use Ctrl+C
+to stop. If port 8000 is busy, use `--port 8020` and open http://127.0.0.1:8020.
+Use the same start command next time from the same project folder.
+
+No Node/npm install, MySQL server, separate frontend server, Olist download,
+API key or OpenClaw deployment is needed for the local business demo.
+FastAPI serves the English green interface and its API together on one port.
+The first launch seeds the included AdventureWorks demo into
+`runtime_data/enterprise_state.db`; subsequent launches reuse that local database.
+Each teammate gets their own database; cloning the repository does not share saved proposals.
+The `.venv/` and `runtime_data/` directories are generated locally and must not be uploaded.
+
+### What to try
+
+Use the left navigation to open **Executive Overview, Sales, Inventory, Accounting,
+Operations, Customer Relationships, AI Coordinator**.
+
+- Overview and the four operational modules read the same Actual State snapshot.
+- Operations: create a session → run a baseline → pin it → add an alternative
+  event → run again → compare. Simulation does not overwrite Actual State.
+- CRM: select a derived order-service case → inspect customer rating, order,
+  inventory and available options → submit a proposal → approve or reject it.
+  Decisions are persisted, but do not send messages, issue refunds or ship goods.
+- AI Coordinator: without Gateway configuration it explicitly reports
+  **not configured / disabled**. Business pages, deterministic simulations and
+  manual CRM review still work. See the OpenClaw section below to enable real AI.
+
+All CRM customer/order/SKU references now come from the same AdventureWorks snapshot.
+Service cases are **derived order exceptions**, not real customer complaints.
+Actual complaint counts, response SLAs and reviews are unavailable, not zero.
+Older Olist demo files, if present in the repository, are not loaded by this app.
+
+### Verify the download
+
+In a second terminal in the project root:
+
+```bash
+uv run python scripts/smoke_local.py
 uv run pytest -q
+uv run ruff check src tests scripts migrations
+uv run mypy src
 ```
 
-If editable imports do not resolve from a path containing spaces, prefix the
-commands with `PYTHONPATH=src`.
+The smoke check starts its own server with a temporary empty database, checks every
+module and shared CRM snapshot, then stops it. It does not use LLM credentials or
+modify your existing database. Developers with Node installed can additionally run
+`node --test tests/frontend/*.test.cjs`.
 
-## Run the browser dashboard
+### Updating an existing installation
+
+A fresh download needs no manual migration. If reusing an older database, stop the
+server and back up the file identified by `BC_DB_PATH` (default:
+`runtime_data/enterprise_state.db`). Preview, then apply the migration:
 
 ```bash
-uv run uvicorn interfaces.api.main:app --reload
+uv sync --locked --all-groups
+uv run python scripts/migrate_runtime.py
+uv run python scripts/migrate_runtime.py --apply
 ```
 
-Open <http://127.0.0.1:8000>.
-
-The application seeds an idempotent local SQLite database, loads the validated
-process catalog, and runs baseline and alternative simulations without changing
-Actual State.
-
-The English dashboard is organised by business responsibility: **Executive
-Overview, Sales, Inventory, Accounting, Operations, Customer Relationships,
-and AI Coordinator**. Sales, Inventory, Accounting and Operations read the same
-immutable snapshot through `/api/v1/modules/*`; CRM uses its versioned Olist
-demo contract. Process design, scenario simulation, comparison and trace
-playback are grouped under Operations.
+Start the server again using the command above. Do not delete an existing database
+as a startup workaround. The migration preserves historical proposals and adds
+Runtime evidence fields. `.env.example` is a configuration reference; the server
+does **not** automatically read `.env`. Set optional Gateway variables in the server
+terminal, as described in `docs/AGENT_RUNTIME_HANDOFF.md`.
 
 ## Run the standalone demo
 
@@ -169,8 +218,8 @@ Without configuration, the assistant reports `disabled` and executes no tools.
 See [runtime setup and handoff](docs/AGENT_RUNTIME_HANDOFF.md) for the dedicated
 Gateway agent configuration, API contracts, live smoke test and deployment limits.
 
-See [CRM runtime integration](docs/CRM_RUNTIME_INTEGRATION.md) for the Olist
-provenance boundary, CRM endpoints, shared Agent tools and human-review workflow.
+See [CRM runtime integration](docs/CRM_RUNTIME_INTEGRATION.md) for the unified
+snapshot projection, derived order-service cases, shared tools and human-review workflow.
 
 接入已有 AWS Lightsail OpenClaw 实例的中文步骤见
 [Lightsail 接入说明](docs/AWS_LIGHTSAIL_OPENCLAW_接入说明.md)，包括本地 SSH 联调、

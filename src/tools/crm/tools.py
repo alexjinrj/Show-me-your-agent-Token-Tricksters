@@ -64,6 +64,12 @@ class CRMAgentTools:
             else:  # pragma: no cover - guarded by the registered map
                 raise ValueError(f"unsupported CRM tool: {tool_name}")
             data = {"result": value, "provenance": self.service.provenance()}
+        data["data_scope"] = {
+            "kind": "canonical_snapshot_projection",
+            "canonical_snapshot_mapped": True,
+            "snapshot_id": self.service.reference_id,
+            "warning": "Cases are derived order exceptions, not imported customer complaints.",
+        }
         return RuntimeToolResult(
             tool_call_id=str(uuid4()),
             tool_name=tool_name,

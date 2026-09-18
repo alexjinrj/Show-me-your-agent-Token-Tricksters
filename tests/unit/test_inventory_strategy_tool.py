@@ -12,6 +12,9 @@ from core.models import (
     SimulationRunResult,
     SnapshotBundle,
 )
+from tools.inventory.snapshot_adapter import (
+    InventoryStrategyRows,
+)
 
 
 def metrics(
@@ -101,6 +104,17 @@ def test_tool_runs_and_selects_best_strategy(
 
     monkeypatch.setattr(
         tool,
+        "extract_inventory_strategy_rows",
+        lambda _snapshot: InventoryStrategyRows(
+            item_rows=(),
+            inventory_rows=(),
+            sales_rows=(),
+            purchase_rows=(),
+        ),
+    )
+
+    monkeypatch.setattr(
+        tool,
         "build_reorder_recommendations",
         lambda _items, _inventory: recommendations,
     )
@@ -170,10 +184,6 @@ def test_tool_runs_and_selects_best_strategy(
 
     result = tool.run_inventory_strategy_analysis(
         cast(SnapshotBundle, object()),
-        [],
-        [],
-        [],
-        [],
     )
 
     assert observed_quantities == [

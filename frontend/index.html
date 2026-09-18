@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>HomeNest Business Coordinator</title>
-    <link rel="stylesheet" href="/styles.css?v=business-modules-20260917" />
+    <link rel="stylesheet" href="/styles.css?v=unified-runtime-20260918-2" />
   </head>
   <body>
     <div class="app-shell">
@@ -16,25 +16,25 @@
 
         <p class="nav-label">BUSINESS MODULES</p>
         <nav class="function-nav">
-          <button type="button" data-page-target="overview" class="active" aria-current="page">
+          <button type="button" data-page-target="overview" aria-label="Executive Overview" title="Executive Overview" class="active" aria-current="page">
             <span class="nav-icon">01</span><span><b>Executive Overview</b><small>Cross-module priorities</small></span>
           </button>
-          <button type="button" data-page-target="sales">
+          <button type="button" data-page-target="sales" aria-label="Sales" title="Sales">
             <span class="nav-icon">02</span><span><b>Sales</b><small>Orders and backlog</small></span>
           </button>
-          <button type="button" data-page-target="inventory">
+          <button type="button" data-page-target="inventory" aria-label="Inventory" title="Inventory">
             <span class="nav-icon">03</span><span><b>Inventory</b><small>Stock and replenishment</small></span>
           </button>
-          <button type="button" data-page-target="accounting">
+          <button type="button" data-page-target="accounting" aria-label="Accounting" title="Accounting">
             <span class="nav-icon">04</span><span><b>Accounting</b><small>Balances and margin</small></span>
           </button>
-          <button type="button" data-page-target="operations">
+          <button type="button" data-page-target="operations" aria-label="Operations" title="Operations">
             <span class="nav-icon">05</span><span><b>Operations</b><small>Processes and simulation</small></span>
           </button>
-          <button type="button" data-page-target="crm">
-            <span class="nav-icon">06</span><span><b>Customer Relationships</b><small>Ratings and complaints</small></span>
+          <button type="button" data-page-target="crm" aria-label="Customer Relationships" title="Customer Relationships">
+            <span class="nav-icon">06</span><span><b>Customer Relationships</b><small>Ratings and service cases</small></span>
           </button>
-          <button type="button" data-page-target="assistant">
+          <button type="button" data-page-target="assistant" aria-label="AI Coordinator" title="AI Coordinator">
             <span class="nav-icon">07</span><span><b>AI Coordinator</b><small>Grounded tool calls</small></span>
           </button>
         </nav>
@@ -177,24 +177,46 @@
           </section>
 
           <section class="page-view" data-page="crm" hidden>
-            <section class="panel" id="crm-panel">
-              <h2>Customer Relationship Management <span class="badge crm-badge">Olist demo</span></h2>
-              <p class="section-lead">Customer value and relationship risk are service signals, not credit ratings. Olist facts, CRM replay fields and demo assumptions remain labelled.</p>
-              <div id="crm-summary" class="crm-summary"></div>
-              <div class="crm-grid">
-                <div><h3>Priority complaint queue</h3><div id="crm-complaints" class="scroll-table"></div></div>
-                <div><h3>Investigation and proposal</h3><div id="crm-detail" class="crm-detail muted">Select a complaint to investigate.</div>
-                  <form id="crm-proposal-form" class="stacked" hidden>
-                    <label>Resolution option<select id="crm-resolution"></select></label>
-                    <label>Unsent customer reply <textarea id="crm-reply" rows="4"></textarea></label>
-                    <label>Internal note <textarea id="crm-internal" rows="3"></textarea></label>
-                    <button type="submit">Submit for human review</button>
-                  </form>
-                </div>
-              </div>
-              <div class="crm-review"><h3>Human review queue</h3><div class="row"><label>Reviewer <input id="crm-reviewer" value="Demo Reviewer" /></label><label>Review note <input id="crm-review-note" placeholder="Optional decision note" /></label></div><div id="crm-proposals" class="scroll-table"></div></div>
-              <details><summary>CRM data provenance</summary><pre id="crm-provenance" class="mono"></pre></details>
-            </section>
+      <section class="panel" id="crm-panel">
+        <h2>CRM Service Recovery <span class="badge crm-badge">Unified snapshot</span></h2>
+        <p class="muted">
+          Customer value and relationship risk are service signals, not credit ratings.
+          Same AdventureWorks snapshot as Sales/Inventory. Cases are derived order exceptions,
+          not imported complaints. Missing reviews, response records and complaint SLA are unavailable.
+        </p>
+        <div id="crm-summary" class="crm-summary"></div>
+        <div class="crm-grid">
+          <div>
+            <h3>Priority order-service case queue</h3>
+            <div id="crm-complaints" class="scroll-table"></div>
+          </div>
+          <div>
+            <h3>Investigation and proposal</h3>
+            <div id="crm-detail" class="crm-detail muted">Select an order-service case to investigate.</div>
+            <form id="crm-proposal-form" class="stacked" hidden>
+              <label>
+                Resolution option
+                <select id="crm-resolution"></select>
+              </label>
+              <label>Unsent customer reply <textarea id="crm-reply" rows="4"></textarea></label>
+              <label>Internal note <textarea id="crm-internal" rows="3"></textarea></label>
+              <button type="submit">Submit for human review</button>
+            </form>
+          </div>
+        </div>
+        <div class="crm-review">
+          <h3>Human review queue</h3>
+          <div class="row">
+            <label>Reviewer <input id="crm-reviewer" value="Demo Reviewer" /></label>
+            <label>Review note <input id="crm-review-note" placeholder="Optional decision note" /></label>
+          </div>
+          <div id="crm-proposals" class="scroll-table"></div>
+        </div>
+        <details>
+          <summary>CRM data provenance</summary>
+          <pre id="crm-provenance" class="mono"></pre>
+        </details>
+      </section>
           </section>
 
           <section class="page-view" data-page="assistant" hidden>
@@ -209,6 +231,6 @@
         </main>
       </div>
     </div>
-    <script src="/app.js?v=business-modules-20260917"></script>
+    <script src="/app.js?v=unified-runtime-20260918-2"></script>
   </body>
 </html>
