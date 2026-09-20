@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import Engine
@@ -94,11 +95,23 @@ class InventoryAgentTools:
             )
         )
 
+        total_recommended_quantity = sum(
+            (
+                Decimal(candidate["recommended_quantity"])
+                for candidate in candidates
+            ),
+            Decimal("0"),
+        )
+
         return {
             "snapshot_id": request.snapshot_id,
             "snapshot_hash": snapshot.manifest.content_hash,
             "state_type": "actual",
             "candidate_count": len(candidates),
+            "total_recommended_quantity": format(
+                total_recommended_quantity,
+                "f",
+            ),
             "candidates": candidates[: request.top_n],
         }
 
