@@ -54,6 +54,9 @@ def test_inventory_tools_from_actual_state_through_strategy(
     assert reorder_result["snapshot_hash"] == manifest.content_hash
     assert reorder_result["state_type"] == "actual"
     assert reorder_result["candidate_count"] == 6
+    assert Decimal(
+        reorder_result["total_recommended_quantity"]
+    ) == Decimal("647")
 
     reorder_skus = {row["sku"] for row in reorder_result["candidates"]}
 
