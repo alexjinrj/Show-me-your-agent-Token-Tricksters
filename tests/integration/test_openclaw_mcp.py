@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 from pathlib import Path
 
@@ -81,6 +82,7 @@ def test_openclaw_can_launch_the_server_over_stdio() -> None:
             command=sys.executable,
             args=["-m", "interfaces.mcp.server"],
             cwd=str(project_root),
+            env={**os.environ, "PYTHONPATH": str(project_root / "src")},
         )
         async with Client(parameters) as client:
             tools = await client.list_tools()

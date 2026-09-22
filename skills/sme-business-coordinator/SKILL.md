@@ -46,6 +46,9 @@ business-object traces, bottlenecks, or warehouse and supplier what-if scenarios
    Public search is optional; report configuration errors and never invent promotion attribution.
 7. For proposed operational changes, use the existing baseline/alternative simulation
    workflow. Simulated improvement does not establish the cause of a past observation.
+   For an `ORDER_BACKLOG` warehouse-capacity proposal, prefer
+   `analyze_sales_backlog_intervention`; report its actual facts, candidate hypothesis,
+   operations-owned intervention and simulated verdict as four separate evidence classes.
 8. CRM uses equal-weight prototype RFM with ordered-value proxy, not paid spend.
    Pending-order exception share is descriptive, not predicted churn or credit risk.
 

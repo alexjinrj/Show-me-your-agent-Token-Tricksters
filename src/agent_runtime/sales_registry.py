@@ -12,6 +12,10 @@ TOOL_DESCRIPTIONS = {
     "trace_process_bottleneck": "Inspect current Order-to-Cash queues and capacity evidence.",
     "trace_business_object": "Trace a sales order by its order number.",
     "get_metric_history": "Check whether an actual historical metric is available.",
+    "analyze_sales_backlog_intervention": (
+        "Diagnose current ORDER_BACKLOG evidence, test one warehouse-capacity intervention "
+        "against a matched baseline, and return a deterministic improvement/trade-off verdict."
+    ),
     "create_simulation_session": "Create an isolated scenario session from an actual snapshot.",
     "get_simulation_state": "Inspect an isolated simulation session and its events.",
     "fork_simulation_session": "Fork a baseline simulation session for an alternative.",
@@ -23,18 +27,32 @@ TOOL_DESCRIPTIONS = {
 EXCEPTION_TOOLS = (
     "get_actual_state_summary",
     "list_exceptions",
+    "trace_process_bottleneck",
     "trace_business_object",
     "get_metric_history",
 )
 SCENARIO_TOOLS = (
     "get_actual_state_summary",
     "list_exceptions",
+    "trace_process_bottleneck",
+    "analyze_sales_backlog_intervention",
     "create_simulation_session",
     "get_simulation_state",
     "fork_simulation_session",
     "add_simulation_event",
     "run_simulation",
     "compare_simulation_runs",
+)
+SIMULATION_TOOLS = frozenset(
+    {
+        "analyze_sales_backlog_intervention",
+        "create_simulation_session",
+        "get_simulation_state",
+        "fork_simulation_session",
+        "add_simulation_event",
+        "run_simulation",
+        "compare_simulation_runs",
+    }
 )
 
 
@@ -50,7 +68,7 @@ def build_sales_tool_registry(sales_tools: SalesAgentTools) -> ToolRegistry:
 
     tools = []
     for name, input_model in TOOL_INPUTS.items():
-        access: ToolAccess = "simulate" if name in SCENARIO_TOOLS[2:] else "read"
+        access: ToolAccess = "simulate" if name in SIMULATION_TOOLS else "read"
         groups = tuple(
             group
             for group, names in (("exceptions", EXCEPTION_TOOLS), ("scenario", SCENARIO_TOOLS))

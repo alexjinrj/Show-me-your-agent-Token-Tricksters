@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+from decimal import Decimal
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -73,6 +75,115 @@ class CompareInput(ToolInput):
     alternative_run_id: UUIDString
 
 
+SalesMetricCode = Literal[
+    "ending_backlog",
+    "average_waiting_hours",
+    "fulfilment_rate",
+    "stockout_count",
+]
+
+
+class AnalyzeBacklogInput(SnapshotInput):
+    """One bounded diagnosis-to-simulation flow for the ORDER_BACKLOG exception."""
+
+    additional_workers: int = Field(default=2, ge=1, le=20)
+    horizon_days: int = Field(default=7, ge=1, le=365)
+    random_seed: int = 42
+    primary_metric: SalesMetricCode = "average_waiting_hours"
+    guardrail_metrics: tuple[SalesMetricCode, ...] = (
+        "ending_backlog",
+        "fulfilment_rate",
+        "stockout_count",
+    )
+
+    @model_validator(mode="after")
+    def unique_evaluation_metrics(self) -> AnalyzeBacklogInput:
+        if self.primary_metric in self.guardrail_metrics:
+            raise ValueError("primary_metric must not also be a guardrail")
+        if len(set(self.guardrail_metrics)) != len(self.guardrail_metrics):
+            raise ValueError("guardrail_metrics must be unique")
+        return self
+
+
+class AnalysisCase(ToolInput):
+    """Stable identifiers and controls for one auditable sales analysis execution."""
+
+    schema_version: Literal["sales-analysis-case-v1"] = "sales-analysis-case-v1"
+    analysis_case_id: UUIDString
+    analysis_type: Literal["order_backlog_intervention"] = "order_backlog_intervention"
+    status: Literal["completed"] = "completed"
+    snapshot_id: UUIDString
+    snapshot_hash: str = Field(min_length=64, max_length=64)
+    baseline_run_id: UUIDString
+    alternative_run_id: UUIDString
+    horizon_days: int
+    random_seed: int
+
+
+class SalesEvidenceFacts(ToolInput):
+    state_type: Literal["actual"] = "actual"
+    snapshot_id: UUIDString
+    snapshot_hash: str = Field(min_length=64, max_length=64)
+    as_of_time: datetime
+    sales_order_count: int = Field(ge=0)
+    backlog_count: int = Field(ge=0)
+    backlog_amount_sgd: Decimal
+    backlog_by_node: dict[str, int]
+    backlog_by_sku: dict[str, int]
+    resources: tuple[dict[str, Any], ...]
+    completeness: Literal["current_snapshot_only"] = "current_snapshot_only"
+
+
+class CauseHypothesis(ToolInput):
+    statement: str
+    status: Literal["candidate_not_proven"] = "candidate_not_proven"
+    basis: tuple[str, ...]
+
+
+class InterventionSpec(ToolInput):
+    owner_domain: Literal["operations"] = "operations"
+    event_type: Literal["warehouse_capacity_increase"] = "warehouse_capacity_increase"
+    parameter: Literal["warehouse_staff.capacity_delta"] = "warehouse_staff.capacity_delta"
+    current_value: str
+    proposed_value: str
+    modification_point: dict[str, Decimal]
+
+
+class MetricAssessment(ToolInput):
+    baseline: Decimal
+    alternative: Decimal
+    difference: Decimal
+    direction: Literal["lower", "higher"]
+    materiality_threshold: Decimal
+    outcome: Literal["improved", "worsened", "unchanged"]
+
+
+class SalesSimulationComparison(ToolInput):
+    state_type: Literal["simulated"] = "simulated"
+    baseline_run_id: UUIDString
+    alternative_run_id: UUIDString
+    snapshot_hash: str = Field(min_length=64, max_length=64)
+    horizon_days: int
+    random_seed: int
+    primary_metric: SalesMetricCode
+    guardrail_metrics: tuple[SalesMetricCode, ...]
+    metrics: dict[SalesMetricCode, MetricAssessment]
+    verdict: Literal["improved", "worsened", "trade_off", "no_material_change"]
+
+
+class SalesAnalysisResult(ToolInput):
+    """Facts, hypothesis, intervention and counterfactual evidence kept separate."""
+
+    schema_version: Literal["sales-analysis-result-v1"] = "sales-analysis-result-v1"
+    analysis_case: AnalysisCase
+    facts: SalesEvidenceFacts
+    cause_hypothesis: CauseHypothesis
+    intervention: InterventionSpec
+    simulation_comparison: SalesSimulationComparison
+    actual_state_unchanged: bool
+    limitations: tuple[str, ...]
+
+
 class ToolResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -92,6 +203,7 @@ TOOL_INPUTS: dict[str, type[ToolInput]] = {
     "trace_process_bottleneck": BottleneckInput,
     "trace_business_object": TraceInput,
     "get_metric_history": HistoryInput,
+    "analyze_sales_backlog_intervention": AnalyzeBacklogInput,
     "create_simulation_session": CreateSessionInput,
     "get_simulation_state": SessionInput,
     "fork_simulation_session": ForkSessionInput,

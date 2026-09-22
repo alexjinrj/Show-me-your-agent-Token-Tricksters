@@ -113,7 +113,16 @@ def test_llm_tool_loop_uses_real_sales_data_and_records_trace(
     assert trace["usage"]["total_tokens"] == 42
     assert trace["events"][0]["result"]["data"]["backlog_count"] == 100
     assert len(client.requests) == 2
-    assert len(client.requests[0]["tools"]) == 4
+    tool_names = {
+        tool["function"]["name"] for tool in client.requests[0]["tools"]
+    }
+    assert tool_names == {
+        "get_actual_state_summary",
+        "get_metric_history",
+        "list_exceptions",
+        "trace_business_object",
+        "trace_process_bottleneck",
+    }
     assert "当前积压 100 单" in render_trace(trace)
 
     diagnostics: list[str] = []

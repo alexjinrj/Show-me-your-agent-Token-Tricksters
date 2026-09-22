@@ -7,7 +7,7 @@ from pathlib import Path
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from enterprise_state.models import ToolCallAuditRow
+from enterprise_state.models import SimulationRunRow, ToolCallAuditRow
 from enterprise_state.service import ActualStateService, commit_demo_files
 from tools.sales import SalesAgentTools
 
@@ -132,3 +132,46 @@ def test_tool_guards_and_audit(service: ActualStateService) -> None:
     assert unknown.status == "error"
     with Session(service.engine) as database:
         assert database.scalar(select(func.count()).select_from(ToolCallAuditRow)) == 2
+
+
+def test_order_backlog_upper_level_analysis_is_auditable_and_isolated(
+    service: ActualStateService, demo_path: Path
+) -> None:
+    commit_demo_files(service, ((kind, demo_path / f"{kind}.csv") for kind in ORDER))
+    actual_hash = service.actual_state_hash()
+    snapshot = service.create_snapshot(datetime.fromisoformat("2026-09-12T23:59:00+08:00"))
+    response = SalesAgentTools(service.engine).call(
+        "analyze_sales_backlog_intervention",
+        {
+            "snapshot_id": snapshot.snapshot_id,
+            "additional_workers": 2,
+            "horizon_days": 7,
+            "random_seed": 42,
+        },
+        agent_case_id="sales-backlog-closed-loop",
+    )
+
+    assert response.status == "ok", response.error_message
+    assert response.state_type == "simulated"
+    result = response.data
+    assert result["schema_version"] == "sales-analysis-result-v1"
+    assert result["facts"]["state_type"] == "actual"
+    assert result["facts"]["backlog_count"] == 100
+    assert result["facts"]["completeness"] == "current_snapshot_only"
+    assert result["cause_hypothesis"]["status"] == "candidate_not_proven"
+    assert result["intervention"]["owner_domain"] == "operations"
+    comparison = result["simulation_comparison"]
+    assert comparison["state_type"] == "simulated"
+    assert comparison["baseline_run_id"] != comparison["alternative_run_id"]
+    assert comparison["horizon_days"] == 7 and comparison["random_seed"] == 42
+    assert comparison["metrics"]["average_waiting_hours"]["outcome"] == "improved"
+    assert comparison["metrics"]["ending_backlog"]["outcome"] == "unchanged"
+    assert comparison["verdict"] == "improved"
+    assert result["actual_state_unchanged"] is True
+    assert service.actual_state_hash() == actual_hash
+
+    with Session(service.engine) as database:
+        assert database.get(SimulationRunRow, comparison["baseline_run_id"]) is not None
+        assert database.get(SimulationRunRow, comparison["alternative_run_id"]) is not None
+        audit = database.get(ToolCallAuditRow, response.tool_call_id)
+        assert audit is not None and audit.result_reference == comparison["alternative_run_id"]
