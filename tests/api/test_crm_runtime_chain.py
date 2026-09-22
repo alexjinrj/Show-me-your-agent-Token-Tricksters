@@ -38,7 +38,12 @@ def test_http_gateway_three_domains_to_crm_review_and_restart(client: TestClient
             assert self.headers["Authorization"] == "Bearer test-crm-secret"
             payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
             requests.append(payload)
-            assert len(payload["tools"]) == 23
+            assert {
+                "get_data_catalog",
+                "query_snapshot_records",
+                "compare_snapshot_periods",
+                "query_enterprise_history",
+            } <= {t["function"]["name"] for t in payload["tools"]}
             assert "SAME canonical snapshot" in payload["messages"][0]["content"]
             if len(requests) == 1:
                 reply = {

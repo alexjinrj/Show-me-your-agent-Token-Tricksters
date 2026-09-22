@@ -1,3 +1,6 @@
+> 2026-09-21 local branch update: five retrieval tools and one optional public-search tool added (29 tools total).
+> See [CRM scoring and retrieval](CRM_SCORING_RETRIEVAL.md); the baseline inventory below describes the earlier version.
+
 # Unified agent runtime: implementation and acceptance
 
 ## Implemented paths

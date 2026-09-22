@@ -2,20 +2,17 @@ from __future__ import annotations
 
 from collections import defaultdict
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from core.models import SnapshotBundle
 from core.serialization import canonical_data
+from tools.crm.scoring import ScoringPolicy, midrank
 
 
 def _money(value: Decimal) -> str:
     return format(value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP), "f")
-
-
-def _percentile(value: Decimal, values: list[Decimal]) -> float:
-    return sum(candidate <= value for candidate in values) / len(values) if values else 0.0
 
 
 class CRMService:
@@ -25,7 +22,8 @@ class CRMService:
     No reviews, response records, replacement stock or policy assumptions are fabricated.
     """
 
-    def __init__(self, snapshot: SnapshotBundle) -> None:
+    def __init__(self, snapshot: SnapshotBundle, policy: ScoringPolicy | None = None) -> None:
+        self.policy = policy or ScoringPolicy()
         self.snapshot = snapshot
         self.snapshot_time = snapshot.manifest.as_of_time.isoformat()
         self.dataset_fingerprint = snapshot.manifest.content_hash
@@ -167,21 +165,81 @@ class CRMService:
             key: sum((Decimal(str(row["amount"])) for row in rows), Decimal(0))
             for key, rows in own_orders.items()
         }
-        counts = {key: Decimal(len(own_orders[key])) for key in self.customers}
+        as_of = self.snapshot.manifest.as_of_time
+        start = as_of - timedelta(days=self.policy.window_days)
+        eligible = {
+            key: [
+                row
+                for row in rows
+                if start <= datetime.fromisoformat(str(row["details"]["order_date"])) <= as_of
+                and row["status"] not in {"cancelled", "canceled"}
+            ]
+            for key, rows in own_orders.items()
+        }
+        metrics = {
+            key: (
+                Decimal(
+                    str(
+                        (
+                            as_of
+                            - max(
+                                datetime.fromisoformat(str(row["details"]["order_date"]))
+                                for row in rows
+                            )
+                        ).total_seconds()
+                    )
+                )
+                / Decimal(86400),
+                Decimal(len(rows)),
+                sum((Decimal(str(row["amount"])) for row in rows), Decimal(0)),
+            )
+            for key, rows in eligible.items()
+            if rows
+        }
         result = []
         for key, customer in sorted(self.customers.items()):
             orders, cases = own_orders[key], own_cases[key]
             total = totals.get(key, Decimal(0))
-            value = (
-                round(
-                    70 * _percentile(total, list(totals.values()))
-                    + 30 * _percentile(counts[key], list(counts.values()))
-                )
-                if orders
-                else 0
+            raw = metrics.get(key)
+            components = (
+                {
+                    name: round(
+                        midrank(
+                            raw[index],
+                            [entry[index] for entry in metrics.values()],
+                            lower_is_better=index == 0,
+                        ),
+                        2,
+                    )
+                    for index, name in enumerate(("recency", "frequency", "monetary"))
+                }
+                if raw is not None
+                else {}
             )
+            value = round(sum(components.values()) / 3) if components else 0
             overdue = sum(case["overdueHours"] > 0 for case in cases)
-            risk = min(100, len(cases) * 20 + overdue * 15)
+            pending_count = sum(row["status"] in {"open", "backlog"} for row in orders)
+            risk = round(100 * len(cases) / pending_count) if pending_count else 0
+            score_details = {
+                "policyVersion": self.policy.version,
+                "windowStart": start.isoformat(),
+                "asOf": as_of.isoformat(),
+                "windowDays": self.policy.window_days,
+                "cohortSize": len(metrics),
+                "eligibleOrderCount": len(eligible.get(key, [])),
+                "recencyDays": round(float(raw[0]), 2) if raw else None,
+                "frequency": int(raw[1]) if raw else 0,
+                "monetaryOrderedValue": _money(raw[2]) if raw else "0.00",
+                "components": components,
+                "weights": {"R": "1/3", "F": "1/3", "M": "1/3"},
+                "riskBasis": "100 * derived service cases / pending orders; not churn probability",
+                "pendingOrderCount": pending_count,
+                "riskEvidenceAvailable": pending_count > 0,
+                "smallSample": len(eligible.get(key, [])) < self.policy.small_sample_orders,
+                "riskSmallSample": pending_count < self.policy.small_sample_orders,
+                "coverage": "Snapshot records only; full window completeness unknown",
+                "calibration": "Prototype policy, not validated against future customer outcomes",
+            }
             result.append(
                 {
                     "id": key,
@@ -195,10 +253,13 @@ class CRMService:
                         (str(row["details"]["order_date"]) for row in orders), default=None
                     ),
                     "valueScore": value,
-                    "valueTier": "A"
-                    if value >= 75
+                    "scoreDetails": score_details,
+                    "valueTier": "Inactive"
+                    if orders and not components
+                    else "A"
+                    if value >= self.policy.tier_a
                     else "B"
-                    if value >= 50
+                    if value >= self.policy.tier_b
                     else "C"
                     if orders
                     else "Prospect",
@@ -208,8 +269,10 @@ class CRMService:
                     "overdueCases": overdue,
                     "unrespondedComplaints": None,
                     "scoreReasons": [
-                        f"{len(orders)} orders; SGD {total:.2f} ordered value, not paid spend.",
-                        f"{len(cases)} derived service cases; {overdue} orders past due.",
+                        f"RFM: {self.policy.window_days} days; equal weights; midrank ties.",
+                        f"{len(eligible.get(key, []))} eligible orders; not paid spend.",
+                        "Relative cohort scores; incomplete history can bias results.",
+                        f"{len(cases)} exceptions / {pending_count} pending; not churn odds.",
                     ],
                     "nextAction": "Review fulfilment with warehouse before preparing an update."
                     if cases
@@ -248,13 +311,14 @@ class CRMService:
             customer = customers[case["customerId"]]
             priority = min(
                 100,
-                round(35 + min(50, case["overdueHours"] / 24 * 5) + customer["riskScore"] * 0.1),
+                round(35 + min(65, case["overdueHours"] / 24 * 5)),
             )
             rows.append(
                 {
                     **deepcopy(case),
                     "customer": customer,
                     "priorityScore": priority,
+                    "priorityPolicy": "Prototype: min(100, 35 + overdue days * 5); age only",
                     "priorityLevel": "Critical"
                     if priority >= 70
                     else "High"

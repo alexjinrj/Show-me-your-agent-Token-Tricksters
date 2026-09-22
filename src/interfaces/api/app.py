@@ -68,6 +68,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(modules_router)
 
+    from interfaces.api.routes_workbench import router as workbench_router
+
+    app.include_router(workbench_router)
+
     _mount_static(app, resolved.web_dir)
 
     return app

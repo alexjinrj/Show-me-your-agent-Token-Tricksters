@@ -21,7 +21,13 @@ class NoRedirect(HTTPRedirectHandler):
 class OpenClawGateway:
     """Official OpenAI-compatible client-function handoff; no local LLM fallback."""
 
-    def __init__(self, url: str, token: str, agent_id: str = "business-coordinator") -> None:
+    def __init__(
+        self,
+        url: str,
+        token: str,
+        agent_id: str = "business-coordinator",
+        timeout_seconds: float = 180,
+    ) -> None:
         parsed = urlparse(url)
         if parsed.scheme not in {"http", "https"} or not parsed.hostname:
             raise ValueError("Invalid OpenClaw Gateway URL")
@@ -29,9 +35,12 @@ class OpenClawGateway:
             raise ValueError("Gateway URL must not contain credentials or query parameters")
         if parsed.scheme == "http" and parsed.hostname not in {"localhost", "127.0.0.1", "::1"}:
             raise ValueError("Non-loopback Gateway requires HTTPS")
+        if not 1 <= timeout_seconds <= 300:
+            raise ValueError("Gateway timeout must be between 1 and 300 seconds")
         self.url = url.rstrip("/") + "/v1/chat/completions"
         self.token = token
         self.agent_id = agent_id
+        self.timeout_seconds = timeout_seconds
 
     def complete(
         self, messages: list[dict[str, Any]], tools: list[dict[str, Any]]
@@ -51,7 +60,7 @@ class OpenClawGateway:
         )
         try:
             # Deliberately stateless Gateway requests: the application owns conversation memory.
-            with build_opener(NoRedirect).open(request, timeout=60) as response:
+            with build_opener(NoRedirect).open(request, timeout=self.timeout_seconds) as response:
                 raw = response.read(2_000_001)
             if len(raw) > 2_000_000:
                 raise GatewayError("Gateway response exceeded size limit")

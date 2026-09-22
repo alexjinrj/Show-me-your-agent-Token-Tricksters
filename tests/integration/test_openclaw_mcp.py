@@ -23,7 +23,14 @@ def test_openclaw_mcp_discovers_context_and_audited_sales_tools() -> None:
             assert "compare_inventory_replenishment_strategies" in names
             assert "recommend_resolution" in names
             assert "draft_customer_reply" in names
-            assert len(names) == 24  # 23 business tools plus get_business_context.
+            assert {
+                "get_data_catalog",
+                "query_snapshot_records",
+                "compare_snapshot_periods",
+                "query_enterprise_history",
+                "analyze_order_spikes",
+                "search_public_events",
+            } <= names
 
             context_result = await client.call_tool("get_business_context", {})
             context = context_result.structured_content
@@ -55,6 +62,14 @@ def test_openclaw_mcp_discovers_context_and_audited_sales_tools() -> None:
             assert crm.structured_content["status"] == "ok"
             assert crm.structured_content["reference_id"] == context["crm_dataset_reference"]
             assert crm.structured_content["data"]["result"]["complaintId"] == "CASE-SO74695"
+            records = await client.call_tool(
+                "query_snapshot_records", {"dataset": "orders", "group_by": ["status"], "limit": 1}
+            )
+            assert records.structured_content is not None
+            assert records.structured_content["data"]["total_matching"] == 500
+            history = await client.call_tool("query_enterprise_history", {"as_of": "2026-06-01"})
+            assert history.structured_content is not None
+            assert history.structured_content["error_code"] == "NOT_IMPLEMENTED"
 
     asyncio.run(exercise_server())
 
@@ -69,6 +84,12 @@ def test_openclaw_can_launch_the_server_over_stdio() -> None:
         )
         async with Client(parameters) as client:
             tools = await client.list_tools()
-            assert any(tool.name == "get_business_context" for tool in tools.tools)
+            assert {
+                "get_business_context",
+                "get_data_catalog",
+                "query_snapshot_records",
+                "analyze_order_spikes",
+                "search_public_events",
+            } <= {tool.name for tool in tools.tools}
 
     asyncio.run(exercise_process())

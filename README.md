@@ -20,11 +20,21 @@ back to Actual State.
   demo.
 - Daily simulation checkpoints for future incremental frontend playback.
 - Bounded, audited sales, inventory and CRM tools with prompt-driven LLM trajectory testing.
-- CRM customer-value/risk scoring, complaint triage, service-recovery comparison,
+- Transparent RFM customer segmentation and pending-order exception share.
+- Field discovery, bounded snapshot filtering/grouping and exact period comparisons.
+- CRM derived service-case triage, service-recovery comparison,
   persisted proposals and explicit human approval records.
 
 Arbitrary database-query tools, ERP submission, authentication, and production
 deployment are not included yet.
+
+See [General natural-language data questions](docs/DATA_QUESTION_AGENT.md) for the
+question-driven tool workflow and supported datasets.
+
+See [CRM scoring and retrieval guide](docs/CRM_SCORING_RETRIEVAL.md) for formulas,
+example prompts, data boundaries and the offline verification command.
+For “why did orders spike?” with optional web evidence, see
+[Order spike investigation](docs/ORDER_SPIKE_INVESTIGATION.md).
 
 ## Runtime architecture
 
@@ -257,3 +267,6 @@ financial balances.
    an identical result hash.
 6. Calculations are performed by deterministic Python code, not by an LLM or
    browser JavaScript.
+
+The CRM workstream's checked diagnosis → intervention → simulation → comparison case is in
+[CRM diagnosis-to-simulation flow](docs/CRM_DIAGNOSIS_SIMULATION_CASE.md).
