@@ -1,0 +1,41 @@
+sku,name,standard_cost,list_price,reorder_point,active,business_timestamp,data_origin,source_record_id
+WB-H098,Water Bottle - 30 oz.,1.8663,4.9900,3,true,2026-09-12T23:59:00+08:00,source,870
+PK-7098,Patch Kit/8 Patches,.8565,2.2900,3,true,2026-09-12T23:59:00+08:00,source,873
+TT-M928,Mountain Tire Tube,1.8663,4.9900,375,true,2026-09-12T23:59:00+08:00,source,921
+TT-R982,Road Tire Tube,1.4923,3.9900,375,true,2026-09-12T23:59:00+08:00,source,922
+HL-U509-B,"Sport-100 Helmet, Blue",13.0863,34.9900,3,true,2026-09-12T23:59:00+08:00,source,711
+HL-U509-R,"Sport-100 Helmet, Red",13.0863,34.9900,3,true,2026-09-12T23:59:00+08:00,source,707
+CA-1098,AWC Logo Cap,6.9223,8.9900,3,true,2026-09-12T23:59:00+08:00,source,712
+HL-U509,"Sport-100 Helmet, Black",13.0863,34.9900,3,true,2026-09-12T23:59:00+08:00,source,708
+FE-6654,Fender Set - Mountain,8.2205,21.9800,3,true,2026-09-12T23:59:00+08:00,source,878
+BC-M005,Mountain Bottle Cage,3.7363,9.9900,3,true,2026-09-12T23:59:00+08:00,source,871
+TT-T092,Touring Tire Tube,1.8663,4.9900,375,true,2026-09-12T23:59:00+08:00,source,923
+BC-R205,Road Bottle Cage,3.3623,8.9900,3,true,2026-09-12T23:59:00+08:00,source,872
+TI-M823,HL Mountain Tire,13.0900,35.0000,375,true,2026-09-12T23:59:00+08:00,source,930
+CL-9009,Bike Wash - Dissolver,2.9733,7.9500,3,true,2026-09-12T23:59:00+08:00,source,877
+TI-M602,ML Mountain Tire,11.2163,29.9900,375,true,2026-09-12T23:59:00+08:00,source,929
+TI-R092,LL Road Tire,8.0373,21.4900,375,true,2026-09-12T23:59:00+08:00,source,931
+TI-T723,Touring Tire,10.8423,28.9900,375,true,2026-09-12T23:59:00+08:00,source,934
+TI-R628,ML Road Tire,9.3463,24.9900,375,true,2026-09-12T23:59:00+08:00,source,932
+HY-1023-70,Hydration Pack - 70 oz.,20.5663,54.9900,3,true,2026-09-12T23:59:00+08:00,source,880
+TI-M267,LL Mountain Tire,9.3463,24.9900,375,true,2026-09-12T23:59:00+08:00,source,928
+TI-R982,HL Road Tire,12.1924,32.6000,375,true,2026-09-12T23:59:00+08:00,source,933
+SJ-0194-X,"Short-Sleeve Classic Jersey, XL",41.5723,53.9900,3,true,2026-09-12T23:59:00+08:00,source,884
+LJ-0192-M,"Long-Sleeve Logo Jersey, M",38.4923,49.9900,3,true,2026-09-12T23:59:00+08:00,source,714
+GL-H102-M,"Half-Finger Gloves, M",9.1593,24.4900,3,true,2026-09-12T23:59:00+08:00,source,859
+RA-H123,Hitch Rack - 4-Bike,44.8800,120.0000,3,true,2026-09-12T23:59:00+08:00,source,876
+GL-H102-S,"Half-Finger Gloves, S",9.1593,24.4900,3,true,2026-09-12T23:59:00+08:00,source,858
+LJ-0192-L,"Long-Sleeve Logo Jersey, L",38.4923,49.9900,3,true,2026-09-12T23:59:00+08:00,source,715
+GL-H102-L,"Half-Finger Gloves, L",9.1593,24.4900,3,true,2026-09-12T23:59:00+08:00,source,860
+SJ-0194-L,"Short-Sleeve Classic Jersey, L",41.5723,53.9900,3,true,2026-09-12T23:59:00+08:00,source,883
+SH-W890-M,"Women's Mountain Shorts, M",26.1763,69.9900,3,true,2026-09-12T23:59:00+08:00,source,868
+LJ-0192-S,"Long-Sleeve Logo Jersey, S",38.4923,49.9900,3,true,2026-09-12T23:59:00+08:00,source,713
+SH-W890-L,"Women's Mountain Shorts, L",26.1763,69.9900,3,true,2026-09-12T23:59:00+08:00,source,869
+SJ-0194-S,"Short-Sleeve Classic Jersey, S",41.5723,53.9900,3,true,2026-09-12T23:59:00+08:00,source,881
+SH-W890-S,"Women's Mountain Shorts, S",26.1763,69.9900,3,true,2026-09-12T23:59:00+08:00,source,867
+SJ-0194-M,"Short-Sleeve Classic Jersey, M",41.5723,53.9900,3,true,2026-09-12T23:59:00+08:00,source,882
+LJ-0192-X,"Long-Sleeve Logo Jersey, XL",38.4923,49.9900,3,true,2026-09-12T23:59:00+08:00,source,716
+SO-R809-L,"Racing Socks, L",3.3623,8.9900,3,true,2026-09-12T23:59:00+08:00,source,875
+VE-C304-S,"Classic Vest, S",23.7490,63.5000,3,true,2026-09-12T23:59:00+08:00,source,864
+SO-R809-M,"Racing Socks, M",3.3623,8.9900,3,true,2026-09-12T23:59:00+08:00,source,874
+VE-C304-M,"Classic Vest, M",23.7490,63.5000,3,true,2026-09-12T23:59:00+08:00,source,865

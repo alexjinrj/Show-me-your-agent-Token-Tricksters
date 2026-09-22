@@ -1,0 +1,7 @@
+resource_type,process_id,node_id,capacity_units,effective_at,data_origin,source_record_id
+sales_staff,order_to_cash,review_credit,3,2026-09-12T23:59:00+08:00,synthetic,resource:1
+warehouse_staff,order_to_cash,pick_and_pack,2,2026-09-12T23:59:00+08:00,synthetic,resource:2
+finance_staff,order_to_cash,record_customer_invoice,2,2026-09-12T23:59:00+08:00,synthetic,resource:3
+purchasing_staff,procure_to_pay,place_purchase_order,2,2026-09-12T23:59:00+08:00,synthetic,resource:4
+warehouse_staff,procure_to_pay,receive_goods,2,2026-09-12T23:59:00+08:00,synthetic,resource:5
+finance_staff,procure_to_pay,record_supplier_invoice,2,2026-09-12T23:59:00+08:00,synthetic,resource:6
