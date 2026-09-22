@@ -1,0 +1,9 @@
+{
+  "is_synthetic": true,
+  "purpose": "Offline screening fixture; not real enterprise orders or live web results",
+  "start": "2026-06-01",
+  "end": "2026-07-01",
+  "timezone": "Asia/Shanghai",
+  "normal_daily_orders": 10,
+  "daily_overrides": {"2026-06-17": 80, "2026-06-18": 100}
+}

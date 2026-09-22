@@ -226,6 +226,40 @@ class AccountingImpactRow(Base):
     lines: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
 
 
+class AgentRunRow(Base):
+    __tablename__ = "agent_runs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    conversation_id: Mapped[str] = mapped_column(String(36), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
+class CRMProposalRow(Base):
+    __tablename__ = "crm_proposals"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    complaint_id: Mapped[str] = mapped_column(String(20), index=True)
+    customer_id: Mapped[str] = mapped_column(String(20), index=True)
+    resolution_id: Mapped[str] = mapped_column(String(20))
+    resolution_label: Mapped[str] = mapped_column(String(120))
+    estimated_cost: Mapped[Decimal] = mapped_column(Numeric(18, 2))
+    currency: Mapped[str] = mapped_column(String(3))
+    owner: Mapped[str] = mapped_column(String(120))
+    status: Mapped[str] = mapped_column(String(30), index=True)
+    reply_draft: Mapped[str] = mapped_column(String(4000), default="")
+    internal_draft: Mapped[str] = mapped_column(String(4000), default="")
+    reviewer: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    review_note: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    dataset_reference: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    source_agent_run_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    source_tool_call_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    evidence: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    audit: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class ToolCallAuditRow(Base):
     __tablename__ = "tool_call_audit"
 

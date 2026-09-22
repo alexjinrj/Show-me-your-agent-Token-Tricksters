@@ -1,0 +1,19 @@
+{
+  "gateway": {
+    "bind": "loopback",
+    "http": { "endpoints": { "chatCompletions": { "enabled": true } } }
+  },
+  "agents": {
+    "entries": {
+      "business-coordinator": {
+        "name": "SME Business Coordinator",
+        "skills": [],
+        "tools": {
+          "profile": "minimal",
+          "deny": ["group:fs", "group:runtime", "group:openclaw", "group:plugins", "canvas"],
+          "elevated": { "enabled": false }
+        }
+      }
+    }
+  }
+}

@@ -11,9 +11,11 @@ from core.simulation.process_runtime import (
     RuntimeProcessCatalog,
     load_runtime_process_catalog,
 )
+from enterprise_state.crm_proposals import CRMProposalStore
 from enterprise_state.database import create_schema, make_engine, sqlite_url
 from enterprise_state.service import ActualStateService, commit_demo_files
 from interfaces.api.settings import Settings
+from tools.crm.service import CRMService
 from tools.simulation.service import SimulationService
 
 # CSV source ingestion order, mirroring scripts/seed_demo_data.py exactly so the
@@ -48,6 +50,7 @@ class DemoContext:
         base_snapshot_id: str,
         process_catalog: RuntimeProcessCatalog,
         source_manifest: dict[str, object],
+        crm: CRMService,
     ) -> None:
         self.engine = engine
         self.base_snapshot_id = base_snapshot_id
@@ -57,6 +60,8 @@ class DemoContext:
         self.simulations = SimulationService(engine)
         self.process_catalog = process_catalog
         self.source_manifest = source_manifest
+        self.crm = crm
+        self.crm_proposals = CRMProposalStore(engine, crm)
 
     @classmethod
     def bootstrap(cls, settings: Settings) -> DemoContext:
@@ -73,6 +78,7 @@ class DemoContext:
             manifest.snapshot_id,
             load_runtime_process_catalog(settings.config_dir),
             json.loads((root / "SOURCE_MANIFEST.json").read_text(encoding="utf-8")),
+            CRMService(service.load_snapshot(manifest.snapshot_id)),
         )
 
     def base_snapshot(self) -> SnapshotBundle:

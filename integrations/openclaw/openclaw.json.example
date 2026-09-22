@@ -1,0 +1,26 @@
+{
+  "mcp": {
+    "servers": {
+      "sme-business-coordinator": {
+        "command": "uv",
+        "args": [
+          "run",
+          "python",
+          "-m",
+          "interfaces.mcp.server"
+        ],
+        "cwd": "REPLACE_WITH_ABSOLUTE_REPOSITORY_PATH",
+        "env": {
+          "BC_DB_PATH": "runtime_data/openclaw-enterprise-state.db"
+        }
+      }
+    }
+  },
+  "skills": {
+    "load": {
+      "extraDirs": [
+        "REPLACE_WITH_ABSOLUTE_REPOSITORY_PATH/skills"
+      ]
+    }
+  }
+}

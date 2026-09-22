@@ -3,98 +3,236 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Business Coordinator Demo</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <title>HomeNest Business Coordinator</title>
+    <link rel="stylesheet" href="/styles.css?v=crm-agent-20260922" />
   </head>
   <body>
-    <header class="app-header">
-      <h1>Business Coordinator</h1>
-      <p class="subtitle">
-        Deterministic Actual State snapshots &rarr; SimPy what-if simulation (SGD, Asia/Singapore)
-      </p>
-      <div id="snapshot-summary" class="snapshot-summary" aria-live="polite"></div>
-      <div id="status-message" class="status-message" role="status" aria-live="polite"></div>
-    </header>
-
-    <main class="layout">
-      <section class="panel" id="processes-panel">
-        <h2>Process Flows</h2>
-        <div id="process-flows" class="process-flows"></div>
-        <div id="node-detail" class="node-detail muted">Select a node to inspect its YAML-defined details.</div>
-      </section>
-
-      <section class="panel" id="scenario-panel">
-        <h2>Scenario Builder</h2>
-        <form id="session-form" class="stacked">
-          <label>Session name <input id="session-name" value="Baseline" required /></label>
-          <button type="submit">Create session</button>
-        </form>
-        <div id="session-info" class="muted"></div>
-
-        <form id="event-form" class="stacked" hidden>
-          <label>
-            Event type
-            <select id="event-type">
-              <option value="order_arrival">order_arrival</option>
-              <option value="resource_capacity_changed">resource_capacity_changed</option>
-              <option value="supplier_delivery_delayed">supplier_delivery_delayed</option>
-            </select>
-          </label>
-          <label>Effective simulated day <input id="event-day" type="number" value="0" min="0" step="0.25" /></label>
-          <div id="event-fields"></div>
-          <div class="row">
-            <button type="submit">Add event</button>
-            <button type="button" id="preset-warehouse">Preset: +1 warehouse worker</button>
-            <button type="button" id="preset-supplier">Preset: expedite supplier</button>
-          </div>
-        </form>
-        <ul id="event-list" class="event-list"></ul>
-
-        <form id="run-form" class="row" hidden>
-          <label>Horizon days <input id="horizon" type="number" value="30" min="1" /></label>
-          <label>Seed <input id="seed" type="number" value="42" min="0" /></label>
-          <button type="submit">Run simulation</button>
-        </form>
-        <div id="run-metrics" class="metrics"></div>
-      </section>
-
-      <section class="panel" id="comparison-panel">
-        <h2>Comparison (baseline vs current)</h2>
-        <button id="set-baseline" type="button" disabled>Pin current run as baseline</button>
-        <button id="run-compare" type="button" disabled>Compare with baseline</button>
-        <div id="comparison-table" class="comparison"></div>
-      </section>
-
-      <section class="panel" id="playback-panel">
-        <h2>Process Trace Playback</h2>
-        <div class="row playback-controls">
-          <button id="play" type="button" disabled>Play</button>
-          <button id="pause" type="button" disabled>Pause</button>
-          <button id="step" type="button" disabled>Step</button>
-          <input id="scrub" type="range" min="0" max="0" value="0" disabled />
-          <span id="clock" class="mono">hour 0</span>
+    <div class="app-shell">
+      <aside class="app-sidebar" aria-label="Business module navigation">
+        <div class="sidebar-brand">
+          <div class="brand-mark" aria-hidden="true">HN</div>
+          <div><strong>HomeNest</strong><small>Business Coordinator</small></div>
         </div>
-        <div id="utilization" class="utilization"></div>
+
+        <p class="nav-label">BUSINESS MODULES</p>
+        <nav class="function-nav">
+          <button type="button" data-page-target="overview" aria-label="Executive Overview" title="Executive Overview" class="active" aria-current="page">
+            <span class="nav-icon">01</span><span><b>Executive Overview</b><small>Cross-module priorities</small></span>
+          </button>
+          <button type="button" data-page-target="sales" aria-label="Sales" title="Sales">
+            <span class="nav-icon">02</span><span><b>Sales</b><small>Orders and backlog</small></span>
+          </button>
+          <button type="button" data-page-target="inventory" aria-label="Inventory" title="Inventory">
+            <span class="nav-icon">03</span><span><b>Inventory</b><small>Stock and replenishment</small></span>
+          </button>
+          <button type="button" data-page-target="accounting" aria-label="Accounting" title="Accounting">
+            <span class="nav-icon">04</span><span><b>Accounting</b><small>Balances and margin</small></span>
+          </button>
+          <button type="button" data-page-target="operations" aria-label="Operations" title="Operations">
+            <span class="nav-icon">05</span><span><b>Operations</b><small>Processes and simulation</small></span>
+          </button>
+          <button type="button" data-page-target="crm" aria-label="Customer Relationships" title="Customer Relationships">
+            <span class="nav-icon">06</span><span><b>Customer Relationships</b><small>Ratings and service cases</small></span>
+          </button>
+          <button type="button" data-page-target="assistant" aria-label="AI Coordinator" title="AI Coordinator">
+            <span class="nav-icon">07</span><span><b>AI Coordinator</b><small>Grounded tool calls</small></span>
+          </button>
+        </nav>
+
+        <div class="sidebar-note">
+          <b>Human control</b>
+          <p>Recommendations and proposals require review before business action.</p>
+        </div>
+        <div class="sidebar-footer">
+          <span class="runtime-dot"></span>
+          <div><b>Unified Runtime</b><small>Actual and simulated states separated</small></div>
+        </div>
+      </aside>
+
+      <div class="app-main">
+        <header class="app-header">
+          <div class="header-main">
+            <div class="page-copy">
+              <p id="page-eyebrow" class="eyebrow">BUSINESS PERFORMANCE</p>
+              <h1 id="page-title">Executive Overview</h1>
+              <p id="page-description" class="subtitle">See the most important signals across sales, inventory, finance, operations and customer relationships.</p>
+            </div>
+            <span class="runtime-pill">Unified Agent Runtime</span>
+          </div>
+          <details class="snapshot-details">
+            <summary>Actual State snapshot and provenance</summary>
+            <div id="snapshot-summary" class="snapshot-summary" aria-live="polite"></div>
+          </details>
+          <div id="status-message" class="status-message" role="status" aria-live="polite"></div>
+        </header>
+
+        <main class="workspace">
+          <section class="page-view active" data-page="overview">
+            <section class="panel hero-panel">
+              <div class="panel-heading">
+                <div><p class="module-kicker">ONE CONTROL VIEW</p><h2>Business priorities</h2></div>
+                <span class="badge">Actual State</span>
+              </div>
+              <p class="section-lead">Every number below is calculated by deterministic backend tools from the same immutable snapshot.</p>
+              <div id="overview-kpis" class="module-stats loading-block">Loading module signals…</div>
+              <h3>Open a business module</h3>
+              <div id="overview-modules" class="module-launch-grid"></div>
+              <div class="module-note">The overview highlights evidence. Any simulated change stays isolated until a person reviews a proposal.</div>
+            </section>
+          </section>
+
+          <section class="page-view" data-page="sales" hidden>
+            <section class="panel">
+              <div class="panel-heading"><div><p class="module-kicker">ORDER TO CASH</p><h2>Sales Performance</h2></div><span class="badge">Actual State</span></div>
+              <p class="section-lead">Monitor current orders, fulfilment progress, high-value products and unresolved backlog.</p>
+              <div id="sales-kpis" class="module-stats loading-block">Loading sales data…</div>
+              <div class="module-grid two-column">
+                <div class="module-section"><h3>Order status</h3><div id="sales-status"></div></div>
+                <div class="module-section"><h3>Top SKUs by order value</h3><div id="sales-skus" class="scroll-table"></div></div>
+              </div>
+              <div class="module-section"><h3>Backlog investigation queue</h3><div id="sales-backlog" class="scroll-table"></div></div>
+              <div id="sales-note" class="module-note"></div>
+            </section>
+          </section>
+
+          <section class="page-view" data-page="inventory" hidden>
+            <section class="panel">
+              <div class="panel-heading"><div><p class="module-kicker">STOCK CONTROL</p><h2>Inventory Management</h2></div><span class="badge">Deterministic rules</span></div>
+              <p class="section-lead">Review stock position and rule-based reorder candidates before creating any replenishment scenario.</p>
+              <div id="inventory-kpis" class="module-stats loading-block">Loading inventory data…</div>
+              <div class="module-grid two-column inventory-layout">
+                <div class="module-section"><h3>Risk distribution</h3><div id="inventory-risks"></div></div>
+                <div class="module-section"><h3>Reorder candidates</h3><div id="inventory-candidates" class="scroll-table"></div></div>
+              </div>
+              <div id="inventory-note" class="module-note"></div>
+            </section>
+          </section>
+
+          <section class="page-view" data-page="accounting" hidden>
+            <section class="panel">
+              <div class="panel-heading"><div><p class="module-kicker">FINANCIAL ANCHOR</p><h2>Accounting</h2></div><span class="badge warning-badge">Synthetic opening balances</span></div>
+              <p class="section-lead">Inspect labelled demo balances and deterministic indicators without presenting them as audited accounts.</p>
+              <div id="accounting-kpis" class="module-stats loading-block">Loading accounting data…</div>
+              <div class="module-section"><h3>Opening balance evidence</h3><div id="accounting-balances" class="scroll-table"></div></div>
+              <div id="accounting-note" class="module-note warning-note"></div>
+            </section>
+          </section>
+
+          <section class="page-view" data-page="operations" hidden>
+            <section class="panel operations-summary">
+              <div class="panel-heading"><div><p class="module-kicker">PROCESS STATE</p><h2>Operations Control</h2></div><span class="badge">Actual + isolated simulation</span></div>
+              <p class="section-lead">Observe current workload, then test controlled changes in a copied Simulated State.</p>
+              <div id="operations-kpis" class="module-stats loading-block">Loading operations data…</div>
+              <div class="module-grid two-column">
+                <div class="module-section"><h3>Objects by current step</h3><div id="operations-nodes" class="scroll-table"></div></div>
+                <div class="module-section"><h3>Configured resources</h3><div id="operations-resources" class="scroll-table"></div></div>
+              </div>
+              <div id="operations-note" class="module-note"></div>
+            </section>
+
+            <section class="panel" id="processes-panel">
+              <h2>1. Process Flows</h2>
+              <p class="section-lead">Inspect the validated process definitions that drive deterministic simulation.</p>
+              <div id="process-flows" class="process-flows"></div>
+              <div id="node-detail" class="node-detail muted">Select a node to inspect its YAML-defined details.</div>
+            </section>
+
+            <section class="panel focused-panel" id="scenario-panel">
+              <h2>2. Scenario Builder</h2>
+              <p class="section-lead">Create an isolated session, add controlled events and run a repeatable scenario.</p>
+              <form id="session-form" class="stacked compact-form">
+                <label>Session name <input id="session-name" value="Baseline" required /></label>
+                <button type="submit">Create session</button>
+              </form>
+              <div id="session-info" class="muted"></div>
+              <form id="event-form" class="stacked" hidden>
+                <label>Event type<select id="event-type"><option value="order_arrival">order_arrival</option><option value="resource_capacity_changed">resource_capacity_changed</option><option value="supplier_delivery_delayed">supplier_delivery_delayed</option></select></label>
+                <label>Effective simulated day <input id="event-day" type="number" value="0" min="0" step="0.25" /></label>
+                <div id="event-fields" class="field-grid"></div>
+                <div class="row"><button type="submit">Add event</button><button type="button" id="preset-warehouse">Preset: +1 warehouse worker</button><button type="button" id="preset-supplier">Preset: expedite supplier</button></div>
+              </form>
+              <ul id="event-list" class="event-list"></ul>
+              <form id="run-form" class="row run-form" hidden>
+                <label>Horizon days <input id="horizon" type="number" value="30" min="1" /></label>
+                <label>Seed <input id="seed" type="number" value="42" min="0" /></label>
+                <button type="submit">Run simulation</button>
+              </form>
+              <div id="run-metrics" class="metrics"></div>
+            </section>
+
+            <section class="panel focused-panel" id="comparison-panel">
+              <h2>3. Scenario Comparison</h2>
+              <p class="section-lead">Pin a completed run as the baseline, then compare it with an isolated alternative.</p>
+              <div class="row action-row"><button id="set-baseline" type="button" disabled>Pin current run as baseline</button><button id="run-compare" type="button" disabled>Compare with baseline</button></div>
+              <div id="comparison-table" class="comparison"></div>
+            </section>
+
+            <section class="panel focused-panel" id="playback-panel">
+              <h2>4. Process Trace Playback</h2>
+              <p class="section-lead">Replay process events and inspect operational, audit and balanced accounting evidence.</p>
+              <div class="row playback-controls"><button id="play" type="button" disabled>Play</button><button id="pause" type="button" disabled>Pause</button><button id="step" type="button" disabled>Step</button><input id="scrub" type="range" min="0" max="0" value="0" disabled /><span id="clock" class="mono">hour 0</span></div>
+              <div id="utilization" class="utilization"></div>
+              <details><summary>Trace and audit evidence</summary><div id="audit-evidence"></div><h3>Ordered process events (first 100)</h3><div id="trace-table" class="scroll-table"></div><h3>Balanced accounting impacts (first 100)</h3><div id="accounting-table" class="scroll-table"></div></details>
+            </section>
+          </section>
+
+          <section class="page-view" data-page="crm" hidden>
+      <section class="panel" id="crm-panel">
+        <h2>CRM Service Recovery <span class="badge crm-badge">Unified snapshot</span></h2>
+        <p class="muted">
+          RFM uses observed ordered value. Exception share describes pending orders, not churn probability or credit ratings.
+          Same AdventureWorks snapshot as Sales/Inventory. Cases are derived order exceptions,
+          not imported complaints. Missing reviews, response records and complaint SLA are unavailable.
+          Capacity scenarios are counterfactual tests; improvement does not prove why a delay occurred.
+        </p>
+        <div id="crm-summary" class="crm-summary"></div>
+        <div class="crm-grid">
+          <div>
+            <h3>Priority order-service case queue</h3>
+            <div id="crm-complaints" class="scroll-table"></div>
+          </div>
+          <div>
+            <h3>Investigation and proposal</h3>
+            <div id="crm-detail" class="crm-detail muted">Select an order-service case to investigate.</div>
+            <form id="crm-proposal-form" class="stacked" hidden>
+              <label>
+                Resolution option
+                <select id="crm-resolution"></select>
+              </label>
+              <label>Unsent customer reply <textarea id="crm-reply" rows="4"></textarea></label>
+              <label>Internal note <textarea id="crm-internal" rows="3"></textarea></label>
+              <button type="submit">Submit for human review</button>
+            </form>
+          </div>
+        </div>
+        <div class="crm-review">
+          <h3>Human review queue</h3>
+          <div class="row">
+            <label>Reviewer <input id="crm-reviewer" value="Demo Reviewer" /></label>
+            <label>Review note <input id="crm-review-note" placeholder="Optional decision note" /></label>
+          </div>
+          <div id="crm-proposals" class="scroll-table"></div>
+        </div>
         <details>
-          <summary>Trace and audit evidence</summary>
-          <div id="audit-evidence"></div>
-          <h3>Ordered process events (first 100)</h3>
-          <div id="trace-table" class="scroll-table"></div>
-          <h3>Balanced accounting impacts (first 100)</h3>
-          <div id="accounting-table" class="scroll-table"></div>
+          <summary>CRM data provenance</summary>
+          <pre id="crm-provenance" class="mono"></pre>
         </details>
       </section>
+          </section>
 
-      <section class="panel" id="assistant-panel">
-        <h2>Analysis Assistant <span class="badge">stub</span></h2>
-        <div id="chat-log" class="chat-log" aria-live="polite"></div>
-        <form id="chat-form" class="row">
-          <input id="chat-input" placeholder="Ask about a run (analysis agent not yet enabled)" />
-          <button type="submit">Send</button>
-        </form>
-      </section>
-    </main>
-
-    <script src="/app.js"></script>
+          <section class="page-view" data-page="assistant" hidden>
+            <section class="panel focused-panel" id="assistant-panel">
+              <h2>AI Business Coordinator <span class="badge" id="assistant-badge">OpenClaw</span></h2>
+              <p class="section-lead">Ask the shared Agent Runtime to investigate sales, inventory, CRM evidence or a simulation run. The LLM selects tools; deterministic services provide the facts.</p>
+              <div class="agent-workflow"><span>Observe</span><b>→</b><span>Choose tool</span><b>→</b><span>Investigate</span><b>→</b><span>Draft recommendation</span><b>→</b><span>Human review</span></div>
+              <p class="muted">Ask your data: “Which customers have the highest order value?”, “Which SKUs have the most pending orders?”, or “Why did orders rise this month?” The Agent chooses relevant fields and tools. Public-event search is optional and requires backend configuration.</p>
+              <div id="chat-log" class="chat-log" aria-live="polite"></div>
+              <form id="chat-form" class="row"><input id="chat-input" maxlength="8000" placeholder="Ask a business question — the Agent will find relevant data" /><button type="submit">Send</button></form>
+            </section>
+          </section>
+        </main>
+      </div>
+    </div>
+    <script src="/app.js?v=crm-agent-20260922"></script>
   </body>
 </html>
