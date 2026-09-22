@@ -6,7 +6,7 @@ from pathlib import Path
 
 from sqlalchemy import Engine
 
-from core.models import SnapshotBundle, SnapshotManifest
+from core.models import EnterpriseState, SnapshotBundle, SnapshotManifest
 from core.simulation.process_runtime import (
     RuntimeProcessCatalog,
     load_runtime_process_catalog,
@@ -91,6 +91,13 @@ class DemoContext:
 
     def base_manifest(self) -> SnapshotManifest:
         return self.base_snapshot().manifest
+
+    def enterprise_state(self) -> EnterpriseState:
+        """Return the canonical actual state document used by tools and APIs."""
+
+        return self.actual_state.get_enterprise_state(
+            datetime.fromisoformat(BASE_SNAPSHOT_AS_OF), company_id=COMPANY_ID
+        )
 
     def counts(self) -> dict[str, int]:
         return self.actual_state.counts()

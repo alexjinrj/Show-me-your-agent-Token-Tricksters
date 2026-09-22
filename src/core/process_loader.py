@@ -72,7 +72,18 @@ def load_process_definitions(directory: str | Path) -> dict[ProcessId, ProcessDe
         if definition.process_id in definitions:
             raise ProcessConfigurationError(f"duplicate process_id: {definition.process_id}")
         definitions[definition.process_id] = definition
-    return dict(sorted(definitions.items()))
+    catalog = dict(sorted(definitions.items()))
+    from core.object_schema import (
+        ObjectSchemaError,
+        load_object_schema_registry,
+        validate_process_object_contract,
+    )
+
+    try:
+        validate_process_object_contract(catalog, load_object_schema_registry())
+    except ObjectSchemaError as exc:
+        raise ProcessConfigurationError(f"process/object contract is invalid: {exc}") from exc
+    return catalog
 
 
 def hash_process_definition(definition: ProcessDefinition) -> str:

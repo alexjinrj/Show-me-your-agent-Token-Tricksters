@@ -90,6 +90,17 @@ SOURCE_TYPES: dict[str, tuple[str, ...]] = {
     ),
 }
 
+# These fields belong to ingestion lineage rather than the user's business table.
+# They may still be supplied, but the importer can generate them deterministically.
+GENERATED_FIELDS = {"data_origin", "source_record_id"}
+IMPORT_TIME_FIELDS = {
+    "customers",
+    "suppliers",
+    "items",
+    "inventory",
+    "opening_balances",
+}
+
 
 class ReadModel(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -130,6 +141,56 @@ def _file_hash(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _normalized_field(value: str) -> str:
+    return "".join(character.lower() for character in value if character.isalnum())
+
+
+def _required_upload_fields(source_type: str) -> tuple[str, ...]:
+    optional = set(GENERATED_FIELDS)
+    if source_type in IMPORT_TIME_FIELDS:
+        optional.add("business_timestamp")
+    return tuple(field for field in SOURCE_TYPES[source_type] if field not in optional)
+
+
+def resolve_field_mapping(
+    columns: tuple[str, ...],
+    source_type: str,
+    field_mapping: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Resolve canonical field -> uploaded column without fuzzy or LLM guessing."""
+
+    if source_type not in SOURCE_TYPES:
+        raise ValueError(f"unknown source_type: {source_type}")
+    expected = SOURCE_TYPES[source_type]
+    supplied = dict(field_mapping or {})
+    unknown_targets = sorted(set(supplied) - set(expected))
+    if unknown_targets:
+        raise ValueError(f"field mapping has unknown canonical fields: {unknown_targets}")
+    unknown_sources = sorted(set(supplied.values()) - set(columns))
+    if unknown_sources:
+        raise ValueError(f"field mapping references missing uploaded columns: {unknown_sources}")
+    if len(set(supplied.values())) != len(supplied):
+        raise ValueError("one uploaded column cannot map to multiple canonical fields")
+
+    normalized: dict[str, list[str]] = {}
+    for column in columns:
+        normalized.setdefault(_normalized_field(column), []).append(column)
+    resolved = dict(supplied)
+    used_sources = set(resolved.values())
+    for target in expected:
+        if target in resolved:
+            continue
+        candidates = [
+            column
+            for column in normalized.get(_normalized_field(target), [])
+            if column not in used_sources
+        ]
+        if len(candidates) == 1:
+            resolved[target] = candidates[0]
+            used_sources.add(candidates[0])
+    return resolved
+
+
 def inspect_csv(path: str | Path) -> SourceInspection:
     csv_path = Path(path)
     warnings: list[str] = []
@@ -138,7 +199,13 @@ def inspect_csv(path: str | Path) -> SourceInspection:
         columns = tuple(reader.fieldnames or ())
         rows = list(reader)
     probable = next(
-        (kind for kind, fields in SOURCE_TYPES.items() if set(fields) <= set(columns)), None
+        (
+            kind
+            for kind in SOURCE_TYPES
+            if set(_required_upload_fields(kind))
+            <= set(resolve_field_mapping(columns, kind))
+        ),
+        None,
     )
     if not columns:
         warnings.append("CSV has no header row")
@@ -229,7 +296,13 @@ def _validate_row(source_type: str, row: dict[str, str]) -> dict[str, Any]:
 
 
 def parse_and_validate(
-    path: str | Path, source_type: str, mapping_version: str
+    path: str | Path,
+    source_type: str,
+    mapping_version: str,
+    *,
+    field_mapping: dict[str, str] | None = None,
+    default_data_origin: str = "source",
+    default_business_timestamp: str | None = None,
 ) -> ValidationReport:
     if source_type not in SOURCE_TYPES:
         raise ValueError(f"unknown source_type: {source_type}")
@@ -239,23 +312,49 @@ def parse_and_validate(
     with csv_path.open(newline="", encoding="utf-8-sig") as handle:
         reader = csv.DictReader(handle)
         actual = tuple(reader.fieldnames or ())
-        expected = SOURCE_TYPES[source_type]
-        if actual != expected:
+        try:
+            resolved = resolve_field_mapping(actual, source_type, field_mapping)
+        except ValueError as exc:
+            resolved = {}
             issues.append(
                 ValidationIssue(
                     row_number=1,
                     field="header",
                     code="HEADER_MISMATCH",
-                    message=f"expected {expected!r}, got {actual!r}",
+                    message=str(exc),
+                )
+            )
+        missing = sorted(set(_required_upload_fields(source_type)) - set(resolved))
+        if missing and not issues:
+            issues.append(
+                ValidationIssue(
+                    row_number=1,
+                    field="header",
+                    code="HEADER_MISMATCH",
+                    message=f"missing required canonical fields: {missing}",
                 )
             )
         for row_number, row in enumerate(reader, start=2):
             if issues and issues[0].code == "HEADER_MISMATCH":
                 continue
             try:
-                if any(value is None or value == "" for value in row.values()):
-                    raise ValueError("all mapped values are required")
-                parsed_rows.append(_validate_row(source_type, row))
+                canonical = {
+                    target: row[source]
+                    for target, source in resolved.items()
+                    if row.get(source) not in {None, ""}
+                }
+                canonical.setdefault("data_origin", default_data_origin)
+                canonical.setdefault("source_record_id", str(row_number - 1))
+                if source_type in IMPORT_TIME_FIELDS and default_business_timestamp is not None:
+                    canonical.setdefault("business_timestamp", default_business_timestamp)
+                missing_values = [
+                    field
+                    for field in _required_upload_fields(source_type)
+                    if canonical.get(field) in {None, ""}
+                ]
+                if missing_values:
+                    raise ValueError(f"required values are empty: {missing_values}")
+                parsed_rows.append(_validate_row(source_type, canonical))
             except (ValueError, InvalidOperation) as exc:
                 issues.append(
                     ValidationIssue(

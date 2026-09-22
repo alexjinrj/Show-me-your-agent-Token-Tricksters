@@ -40,8 +40,10 @@ business-object traces, bottlenecks, or warehouse and supplier what-if scenarios
    Periods are UTC, start inclusive and end exclusive. State incomplete coverage.
 4. A missing period is missing evidence, not proof of zero business activity.
    Order quantity is not confirmed shipment quantity. Current status is not past status.
-5. For historical state reconstruction call `query_enterprise_history`; currently it
-   explicitly returns `NOT_IMPLEMENTED`. Do not fall back to the latest snapshot.
+5. For an object's historical state call `query_enterprise_history` with its type, identifier
+   and requested time. A reconstructed result is complete only for recorded reversible events.
+   If reconstruction is unavailable, report the missing evidence and warnings; do not fall back
+   to the current object projection as if it were historical state.
 6. Separate facts, candidate explanations, missing evidence and proposed interventions.
    Public search is optional; report configuration errors and never invent promotion attribution.
 7. For proposed operational changes, use the existing baseline/alternative simulation

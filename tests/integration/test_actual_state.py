@@ -43,6 +43,56 @@ def test_rejected_ingestion_creates_no_events(service: ActualStateService, tmp_p
         assert session.scalar(select(func.count()).select_from(CustomerRow)) == 0
 
 
+def test_import_csv_maps_upload_and_generates_master_lineage(
+    service: ActualStateService, tmp_path: Path
+) -> None:
+    source = tmp_path / "customer-upload.csv"
+    source.write_text(
+        "Customer ID,Customer Label,Enabled,Internal Note\n"
+        "C-UPLOAD-1,Uploaded Customer,true,not imported\n",
+        encoding="utf-8",
+    )
+
+    result = service.import_csv(
+        source,
+        source_type="customers",
+        field_mapping={
+            "customer_number": "Customer ID",
+            "name": "Customer Label",
+            "active": "Enabled",
+        },
+    )
+
+    assert result["committed"] is True
+    assert result["validation"]["valid"] is True
+    assert result["ignored_columns"] == ["Internal Note"]
+    assert result["field_mapping"] == {
+        "customer_number": "Customer ID",
+        "name": "Customer Label",
+        "active": "Enabled",
+    }
+    with Session(service.engine) as session:
+        customer = session.scalar(
+            select(CustomerRow).where(CustomerRow.customer_number == "C-UPLOAD-1")
+        )
+        assert customer is not None
+        assert customer.name == "Uploaded Customer"
+        assert customer.source_record_id == "1"
+        assert customer.data_origin == "source"
+        assert customer.business_timestamp is not None
+
+    duplicate = service.import_csv(
+        source,
+        source_type="customers",
+        field_mapping={
+            "customer_number": "Customer ID",
+            "name": "Customer Label",
+            "active": "Enabled",
+        },
+    )
+    assert duplicate["duplicate"] is True
+
+
 def test_demo_ingestion_is_lineage_complete_and_idempotent(
     service: ActualStateService, demo_path: Path
 ) -> None:

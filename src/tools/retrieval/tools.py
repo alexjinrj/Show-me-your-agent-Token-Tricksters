@@ -7,8 +7,10 @@ from typing import Any
 from uuid import uuid4
 
 from agent_runtime.contracts import RuntimeToolResult
+from core.models import EnterpriseState
 from tools.crm.service import CRMService
 from tools.retrieval.contracts import Compare, Filter, History, Query, SpikeAnalysis, StrictInput
+from tools.retrieval.history import EnterpriseHistoryError, query_enterprise_history
 from tools.retrieval.spikes import analyze_days
 
 SCHEMA: dict[str, dict[str, str]] = {
@@ -89,8 +91,9 @@ DESCRIPTIONS = {
         "Returns exact totals/deltas and per-day rates. No causal or complete-history claims."
     ),
     "query_enterprise_history": (
-        "Historical state reconstruction placeholder. Always returns NOT_IMPLEMENTED; "
-        "never substitutes the latest snapshot."
+        "Trace one Enterprise State object through bounded activity/event evidence. "
+        "Reconstruct an earlier object state only when reversible before/after changes exist; "
+        "otherwise return explicit unavailable coverage."
     ),
 }
 
@@ -121,8 +124,9 @@ def typed(value: str, kind: str) -> str | Decimal | datetime:
 
 
 class RetrievalTools:
-    def __init__(self, crm: CRMService) -> None:
+    def __init__(self, crm: CRMService, enterprise_state: EnterpriseState | None = None) -> None:
         self.crm = crm
+        self.enterprise_state = enterprise_state
         self.rows: dict[str, list[dict[str, str]]] = {
             "orders": [
                 {
@@ -419,13 +423,33 @@ class RetrievalTools:
     def call(self, name: str, arguments: dict[str, Any]) -> RuntimeToolResult:
         parsed = MODELS[name].model_validate(arguments)
         if name == "query_enterprise_history":
+            if not isinstance(parsed, History):  # pragma: no cover - registry invariant
+                raise ValueError("Invalid enterprise history request")
+            if self.enterprise_state is None:
+                return RuntimeToolResult(
+                    tool_call_id=str(uuid4()),
+                    tool_name=name,
+                    status="error",
+                    error_code="HISTORY_SOURCE_UNAVAILABLE",
+                    error_message="Canonical Enterprise State history is not available.",
+                )
+            try:
+                data = query_enterprise_history(self.enterprise_state, parsed)
+            except EnterpriseHistoryError as exc:
+                return RuntimeToolResult(
+                    tool_call_id=str(uuid4()),
+                    tool_name=name,
+                    status="error",
+                    error_code="HISTORY_QUERY_REJECTED",
+                    error_message=str(exc),
+                )
             return RuntimeToolResult(
                 tool_call_id=str(uuid4()),
                 tool_name=name,
-                status="error",
-                error_code="NOT_IMPLEMENTED",
-                error_message="Historical state reconstruction is not implemented. "
-                "No latest-snapshot substitution was made.",
+                status="ok",
+                state_type="actual",
+                reference_id=self.enterprise_state.scope_id,
+                data=data,
             )
         if isinstance(parsed, Query):
             data = self.query(parsed)

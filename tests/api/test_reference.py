@@ -59,3 +59,31 @@ def test_snapshot_manifest_and_openings(client: TestClient) -> None:
     assert isinstance(body["opening_balances"][0]["amount"], str)
     assert body["source_manifest"]["dataset"].startswith("Microsoft AdventureWorks")
     assert body["source_manifest"]["embedded_exception"]["backlog_orders"] == 100
+
+
+def test_enterprise_state_api_exposes_one_canonical_record_shape(client: TestClient) -> None:
+    response = client.get(
+        "/api/enterprise-state",
+        params={"record_kind": "object", "record_type": "inventory_position"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["state_type"] == "actual"
+    assert body["as_of_time"] == "2026-09-12T15:59:00Z"
+    assert len(body["records"]) == 40
+    record_id, record = next(iter(body["records"].items()))
+    assert record_id.startswith("inventory_position:")
+    assert record["record_kind"] == "object"
+    assert record["record_type"] == "inventory_position"
+    assert "quantity_on_hand" in record["data"]
+
+    detail = client.get(f"/api/enterprise-state/records/{record_id}")
+    assert detail.status_code == 200
+    assert detail.json()["record_id"] == record_id
+
+    history = client.get(
+        "/api/enterprise-state",
+        params={"record_kind": "event"},
+    )
+    assert history.status_code == 200
+    assert len(history.json()["records"]) == 596

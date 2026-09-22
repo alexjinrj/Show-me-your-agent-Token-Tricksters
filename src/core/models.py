@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import Annotated, Any, Literal
@@ -198,14 +199,16 @@ class StateRecord(CanonicalModel):
 
 
 class EnterpriseState(CanonicalModel):
-    """Versioned state shared by simulation, frontend, audit, and future Agents."""
+    """Canonical JSON-like document shared by replay, simulation, tools, and APIs."""
 
     scope_id: str = Field(min_length=1)
     project_id: str = Field(min_length=1)
     state_version: int = Field(default=0, ge=0)
     simulated_hour: Decimal = Field(default=Decimal("0"), ge=0)
+    as_of_time: AwareDatetime | None = None
+    process_definition_hash: HashDigest | None = None
     records: dict[str, StateRecord]
-    state_type: Literal["simulated"] = "simulated"
+    state_type: StateType = "actual"
 
     @field_validator("records")
     @classmethod
@@ -214,6 +217,73 @@ class EnterpriseState(CanonicalModel):
         if mismatches:
             raise ValueError(f"record keys must match record_id: {mismatches[:3]}")
         return dict(sorted(value.items()))
+
+    def objects(self, object_type: str | None = None) -> tuple[StateRecord, ...]:
+        return tuple(
+            record
+            for record in self.records.values()
+            if record.record_kind == "object"
+            and (object_type is None or record.record_type == object_type)
+        )
+
+    def events(self, *, object_id: str | None = None) -> tuple[StateRecord, ...]:
+        return tuple(
+            record
+            for record in self.records.values()
+            if record.record_kind == "event"
+            and (object_id is None or object_id in record.references)
+        )
+
+    def activity_runs(self, process_id: str | None = None) -> tuple[StateRecord, ...]:
+        return tuple(
+            record
+            for record in self.records.values()
+            if record.record_kind == "activity_run"
+            and (process_id is None or record.data.get("process_id") == process_id)
+        )
+
+    def record(self, record_id: str) -> StateRecord:
+        try:
+            return self.records[record_id]
+        except KeyError as exc:
+            raise ValueError(f"state record does not exist: {record_id}") from exc
+
+    def snapshot(
+        self,
+        *,
+        object_types: set[str] | None = None,
+        include_history: bool = True,
+    ) -> EnterpriseState:
+        """Return a detached immutable view; snapshots are not a separate state store."""
+
+        records = {
+            record_id: deepcopy(record)
+            for record_id, record in self.records.items()
+            if (
+                (
+                    record.record_kind == "object"
+                    and (object_types is None or record.record_type in object_types)
+                )
+                or (include_history and record.record_kind in {"event", "activity_run"})
+            )
+        }
+        return self.model_copy(update={"records": records}, deep=True)
+
+    def fork_for_simulation(self, scope_id: str) -> EnterpriseState:
+        snapshot = self.snapshot(include_history=False)
+        records = {
+            record_id: record.model_copy(update={"state_type": "simulated"}, deep=True)
+            for record_id, record in snapshot.records.items()
+        }
+        return snapshot.model_copy(
+            update={
+                "scope_id": scope_id,
+                "records": records,
+                "state_type": "simulated",
+                "simulated_hour": Decimal("0"),
+            },
+            deep=True,
+        )
 
 
 class StateRecordChange(CanonicalModel):

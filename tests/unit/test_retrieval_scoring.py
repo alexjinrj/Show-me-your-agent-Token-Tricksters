@@ -149,8 +149,15 @@ def test_date_boundaries_comparison_and_missing_history(crm: CRMService) -> None
     assert result["baseline"]["period_days"] == "30.0"
     request["baseline"] = {"start": "2026-05-01", "end": "2026-06-01"}
     assert tools.compare(Compare.model_validate(request))["deltas"]["amount"]["percent"] is None
-    history = tools.call("query_enterprise_history", {"as_of": "2026-06-01"})
-    assert history.status == "error" and history.error_code == "NOT_IMPLEMENTED"
+    history = tools.call(
+        "query_enterprise_history",
+        {
+            "object_type": "sales_order",
+            "object_id": "SO-1",
+            "as_of": "2026-06-01",
+        },
+    )
+    assert history.status == "error" and history.error_code == "HISTORY_SOURCE_UNAVAILABLE"
     assert not history.data and history.reference_id is None
 
 

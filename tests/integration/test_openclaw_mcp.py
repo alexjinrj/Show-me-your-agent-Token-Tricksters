@@ -68,9 +68,19 @@ def test_openclaw_mcp_discovers_context_and_audited_sales_tools() -> None:
             )
             assert records.structured_content is not None
             assert records.structured_content["data"]["total_matching"] == 500
-            history = await client.call_tool("query_enterprise_history", {"as_of": "2026-06-01"})
+            history = await client.call_tool(
+                "query_enterprise_history",
+                {
+                    "object_type": "sales_order",
+                    "object_id": "SO74695",
+                    "as_of": "2026-09-12T23:59:00+08:00",
+                },
+            )
             assert history.structured_content is not None
-            assert history.structured_content["error_code"] == "NOT_IMPLEMENTED"
+            assert history.structured_content["status"] == "ok"
+            assert history.structured_content["data"]["reconstruction_status"] == (
+                "current_projection"
+            )
 
     asyncio.run(exercise_server())
 

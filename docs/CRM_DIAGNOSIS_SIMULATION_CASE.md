@@ -77,4 +77,6 @@ snapshot isolation.
 - The only supported CRM counterfactual in this iteration is warehouse staff capacity.
 - The simulation evaluates system-level metrics; it does not guarantee the selected order will ship.
 - Human review records a decision but does not contact a customer, refund, reserve stock or ship.
-- The full historical retrieval API remains an explicit `NOT_IMPLEMENTED` placeholder.
+- Bounded object-history retrieval is available, but past state is reconstructed only from
+  recorded reversible events. Missing change sets remain explicit missing evidence, and the
+  current snapshot is never presented as past state.

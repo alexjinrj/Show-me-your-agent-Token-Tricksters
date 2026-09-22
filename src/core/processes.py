@@ -101,6 +101,13 @@ class StateEffectDefinition(CanonicalModel):
         return self
 
 
+class ExecutionInputDefinition(CanonicalModel):
+    """Typed value supplied by an observed transaction or a simulation trigger."""
+
+    type: Literal["string", "decimal", "integer", "boolean", "datetime"]
+    required: bool = True
+
+
 class EventOutputDefinition(CanonicalModel):
     event_type: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
     references: tuple[str, ...] = ()
@@ -133,8 +140,10 @@ class ProcessNodeDefinition(CanonicalModel):
 
     id: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
     kind: Literal["activity"] = "activity"
+    semantic_status: Literal["confirmed", "dummy"] = "confirmed"
     label: str = Field(min_length=1)
     inputs: tuple[ObjectBindingDefinition, ...] = Field(min_length=1)
+    execution_inputs: dict[str, ExecutionInputDefinition] = Field(default_factory=dict)
     enabled_when: tuple[ConditionDefinition, ...] = ()
     resource: ResourceType | None = None
     duration: DurationDefinition
@@ -158,7 +167,15 @@ class ProcessNodeDefinition(CanonicalModel):
             *(effect.target for effect in self.operations),
             *(effect.value_from for effect in self.operations if effect.value_from),
         ]:
-            if path.split(".", 1)[0] not in aliases:
+            path_alias = path.split(".", 1)[0]
+            if path_alias == "execution":
+                field_name = path.split(".", 1)[1]
+                if field_name not in self.execution_inputs:
+                    raise ValueError(
+                        f"activity {self.id} references unknown execution input: {field_name}"
+                    )
+                continue
+            if path_alias not in aliases:
                 raise ValueError(f"activity {self.id} references unknown input alias: {path}")
         event_references = (*self.on_complete.references,)
         if self.on_start is not None:

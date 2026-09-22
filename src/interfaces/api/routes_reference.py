@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends
 
@@ -48,3 +48,27 @@ def get_snapshot(context: ContextDependency) -> dict[str, Any]:
         "opening_inventory": opening_inventory,
         "source_manifest": context.source_manifest,
     }
+
+
+@router.get("/enterprise-state")
+def get_enterprise_state(
+    context: ContextDependency,
+    record_kind: Literal["object", "event", "activity_run"] | None = None,
+    record_type: str | None = None,
+) -> dict[str, Any]:
+    state = context.enterprise_state()
+    records = {
+        record_id: record
+        for record_id, record in state.records.items()
+        if (record_kind is None or record.record_kind == record_kind)
+        and (record_type is None or record.record_type == record_type)
+    }
+    return state.model_copy(update={"records": records}, deep=True).model_dump(mode="python")
+
+
+@router.get("/enterprise-state/records/{record_id:path}")
+def get_enterprise_state_record(
+    record_id: str,
+    context: ContextDependency,
+) -> dict[str, Any]:
+    return context.enterprise_state().record(record_id).model_dump(mode="python")

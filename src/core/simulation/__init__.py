@@ -4,11 +4,16 @@ from core.simulation.scenarios import (
     inventory_replenishment,
     warehouse_capacity_increase,
 )
-from core.simulation.state import SimulationState, snapshot_to_state
+from core.simulation.state import (
+    SimulationState,
+    enterprise_state_to_simulation_state,
+    snapshot_to_state,
+)
 
 __all__ = [
     "SimulationState",
     "expedited_supplier_delivery",
+    "enterprise_state_to_simulation_state",
     "inventory_replenishment",
     "run_simulation",
     "snapshot_to_state",

@@ -1,0 +1,15 @@
+object_type: customer
+schema_version: 1
+identity: [customer_number]
+attributes:
+  customer_number: {type: string, required: true, mutable: false}
+  name: {type: string, required: true}
+  active: {type: boolean, required: true}
+  source_system: {type: string, mutable: false}
+  source_file_id: {type: string, mutable: false}
+  source_record_id: {type: string, mutable: false}
+  ingestion_run_id: {type: string, mutable: false}
+  business_timestamp: {type: datetime, mutable: false}
+  mapping_version: {type: string, mutable: false}
+  validation_status: {type: string, mutable: false}
+  data_origin: {type: string, mutable: false}
