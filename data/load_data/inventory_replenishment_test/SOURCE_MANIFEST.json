@@ -1,0 +1,53 @@
+{
+  "dataset": "Microsoft AdventureWorks OLTP install-script CSV files",
+  "embedded_exception": {
+    "affected_skus": [
+      "WB-H098",
+      "PK-7098",
+      "TT-M928"
+    ],
+    "backlog_orders": 100,
+    "inventory_rule": "35% of the AdventureWorks reorder point for affected SKUs",
+    "warehouse_staff_capacity": 2
+  },
+  "license": "MIT",
+  "license_url": "https://github.com/microsoft/sql-server-samples/blob/master/license.txt",
+  "row_counts": {
+    "customers": 486,
+    "inventory": 40,
+    "items": 40,
+    "opening_balances": 6,
+    "purchase_orders": 50,
+    "resources": 6,
+    "sales_orders": 500,
+    "suppliers": 8
+  },
+  "source_base_url": "https://raw.githubusercontent.com/microsoft/sql-server-samples/master/samples/databases/adventure-works/oltp-install-script",
+  "source_file_sha256": {
+    "Customer": "4704aa5b46aed326599014524c821aca50e938587e6a1133c0f6d9aae5c5efc6",
+    "Product": "df0379a7cba8b11b97ea5d104cf1313ef9f683137b6426f2fac6bb8c74c2a2ea",
+    "ProductInventory": "0eb400b3a9f0abea533ca91746950ac18ec01788ace01fd1b5cfa729904c2e86",
+    "ProductVendor": "d66c695e30deeb206f3b329a922fea905b42078ef9cbf546c421b49789bcc6fe",
+    "PurchaseOrderDetail": "4e2e27e7a165bf1aa7e7675a7eebcb25c22a1c7bd0e2e3d7ce0f8ff53060c2d9",
+    "PurchaseOrderHeader": "fd3b6d356238c5adc938e427fd5c523ee9e405fba1343852dfba85a0a888113c",
+    "SalesOrderDetail": "220129977aa63e34fa4a1d66c2604bd2184373151efb09c98b343371ba77ab8a",
+    "SalesOrderHeader": "cf637c7d58006ebbc13daf0b8ed6cf7f738165d298ae0b5479a59237429c1882",
+    "Vendor": "075c70b53fc860bf4a562b56df027b961ac4051f0fd0b75faaa106b5dae110e3"
+  },
+  "transform": {
+    "data_origin_policy": {
+      "derived": "source-linked values rebased, aggregated, renamed, or status-adapted",
+      "source": "values copied without business reinterpretation",
+      "synthetic": "MVP-only capacity and accounting assumptions"
+    },
+    "script": "scripts/build_demo_data.py",
+    "source_window": [
+      "2025-04-01",
+      "2025-06-29"
+    ],
+    "target_as_of": "2026-09-12T23:59:00+08:00",
+    "target_company": "SG-SME-001",
+    "target_currency": "SGD",
+    "target_timezone": "Asia/Singapore (+08:00)"
+  }
+}
