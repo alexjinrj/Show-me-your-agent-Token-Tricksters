@@ -154,6 +154,37 @@ def get_metric_history(
 
 
 @mcp.tool()
+def analyze_sales_backlog_intervention(
+    snapshot_id: str,
+    additional_workers: int = 2,
+    horizon_days: int = 7,
+    random_seed: int = 42,
+    primary_metric: Literal[
+        "ending_backlog", "average_waiting_hours", "fulfilment_rate", "stockout_count"
+    ] = "average_waiting_hours",
+    guardrail_metrics: list[
+        Literal["ending_backlog", "average_waiting_hours", "fulfilment_rate", "stockout_count"]
+    ]
+    | None = None,
+) -> dict[str, Any]:
+    """Run the bounded ORDER_BACKLOG diagnosis-to-capacity-simulation workflow."""
+
+    return _invoke(
+        "analyze_sales_backlog_intervention",
+        {
+            "snapshot_id": snapshot_id,
+            "additional_workers": additional_workers,
+            "horizon_days": horizon_days,
+            "random_seed": random_seed,
+            "primary_metric": primary_metric,
+            "guardrail_metrics": guardrail_metrics
+            if guardrail_metrics is not None
+            else ["ending_backlog", "fulfilment_rate", "stockout_count"],
+        },
+    )
+
+
+@mcp.tool()
 def create_simulation_session(
     snapshot_id: str,
     name: str,

@@ -65,6 +65,9 @@ RFM is relative ordered-value segmentation with equal prototype weights, not pai
 The CRM risk score is observed pending-order exception share, NOT a churn or default probability.
 For scenarios run baseline and alternative with the same snapshot, horizon and seed,
 then compare. Inventory comparison calculates four strategies deterministically.
+For an ORDER_BACKLOG warehouse-capacity what-if, prefer analyze_sales_backlog_intervention;
+it performs the matched runs and deterministic verdict. Keep returned actual facts, the
+unproven cause hypothesis, the operations-owned intervention and simulated comparison separate.
 Never claim a real purchase or inventory write was performed. Answer in the user's language.
 CRM customer value and relationship risk are service signals, never credit ratings.
 CRM uses the SAME canonical snapshot as Sales/Inventory, with matching customer/order/SKU keys.

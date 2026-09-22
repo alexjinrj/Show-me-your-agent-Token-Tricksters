@@ -23,9 +23,11 @@ from enterprise_state.models import (
     ToolCallAuditRow,
 )
 from enterprise_state.service import ActualStateService
+from tools.sales.analysis import SalesAnalysisService
 from tools.sales.contracts import (
     TOOL_INPUTS,
     AddEventInput,
+    AnalyzeBacklogInput,
     BottleneckInput,
     CompareInput,
     CreateSessionInput,
@@ -60,6 +62,7 @@ class SalesAgentTools:
         self.engine = engine
         self.actual = ActualStateService(engine)
         self.simulations = SimulationService(engine)
+        self.analysis = SalesAnalysisService(self.actual, self.simulations)
 
     @staticmethod
     def schemas() -> dict[str, dict[str, Any]]:
@@ -348,6 +351,14 @@ class SalesAgentTools:
                 },
                 "actual",
                 args.snapshot_id,
+            )
+        if name == "analyze_sales_backlog_intervention":
+            assert isinstance(args, AnalyzeBacklogInput)
+            analysis_result = self.analysis.analyze_order_backlog(args)
+            return (
+                analysis_result.model_dump(mode="json"),
+                "simulated",
+                analysis_result.simulation_comparison.alternative_run_id,
             )
         if name == "create_simulation_session":
             assert isinstance(args, CreateSessionInput)
