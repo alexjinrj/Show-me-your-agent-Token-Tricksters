@@ -55,7 +55,12 @@ class Compare(StrictInput):
 
 
 class History(StrictInput):
+    object_type: str = Field(pattern=r"^[a-z][a-z0-9_]*$", max_length=80)
+    object_id: str = Field(min_length=1, max_length=160)
     as_of: str
+    fields: list[str] = Field(default_factory=list, max_length=12)
+    limit: int = Field(default=20, ge=1, le=50)
+    offset: int = Field(default=0, ge=0, le=10000)
 
 
 class SpikeAnalysis(StrictInput):

@@ -1,4 +1,4 @@
-> 后续补充：现已增加按天异常调查与可配置的网页搜索接口，见 [订单异常调查配置](ORDER_SPIKE_INVESTIGATION.md)。以下为评分与第一阶段检索设计，历史状态重建仍未实现。
+> 后续补充：现已增加按天异常调查、可配置网页搜索，以及有边界的对象历史检索。订单异常调查见 [订单异常调查配置](ORDER_SPIKE_INVESTIGATION.md)。历史检索只依据 Enterprise State 内已记录且可逆的事件重建，不代表完整企业历史。
 
 # CRM 评分与 Agent 字段检索（2026-09-21）
 
@@ -60,14 +60,14 @@ CRM 的“诊断 → 参数干预 → 模拟 → 比较”验收流程见
 
 这是“LLM 选择工具参数 → 工具读取数据和计算 → LLM 解释”的循环，不让模型自行编 SQL 或计算权威金额。
 
-四个注册入口（共享 Runtime 与 MCP）：
+五个注册入口（共享 Runtime 与 MCP）：
 
 | 工具 | 用途 |
 |---|---|
 | get_data_catalog | 发现数据集、字段类型、已观测日期范围、数据限制 |
 | query_snapshot_records | 筛选、字段选择、最多两字段分组、分页、全量匹配汇总 |
 | compare_snapshot_periods | 同一查询下两个不重叠期间的总量、差额、百分比、每日记录数 |
-| query_enterprise_history | 预留历史状态接口，明确返回 NOT_IMPLEMENTED |
+| query_enterprise_history | 按 object type、ID 和时间检索对象事件，并仅在后续事件都有 before/after change set 时反向重建 |
 
 数据集：orders、customers、cases、inventory。所有数据来自该次 Runtime 使用的同一不可变快照。库存按 SKU 汇总；没有增加仓库级或任意跨表连接。订单已经带 customer_id / sku，其他详情可使用现有工具继续查。
 
@@ -90,7 +90,7 @@ CRM 的“诊断 → 参数干预 → 模拟 → 比较”验收流程见
 }
 ```
 
-时间字段查询的是**当前快照内记录的日期**。它无法回答“六月某日仓库当时有多少库存”。历史状态接口不以最新状态代替历史，也不以空列表假装已查到历史。
+普通记录查询中的时间字段仍是**当前快照内记录的日期**。需要回答“六月某日某个库存对象当时是什么状态”时，应调用 `query_enterprise_history`。该接口不会把最新状态冒充历史：如果相关事件缺少时间、对象引用或可逆的 before/after change set，它会明确返回 `unavailable`。当前 demo 数据未必含有足够的可逆事件，因此“接口可用”不等于“所有历史时点都能重建”。
 
 ## 3. 怎么运行和使用
 

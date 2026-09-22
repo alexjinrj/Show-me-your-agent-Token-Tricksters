@@ -27,7 +27,7 @@ from tools.workbench.service import Plan, Search, Workbench
 def build_runtime(context: DemoContext, *, use_gateway: bool = True) -> RuntimeService:
     registry = build_sales_tool_registry(SalesAgentTools(context.engine))
     register_crm_tools(registry, CRMAgentTools(context.crm))
-    retrieval = RetrievalTools(context.crm)
+    retrieval = RetrievalTools(context.crm, context.enterprise_state())
 
     def retrieval_handler(name: str) -> ToolHandler:
         def call(arguments: dict[str, Any], agent_case_id: str) -> RuntimeToolResult:

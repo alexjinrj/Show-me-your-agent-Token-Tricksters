@@ -402,9 +402,26 @@ def compare_snapshot_periods(
 
 
 @mcp.tool()
-def query_enterprise_history(as_of: str) -> dict[str, Any]:
-    """Reserved historical state API; explicitly returns NOT_IMPLEMENTED."""
-    return _invoke("query_enterprise_history", {"as_of": as_of})
+def query_enterprise_history(
+    object_type: str,
+    object_id: str,
+    as_of: str,
+    fields: list[str] | None = None,
+    limit: int = 20,
+    offset: int = 0,
+) -> dict[str, Any]:
+    """Trace one object and reconstruct earlier state only from reversible evidence."""
+    return _invoke(
+        "query_enterprise_history",
+        {
+            "object_type": object_type,
+            "object_id": object_id,
+            "as_of": as_of,
+            "fields": fields or [],
+            "limit": limit,
+            "offset": offset,
+        },
+    )
 
 
 @mcp.tool()
