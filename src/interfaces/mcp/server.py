@@ -12,6 +12,7 @@ from agent_runtime.service import RuntimeService
 from interfaces.api.context import DemoContext
 from interfaces.api.settings import load_settings
 from interfaces.runtime import build_runtime
+from tools.retrieval.contracts import Dataset
 
 
 @dataclass(frozen=True)
@@ -341,6 +342,135 @@ def draft_customer_reply(
     return _invoke(
         "draft_customer_reply",
         {"complaint_id": complaint_id, "tone": tone},
+    )
+
+
+@mcp.tool()
+def get_data_catalog() -> dict[str, Any]:
+    """Read available fields and observed record-date coverage before analysis."""
+    return _invoke("get_data_catalog", {})
+
+
+@mcp.tool()
+def query_snapshot_records(
+    dataset: Dataset,
+    filters: list[dict[str, Any]] | None = None,
+    fields: list[str] | None = None,
+    group_by: list[str] | None = None,
+    limit: int = 20,
+    offset: int = 0,
+    sort_by: str | None = None,
+    sort_direction: Literal["asc", "desc"] = "desc",
+    group_limit: int = 100,
+    group_offset: int = 0,
+) -> dict[str, Any]:
+    """Read bounded snapshot records and full filtered totals; never reconstruct past state."""
+    return _invoke(
+        "query_snapshot_records",
+        {
+            "dataset": dataset,
+            "filters": filters or [],
+            "fields": fields or [],
+            "group_by": group_by or [],
+            "limit": limit,
+            "offset": offset,
+            "sort_by": sort_by,
+            "sort_direction": sort_direction,
+            "group_limit": group_limit,
+            "group_offset": group_offset,
+        },
+    )
+
+
+@mcp.tool()
+def compare_snapshot_periods(
+    query: dict[str, Any],
+    date_field: str,
+    baseline: dict[str, str],
+    comparison: dict[str, str],
+) -> dict[str, Any]:
+    """Calculate two record-date period totals and differences, not causal conclusions."""
+    return _invoke(
+        "compare_snapshot_periods",
+        {
+            "query": query,
+            "date_field": date_field,
+            "baseline": baseline,
+            "comparison": comparison,
+        },
+    )
+
+
+@mcp.tool()
+def query_enterprise_history(as_of: str) -> dict[str, Any]:
+    """Reserved historical state API; explicitly returns NOT_IMPLEMENTED."""
+    return _invoke("query_enterprise_history", {"as_of": as_of})
+
+
+@mcp.tool()
+def analyze_order_spikes(
+    start: str,
+    end: str,
+    timezone: str = "Asia/Singapore",
+    filters: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Find daily snapshot order peaks in a bounded local-calendar period."""
+    return _invoke(
+        "analyze_order_spikes",
+        {"start": start, "end": end, "timezone": timezone, "filters": filters or []},
+    )
+
+
+@mcp.tool()
+def search_public_events(
+    start_date: str, end_date: str, country: str, topic: str = "retail_events", language: str = "zh"
+) -> dict[str, Any]:
+    """Find public event context; requires separately configured backend search key."""
+    return _invoke(
+        "search_public_events",
+        {
+            "start_date": start_date,
+            "end_date": end_date,
+            "country": country,
+            "topic": topic,
+            "language": language,
+        },
+    )
+
+
+@mcp.tool()
+def search_business_documents(
+    query: str = "",
+    entity_id: str | None = None,
+    kind: str | None = None,
+    offset: int = 0,
+    limit: int = 10,
+) -> dict[str, Any]:
+    """Retrieve uploaded source claims, not verified transactions; preserve synthetic labels."""
+    return _invoke(
+        "search_business_documents",
+        {"query": query, "entity_id": entity_id, "kind": kind, "offset": offset, "limit": limit},
+    )
+
+
+@mcp.tool()
+def analyze_crm_service_capacity(
+    snapshot_id: str,
+    complaint_id: str,
+    additional_workers: int = 2,
+    horizon_days: int = 30,
+    random_seed: int = 42,
+) -> dict[str, Any]:
+    """Test one CRM service-risk capacity intervention; does not prove historical cause."""
+    return _invoke(
+        "analyze_crm_service_capacity",
+        {
+            "snapshot_id": snapshot_id,
+            "complaint_id": complaint_id,
+            "additional_workers": additional_workers,
+            "horizon_days": horizon_days,
+            "random_seed": random_seed,
+        },
     )
 
 

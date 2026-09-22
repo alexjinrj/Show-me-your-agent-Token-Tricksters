@@ -16,7 +16,7 @@ function harness(fetch) {
     if (!elements.has(id)) elements.set(id, node());
     return elements.get(id);
   };
-  const sandbox = vm.createContext({ fetch, console, window: {
+  const sandbox = vm.createContext({ fetch, console, URL, window: {
     location: { hash: "#assistant" }, history: { replaceState() {} },
   }, document: {
     getElementById: get, querySelector: () => get("button"),
@@ -97,4 +97,24 @@ test("CRM review explicitly carries runtime evidence and resets it for manual se
   await vm.runInContext("selectCrmComplaint('CASE-SO74695')", app.sandbox);
   assert.equal(vm.runInContext("state.crmSource", app.sandbox), null);
   assert.ok(!requests.some((item) => item.url.includes("/decision")));
+});
+
+
+test("external evidence links are safe and visibly distinct", async () => {
+  const app = harness(async () => ({ ok: true, json: async () => ({
+    reply: "Possible event correlation", status: "completed", evidence: [{
+      tool_name: "search_public_events", status: "ok", data: {sources: [
+        {title: "<img onerror=alert(1)>", url: "https://example.com/source"},
+        {title: "Unsafe", url: "javascript:alert(1)"},
+      ]},
+    }],
+  }) }));
+  app.get("chat-input").value = "Why did orders rise?";
+  await app.send();
+  const trace = app.get("chat-log").children[2];
+  const link = trace.children[1].children[0];
+  assert.equal(link.href, "https://example.com/source");
+  assert.equal(link.textContent, "<img onerror=alert(1)>");
+  assert.equal(link.rel, "noopener noreferrer");
+  assert.equal(trace.children.length, 3); // summary, safe source, raw audit JSON
 });

@@ -710,6 +710,25 @@ async function sendChat(event) {
     const trace = el("details", "chat-evidence");
     trace.appendChild(el("summary", null,
       `Evidence: ${reply.evidence.length} tool calls · Run ${reply.agent_run_id}`));
+    for (const item of reply.evidence) {
+      if (item.tool_name !== "search_public_events") continue;
+      if (item.status === "error") {
+        trace.appendChild(el("p", "muted", `Web search: ${item.error_message}`));
+        continue;
+      }
+      for (const source of item.data?.sources || []) {
+        let url;
+        try { url = new URL(source.url); } catch { continue; }
+        if (!["http:", "https:"].includes(url.protocol)) continue;
+        const link = el("a", null, source.title || source.url);
+        link.href = url.href;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        const row = el("p");
+        row.appendChild(link);
+        trace.appendChild(row);
+      }
+    }
     trace.appendChild(el("pre", null, JSON.stringify(reply.evidence, null, 2)));
     document.getElementById("chat-log").appendChild(trace);
     if (reply.status === "completed") {
@@ -749,7 +768,7 @@ function renderCrmSummary(summary) {
   const entries = [
     ["Customers", summary.customerCount],
     ["Order-service cases", summary.serviceCaseCount],
-    ["High relationship risk", summary.highRiskCustomers],
+    ["High pending-order exception share", summary.highRiskCustomers],
     ["Orders past due", summary.overdueOrders],
     ["First-response records", summary.unrespondedComplaints],
     ["A-tier value", summary.aTierCustomers],
@@ -798,7 +817,17 @@ function renderCrmDetail(item) {
   const customer = item.customer;
   detail.appendChild(el("h4", null, `${item.id} · ${item.issue}`));
   detail.appendChild(el("p", null,
-    `${customer.name} · value ${customer.valueTier}/${customer.valueScore} · relationship risk ${customer.riskLevel}/${customer.riskScore}`));
+    `${customer.name} · value ${customer.valueTier}/${customer.valueScore} · pending-order exception share ${customer.riskScore}%`));
+  const scores = customer.scoreDetails;
+  if (scores) {
+    detail.appendChild(el("p", null,
+      `RFM (${scores.windowDays} days): R ${scores.components.recency ?? "N/A"}, F ${scores.components.frequency ?? "N/A"}, M ${scores.components.monetary ?? "N/A"}. Equal weights; ${scores.eligibleOrderCount} eligible orders; cohort ${scores.cohortSize}.`));
+    detail.appendChild(el("p", "muted",
+      `${scores.policyVersion}: ordered value, not paid spend. ${scores.coverage}. ${scores.calibration}.`));
+    if (scores.smallSample || scores.riskSmallSample) {
+      detail.appendChild(el("p", "muted", "Small sample: interpret scores cautiously; this is not a churn probability."));
+    }
+  }
   detail.appendChild(el("p", null, `Next action: ${item.nextAction}`));
   const evidence = el("ul", "crm-evidence");
   item.reasons.forEach((reason) => evidence.appendChild(el("li", null, reason)));
@@ -807,6 +836,17 @@ function renderCrmDetail(item) {
   detail.appendChild(el("p", "crm-recommendation",
     `Recommended review: ${recommendation.label} · ${recommendation.currency || "SGD"} ${recommendation.estimatedCost ?? "unavailable"} · ETA ${recommendation.resolutionDays ?? "unknown"}. ${investigation.rationale}`));
   detail.appendChild(el("p", "muted", investigation.boundary));
+  const simulate = el("button", null, "Test CRM capacity intervention with Agent");
+  simulate.type = "button";
+  simulate.addEventListener("click", () => {
+    showFunctionPage("assistant");
+    document.getElementById("chat-input").value =
+      `Investigate ${item.id}. First use CRM actual evidence, then call ` +
+      `analyze_crm_service_capacity with 2 additional workers, a 7-day horizon and seed 42. ` +
+      `Separate facts from the unproven cause hypothesis, report the baseline-versus-scenario ` +
+      `metrics, and draft a CRM service-recovery action plan for human review.`;
+  });
+  detail.appendChild(simulate);
 
   const select = document.getElementById("crm-resolution");
   select.innerHTML = "";
@@ -972,7 +1012,7 @@ const FUNCTION_PAGES = {
   crm: {
     eyebrow: "CUSTOMER OPERATIONS",
     title: "Customer Relationships",
-    description: "Rate customer value and relationship risk, then review derived order-service cases with human approval.",
+    description: "Review RFM customer segments and pending-order exception share, then investigate service cases with human approval.",
   },
   assistant: {
     eyebrow: "AGENT COORDINATION",

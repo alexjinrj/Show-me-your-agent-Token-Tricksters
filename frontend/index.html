@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>HomeNest Business Coordinator</title>
-    <link rel="stylesheet" href="/styles.css?v=unified-runtime-20260918-2" />
+    <link rel="stylesheet" href="/styles.css?v=crm-agent-20260922" />
   </head>
   <body>
     <div class="app-shell">
@@ -180,9 +180,10 @@
       <section class="panel" id="crm-panel">
         <h2>CRM Service Recovery <span class="badge crm-badge">Unified snapshot</span></h2>
         <p class="muted">
-          Customer value and relationship risk are service signals, not credit ratings.
+          RFM uses observed ordered value. Exception share describes pending orders, not churn probability or credit ratings.
           Same AdventureWorks snapshot as Sales/Inventory. Cases are derived order exceptions,
           not imported complaints. Missing reviews, response records and complaint SLA are unavailable.
+          Capacity scenarios are counterfactual tests; improvement does not prove why a delay occurred.
         </p>
         <div id="crm-summary" class="crm-summary"></div>
         <div class="crm-grid">
@@ -224,13 +225,14 @@
               <h2>AI Business Coordinator <span class="badge" id="assistant-badge">OpenClaw</span></h2>
               <p class="section-lead">Ask the shared Agent Runtime to investigate sales, inventory, CRM evidence or a simulation run. The LLM selects tools; deterministic services provide the facts.</p>
               <div class="agent-workflow"><span>Observe</span><b>→</b><span>Choose tool</span><b>→</b><span>Investigate</span><b>→</b><span>Draft recommendation</span><b>→</b><span>Human review</span></div>
+              <p class="muted">Ask your data: “Which customers have the highest order value?”, “Which SKUs have the most pending orders?”, or “Why did orders rise this month?” The Agent chooses relevant fields and tools. Public-event search is optional and requires backend configuration.</p>
               <div id="chat-log" class="chat-log" aria-live="polite"></div>
-              <form id="chat-form" class="row"><input id="chat-input" maxlength="8000" placeholder="Ask about sales, inventory, CRM or a scenario" /><button type="submit">Send</button></form>
+              <form id="chat-form" class="row"><input id="chat-input" maxlength="8000" placeholder="Ask a business question — the Agent will find relevant data" /><button type="submit">Send</button></form>
             </section>
           </section>
         </main>
       </div>
     </div>
-    <script src="/app.js?v=unified-runtime-20260918-2"></script>
+    <script src="/app.js?v=crm-agent-20260922"></script>
   </body>
 </html>
