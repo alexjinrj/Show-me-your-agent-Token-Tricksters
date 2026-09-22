@@ -69,6 +69,11 @@ The dependency direction is intentional:
 - `interfaces` and `frontend` expose the system without duplicating business
   rules.
 
+User CSV ingestion uses `ActualStateService.import_csv(...)`: it performs deterministic field
+matching, whole-file validation, lineage generation, and an idempotent SQL commit. Customer and
+supplier masters do not need row-level timestamps; transaction dates remain timezone-aware. See
+[CSV data import contract](docs/DATA_IMPORT.md).
+
 The two configured processes meet at `inventory_position`. Sales allocation and
 shipping decrease its available, reserved, and on-hand quantities; purchasing
 receipts increase the same object. Python implements generic execution

@@ -141,7 +141,6 @@ def build(output: Path, cache: Path) -> None:
             "customer_number": customer_by_id[value][4],
             "name": f"AdventureWorks Customer {value}",
             "active": "true",
-            "business_timestamp": TARGET_AS_OF.isoformat(),
             "data_origin": "derived",
             "source_record_id": value,
         }
@@ -154,7 +153,6 @@ def build(output: Path, cache: Path) -> None:
             "customer_number",
             "name",
             "active",
-            "business_timestamp",
             "data_origin",
             "source_record_id",
         ],
@@ -166,7 +164,6 @@ def build(output: Path, cache: Path) -> None:
             "supplier_number": vendor_by_id[value][1],
             "name": vendor_by_id[value][2],
             "active": "true" if vendor_by_id[value][5] == "1" else "false",
-            "business_timestamp": TARGET_AS_OF.isoformat(),
             "data_origin": "source",
             "source_record_id": value,
         }
@@ -179,7 +176,6 @@ def build(output: Path, cache: Path) -> None:
             "supplier_number",
             "name",
             "active",
-            "business_timestamp",
             "data_origin",
             "source_record_id",
         ],

@@ -5,6 +5,7 @@ from load_data.csv_ingestion import (
     ValidationReport,
     inspect_csv,
     parse_and_validate,
+    resolve_field_mapping,
 )
 from load_data.mapping import (
     ActivityMappingSpec,
@@ -40,4 +41,5 @@ __all__ = [
     "inspect_csv",
     "load_mapping_spec",
     "parse_and_validate",
+    "resolve_field_mapping",
 ]

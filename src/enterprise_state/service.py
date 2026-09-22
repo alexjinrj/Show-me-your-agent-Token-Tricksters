@@ -41,6 +41,7 @@ from load_data.csv_ingestion import (
     ValidationReport,
     inspect_csv,
     parse_and_validate,
+    resolve_field_mapping,
 )
 
 NAMESPACE = uuid.UUID("02dd49ce-1c5f-4efc-9678-7ad4e30fbfc5")
@@ -99,13 +100,33 @@ class ActualStateService:
         return inspect_csv(path)
 
     def validate_csv(
-        self, path: str | Path, source_type: str, mapping_version: str
+        self,
+        path: str | Path,
+        source_type: str,
+        mapping_version: str,
+        *,
+        field_mapping: dict[str, str] | None = None,
+        default_data_origin: str = "source",
+        default_business_timestamp: str | None = None,
     ) -> tuple[str, ValidationReport]:
         inspection = inspect_csv(path)
-        report = parse_and_validate(path, source_type, mapping_version)
+        report = parse_and_validate(
+            path,
+            source_type,
+            mapping_version,
+            field_mapping=field_mapping,
+            default_data_origin=default_data_origin,
+            default_business_timestamp=default_business_timestamp,
+        )
         now = _utcnow()
         source_file_id = _id("source-file", inspection.sha256)
-        run_id = _id("ingestion-run", inspection.sha256, source_type, mapping_version)
+        run_id = _id(
+            "ingestion-run",
+            inspection.sha256,
+            source_type,
+            mapping_version,
+            _hash(report.rows),
+        )
         with Session(self.engine) as session, session.begin():
             source = session.get(SourceFileRow, source_file_id)
             if source is None:
@@ -139,6 +160,54 @@ class ActualStateService:
                 )
         return run_id, report
 
+    def import_csv(
+        self,
+        path: str | Path,
+        *,
+        source_type: str | None = None,
+        mapping_version: str = "user-upload-v1",
+        field_mapping: dict[str, str] | None = None,
+        default_data_origin: str = "source",
+        default_business_timestamp: str | None = None,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        """Inspect, map, validate and atomically commit one uploaded CSV."""
+
+        inspection = inspect_csv(path)
+        resolved_type = source_type or inspection.probable_source_type
+        if resolved_type is None:
+            raise ValueError(
+                "source_type cannot be inferred; provide source_type and a canonical-to-uploaded "
+                "field_mapping"
+            )
+        resolved_mapping = resolve_field_mapping(
+            inspection.columns,
+            resolved_type,
+            field_mapping,
+        )
+        run_id, report = self.validate_csv(
+            path,
+            resolved_type,
+            mapping_version,
+            field_mapping=resolved_mapping,
+            default_data_origin=default_data_origin,
+            default_business_timestamp=default_business_timestamp,
+        )
+        result: dict[str, Any] = {
+            "ingestion_run_id": run_id,
+            "source_type": resolved_type,
+            "mapping_version": mapping_version,
+            "field_mapping": resolved_mapping,
+            "ignored_columns": sorted(set(inspection.columns) - set(resolved_mapping.values())),
+            "validation": report.model_dump(mode="json", exclude={"rows"}),
+            "committed": False,
+        }
+        if not report.valid:
+            return result
+        key = idempotency_key or f"upload:{resolved_type}:{inspection.sha256}:{run_id}"
+        result.update(self.commit_ingestion(run_id, key))
+        return result
+
     def commit_ingestion(self, validated_run_id: str, idempotency_key: str) -> dict[str, Any]:
         with Session(self.engine) as session, session.begin():
             existing = session.scalar(
@@ -169,20 +238,41 @@ class ActualStateService:
                 "row_count": len(run.staged_rows),
             }
 
+    def has_committed_ingestion(self, source_type: str, mapping_version: str) -> bool:
+        """Check whether a versioned source contract has already populated Actual State."""
+
+        with Session(self.engine) as session:
+            return (
+                session.scalar(
+                    select(func.count())
+                    .select_from(IngestionRunRow)
+                    .where(
+                        IngestionRunRow.source_type == source_type,
+                        IngestionRunRow.mapping_version == mapping_version,
+                        IngestionRunRow.committed_at.is_not(None),
+                    )
+                )
+                or 0
+            ) > 0
+
     def _lineage(
         self, run: IngestionRunRow, source: SourceFileRow, row: dict[str, Any], now: datetime
     ) -> dict[str, Any]:
-        timestamp = (
-            row.get("business_timestamp") or row.get("order_date") or row.get("effective_at")
+        timestamp = row.get("business_timestamp") or row.get("order_date") or row.get(
+            "effective_at"
         )
-        if not isinstance(timestamp, str):
-            raise ValueError("lineage requires a business timestamp")
+        if timestamp is None:
+            timestamp = now
+        if isinstance(timestamp, str):
+            timestamp = datetime.fromisoformat(timestamp)
+        if not isinstance(timestamp, datetime) or timestamp.tzinfo is None:
+            raise ValueError("lineage timestamp must be timezone-aware")
         return {
             "source_system": source.source_system,
             "source_file_id": source.id,
             "source_record_id": row["source_record_id"],
             "ingestion_run_id": run.id,
-            "business_timestamp": _to_storage_time(datetime.fromisoformat(timestamp)),
+            "business_timestamp": _to_storage_time(timestamp),
             "ingested_at": _to_storage_time(now),
             "mapping_version": run.mapping_version,
             "validation_status": "valid",
@@ -641,8 +731,22 @@ class ActualStateService:
 
 
 def commit_demo_files(service: ActualStateService, files: Iterable[tuple[str, Path]]) -> None:
-    for source_type, path in files:
-        run_id, report = service.validate_csv(path, source_type, "adventureworks-v1")
+    file_list = list(files)
+    default_business_timestamp: str | None = None
+    if file_list:
+        manifest_path = file_list[0][1].parent / "SOURCE_MANIFEST.json"
+        if manifest_path.exists():
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            default_business_timestamp = manifest.get("transform", {}).get("target_as_of")
+    for source_type, path in file_list:
+        if service.has_committed_ingestion(source_type, "adventureworks-v1"):
+            continue
+        run_id, report = service.validate_csv(
+            path,
+            source_type,
+            "adventureworks-v1",
+            default_business_timestamp=default_business_timestamp,
+        )
         if not report.valid:
             raise ValueError(f"invalid demo file {path}: {report.issues}")
         service.commit_ingestion(run_id, f"demo:{source_type}:{service.inspect_csv(path).sha256}")
