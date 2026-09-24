@@ -706,6 +706,47 @@ summary {
   background: linear-gradient(120deg, #ffffff 0%, #eef7f5 100%);
 }
 
+.sales-analysis-panel {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.sales-analysis-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.sales-analysis-form label {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 150px;
+}
+
+.sales-analysis-form input { max-width: 12rem; }
+
+#sales-analysis-result h4 { margin: 1rem 0 0.35rem; }
+
+.sales-analysis-metrics {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.sales-analysis-metrics th,
+.sales-analysis-metrics td {
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.sales-analysis-metrics .metric-improved { color: #16765c; }
+.sales-analysis-metrics .metric-worsened,
+.analysis-error { color: #a23030; }
+
 #chat-form input {
   flex: 1 1 420px;
 }

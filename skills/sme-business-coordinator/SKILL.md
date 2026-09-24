@@ -18,9 +18,9 @@ business-object traces, bottlenecks, or warehouse and supplier what-if scenarios
 3. Label snapshot evidence as **actual** and scenario results as **simulated**.
    A simulation never changes Actual State.
 4. Cite the returned `tool_call_id` or `reference_id` for every material claim.
-5. For what-if analysis, create a baseline session, run it, fork the session,
-   add one permitted event, run the alternative with the same horizon and seed,
-   and call `compare_simulation_runs`.
+5. For `ORDER_BACKLOG` plus warehouse staffing, use `analyze_sales_backlog_intervention`.
+   For another supported what-if, create and run a baseline, fork an alternative,
+   add one permitted event, run with the same horizon and seed, then compare.
 6. Report missing history or evidence limits plainly. Do not claim that a
    supplier expedite resolves a backlog when the tool returns a SKU warning.
 7. Do not attempt arbitrary SQL, filesystem access, ERP submission, or any

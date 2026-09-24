@@ -7,6 +7,8 @@ const state = {
   sessionId: null,
   conversationId: null,
   chatBusy: false,
+  salesSnapshotId: null,
+  salesAnalysisBusy: false,
   events: [],
   processes: [],
   lastRun: null,
@@ -678,6 +680,123 @@ async function loadBusinessModules() {
 
 // ---- Assistant chat (Task 10) -----------------------------------------------
 
+const SALES_METRIC_LABELS = {
+  average_waiting_hours: "Average waiting (hours)",
+  ending_backlog: "Ending backlog (orders)",
+  fulfilment_rate: "Fulfilment rate",
+  stockout_count: "Stockout count",
+};
+
+function validateSalesAnalysis(data) {
+  const analysis = data?.analysis_case;
+  const facts = data?.facts;
+  const comparison = data?.simulation_comparison;
+  if (data?.schema_version !== "sales-analysis-result-v1" ||
+      facts?.state_type !== "actual" ||
+      facts?.completeness !== "current_snapshot_only" ||
+      data?.cause_hypothesis?.status !== "candidate_not_proven" ||
+      data?.intervention?.owner_domain !== "operations" ||
+      comparison?.state_type !== "simulated" ||
+      data?.actual_state_unchanged !== true ||
+      !analysis?.analysis_case_id ||
+      !comparison?.baseline_run_id ||
+      comparison.baseline_run_id === comparison.alternative_run_id ||
+      analysis.baseline_run_id !== comparison.baseline_run_id ||
+      analysis.alternative_run_id !== comparison.alternative_run_id ||
+      analysis.snapshot_hash !== facts.snapshot_hash ||
+      facts.snapshot_hash !== comparison.snapshot_hash ||
+      analysis.horizon_days !== comparison.horizon_days ||
+      analysis.random_seed !== comparison.random_seed ||
+      !comparison.metrics?.[comparison.primary_metric] ||
+      !comparison.guardrail_metrics?.every((name) => comparison.metrics[name])) {
+    throw new Error("Sales analysis result failed contract checks");
+  }
+}
+
+function renderSalesAnalysis(data, metadata = {}) {
+  const target = document.getElementById("sales-analysis-result");
+  target.innerHTML = "";
+  try { validateSalesAnalysis(data); } catch (error) {
+    target.appendChild(el("p", "analysis-error", error.message));
+    return false;
+  }
+  const facts = data.facts;
+  const comparison = data.simulation_comparison;
+  target.appendChild(el("h4", null, "Current snapshot facts"));
+  target.appendChild(el("p", null,
+    `${facts.sales_order_count} sales orders · ${facts.backlog_count} backlog · SGD ${facts.backlog_amount_sgd}`));
+  target.appendChild(el("p", "muted", `As of ${facts.as_of_time}; current snapshot only`));
+  target.appendChild(el("h4", null, "Candidate cause — not proven"));
+  target.appendChild(el("p", null, data.cause_hypothesis.statement));
+  target.appendChild(el("h4", null, "Operations intervention — simulated, not executed"));
+  target.appendChild(el("p", null,
+    `${data.intervention.parameter}: ${data.intervention.current_value} → ${data.intervention.proposed_value}`));
+  target.appendChild(el("h4", null, `Matched comparison: ${comparison.verdict}`));
+  const table = el("table", "sales-analysis-metrics");
+  const header = el("tr");
+  ["Metric", "Baseline", "Alternative", "Difference", "Outcome"].forEach((name) =>
+    header.appendChild(el("th", null, name)));
+  table.appendChild(header);
+  for (const [name, metric] of Object.entries(comparison.metrics)) {
+    const row = el("tr", `metric-${metric.outcome}`);
+    [SALES_METRIC_LABELS[name] || name, metric.baseline, metric.alternative,
+      metric.difference, metric.outcome].forEach((value) => row.appendChild(el("td", null, String(value))));
+    table.appendChild(row);
+  }
+  target.appendChild(table);
+  const audit = el("details", "chat-evidence");
+  audit.appendChild(el("summary", null, "Audit IDs and limitations"));
+  audit.appendChild(el("pre", null, JSON.stringify({
+    analysis_case_id: data.analysis_case.analysis_case_id,
+    tool_call_id: metadata.toolCallId || null,
+    agent_run_id: metadata.agentRunId || null,
+    snapshot_id: facts.snapshot_id,
+    snapshot_hash: facts.snapshot_hash,
+    baseline_run_id: comparison.baseline_run_id,
+    alternative_run_id: comparison.alternative_run_id,
+    horizon_days: comparison.horizon_days,
+    random_seed: comparison.random_seed,
+    actual_state_unchanged: data.actual_state_unchanged,
+    limitations: data.limitations,
+  }, null, 2)));
+  target.appendChild(audit);
+  return true;
+}
+
+async function runSalesAnalysis(event) {
+  event.preventDefault();
+  if (state.salesAnalysisBusy) return;
+  const status = document.getElementById("sales-analysis-status");
+  const button = document.querySelector("#sales-analysis-form button");
+  state.salesAnalysisBusy = true;
+  button.disabled = true;
+  status.textContent = "Running matched baseline and alternative…";
+  try {
+    if (!state.salesSnapshotId) {
+      state.salesSnapshotId = (await api("/api/assistant/status")).snapshot_id;
+    }
+    const reply = await api("/api/v1/sales/backlog-analysis", {
+      method: "POST",
+      body: JSON.stringify({
+        snapshot_id: state.salesSnapshotId,
+        additional_workers: Number(document.getElementById("sales-workers").value),
+        horizon_days: Number(document.getElementById("sales-horizon").value),
+        random_seed: Number(document.getElementById("sales-seed").value),
+      }),
+    });
+    if (reply.schema_version !== "sales-analysis-api-v1" || reply.status !== "ok") {
+      throw new Error("Unsupported sales analysis response");
+    }
+    status.textContent = renderSalesAnalysis(reply.data, { toolCallId: reply.tool_call_id })
+      ? "Analysis complete; matched runs are persisted." : "Analysis returned invalid evidence.";
+  } catch (error) {
+    status.textContent = `Analysis failed: ${error.message}`;
+  } finally {
+    state.salesAnalysisBusy = false;
+    button.disabled = false;
+  }
+}
+
 function appendChat(role, text) {
   const log = document.getElementById("chat-log");
   const msg = el("div", `chat-message ${role}`, text);
@@ -731,6 +850,14 @@ async function sendChat(event) {
     }
     trace.appendChild(el("pre", null, JSON.stringify(reply.evidence, null, 2)));
     document.getElementById("chat-log").appendChild(trace);
+    const salesEvidence = reply.evidence.find((item) =>
+      item.status === "ok" && item.tool_name === "analyze_sales_backlog_intervention");
+    if (salesEvidence) {
+      renderSalesAnalysis(salesEvidence.data, {
+        toolCallId: salesEvidence.tool_call_id,
+        agentRunId: reply.agent_run_id,
+      });
+    }
     if (reply.status === "completed") {
       reply.evidence.filter((item) =>
         item.status === "ok" && item.tool_name === "recommend_resolution"
@@ -1096,12 +1223,14 @@ function init() {
   document.getElementById("chat-form").addEventListener("submit", (event) =>
     runAction("OpenClaw is analysing…", () => sendChat(event))
   );
+  document.getElementById("sales-analysis-form").addEventListener("submit", runSalesAnalysis);
   document.getElementById("crm-proposal-form").addEventListener("submit", (event) =>
     runAction("Submitting a review-only proposal…", () => submitCrmProposal(event))
   );
 
   renderEventFields();
   api("/api/assistant/status").then((runtime) => {
+    state.salesSnapshotId = runtime.snapshot_id;
     document.getElementById("assistant-badge").textContent = runtime.enabled ? "OpenClaw" : "not configured";
   }).catch(() => {
     document.getElementById("assistant-badge").textContent = "unavailable";

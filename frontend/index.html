@@ -226,6 +226,18 @@
               <p class="section-lead">Ask the shared Agent Runtime to investigate sales, inventory, CRM evidence or a simulation run. The LLM selects tools; deterministic services provide the facts.</p>
               <div class="agent-workflow"><span>Observe</span><b>→</b><span>Choose tool</span><b>→</b><span>Investigate</span><b>→</b><span>Draft recommendation</span><b>→</b><span>Human review</span></div>
               <p class="muted">Ask your data: “Which customers have the highest order value?”, “Which SKUs have the most pending orders?”, or “Why did orders rise this month?” The Agent chooses relevant fields and tools. Public-event search is optional and requires backend configuration.</p>
+              <section class="sales-analysis-panel" aria-labelledby="sales-analysis-title">
+                <h3 id="sales-analysis-title">Sales backlog experiment</h3>
+                <p class="muted">Test one warehouse staffing change against a matched no-change baseline. Results are simulated.</p>
+                <form id="sales-analysis-form" class="sales-analysis-form">
+                  <label>Additional warehouse workers <input id="sales-workers" type="number" min="1" max="20" value="2" required /></label>
+                  <label>Horizon (days) <input id="sales-horizon" type="number" min="1" max="365" value="7" required /></label>
+                  <label>Random seed <input id="sales-seed" type="number" value="42" required /></label>
+                  <button type="submit">Run matched simulation</button>
+                </form>
+                <p id="sales-analysis-status" role="status" aria-live="polite"></p>
+                <div id="sales-analysis-result" aria-live="polite"></div>
+              </section>
               <div id="chat-log" class="chat-log" aria-live="polite"></div>
               <form id="chat-form" class="row"><input id="chat-input" maxlength="8000" placeholder="Ask a business question — the Agent will find relevant data" /><button type="submit">Send</button></form>
             </section>
@@ -233,6 +245,6 @@
         </main>
       </div>
     </div>
-    <script src="/app.js?v=crm-agent-20260922"></script>
+    <script src="/app.js?v=sales-analysis-20260924"></script>
   </body>
 </html>

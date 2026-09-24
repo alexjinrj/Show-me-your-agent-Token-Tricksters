@@ -7,6 +7,7 @@ const test = require("node:test");
 function harness(fetch) {
   function node() {
     return { children: [], value: "", disabled: false,
+      set innerHTML(value) { if (value === "") this.children = []; },
       listeners: {}, addEventListener(event, callback) { this.listeners[event] = callback; },
       appendChild(child) { this.children.push(child); },
       classList: { toggle() {}, remove() {} } };
@@ -117,4 +118,48 @@ test("external evidence links are safe and visibly distinct", async () => {
   assert.equal(link.textContent, "<img onerror=alert(1)>");
   assert.equal(link.rel, "noopener noreferrer");
   assert.equal(trace.children.length, 3); // summary, safe source, raw audit JSON
+});
+
+test("sales scenario renders matched evidence and rejects inconsistent runs", async () => {
+  const requests = [];
+  const hash = "a".repeat(64);
+  const data = {
+    schema_version: "sales-analysis-result-v1",
+    analysis_case: { analysis_case_id: "case-1", baseline_run_id: "base-1",
+      alternative_run_id: "alt-1", snapshot_hash: hash, horizon_days: 7, random_seed: 42 },
+    facts: { state_type: "actual", completeness: "current_snapshot_only", snapshot_id: "snap-1",
+      snapshot_hash: hash, sales_order_count: 500, backlog_count: 100,
+      backlog_amount_sgd: "482.80", as_of_time: "2026-09-12" },
+    cause_hypothesis: { status: "candidate_not_proven", statement: "Possible bottleneck" },
+    intervention: { owner_domain: "operations", parameter: "warehouse_staff.capacity_delta",
+      current_value: "0", proposed_value: "+2" },
+    simulation_comparison: { state_type: "simulated", baseline_run_id: "base-1",
+      alternative_run_id: "alt-1", snapshot_hash: hash, horizon_days: 7, random_seed: 42,
+      primary_metric: "average_waiting_hours", guardrail_metrics: ["ending_backlog"],
+      verdict: "improved", metrics: {
+        average_waiting_hours: { baseline: "10", alternative: "8", difference: "-2", outcome: "improved" },
+        ending_backlog: { baseline: "100", alternative: "100", difference: "0", outcome: "unchanged" },
+      } },
+    actual_state_unchanged: true, limitations: ["Model only"],
+  };
+  const app = harness(async (url, options) => {
+    requests.push({ url, body: options?.body ? JSON.parse(options.body) : null });
+    return { ok: true, json: async () => url === "/api/assistant/status"
+      ? { snapshot_id: "snap-1" }
+      : { schema_version: "sales-analysis-api-v1", status: "ok", tool_call_id: "tool-1", data } };
+  });
+  app.get("sales-workers").value = "2";
+  app.get("sales-horizon").value = "7";
+  app.get("sales-seed").value = "42";
+  await vm.runInContext("runSalesAnalysis({preventDefault() {}})", app.sandbox);
+  assert.equal(requests[1].url, "/api/v1/sales/backlog-analysis");
+  assert.equal(requests[1].body.snapshot_id, "snap-1");
+  assert.equal(requests[1].body.additional_workers, 2);
+  const result = app.get("sales-analysis-result");
+  assert.ok(result.children.some((node) => node.textContent.includes("Candidate cause")));
+  assert.ok(result.children.some((node) => node.textContent.includes("simulated, not executed")));
+  assert.ok(result.children.some((node) => node.textContent.includes("Matched comparison: improved")));
+  data.simulation_comparison.alternative_run_id = "base-1";
+  assert.equal(vm.runInContext("renderSalesAnalysis", app.sandbox)(data), false);
+  assert.match(result.children[0].textContent, /contract checks/);
 });
