@@ -7,6 +7,9 @@ from typing import Any, Protocol
 from uuid import uuid4
 
 from agent_runtime.executor import ToolExecutor
+from agent_runtime.guardrails import evaluate_run
+from agent_runtime.human_review import pending_review
+from agent_runtime.observability import summarize_run
 from agent_runtime.openclaw import GatewayError
 
 
@@ -283,6 +286,8 @@ class RuntimeService:
         self.store.save(run)
         if self.gateway is None:
             run.update(status="disabled", reply="OpenClaw 尚未配置，未执行分析或工具调用。")
+            run["guardrails"] = evaluate_run(run)
+            run["observability"] = summarize_run(run)
             self.store.save(run)
             return run
         messages: list[dict[str, Any]] = [
@@ -436,5 +441,12 @@ class RuntimeService:
             run.update(status="failed", reply=str(exc))
         except Exception:
             run.update(status="failed", reply="Runtime 执行失败；请检查后端配置和运行记录。")
+        run["guardrails"] = evaluate_run(run)
+        if run["guardrails"]["status"] == "blocked":
+            run.update(status="failed", reply="Simulation evidence failed runtime guardrails.")
+        run["observability"] = summarize_run(run)
+        review = pending_review(run)
+        if review is not None:
+            run["human_review"] = review
         self.store.save(run)
         return run
