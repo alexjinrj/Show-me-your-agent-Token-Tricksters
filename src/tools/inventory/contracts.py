@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -9,7 +9,7 @@ from core.models import UUIDString
 
 
 class InventoryToolInput(BaseModel):
-    """Base input model for Inventory Agent tools."""
+    """Base input model for inventory Agent tools."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -38,21 +38,6 @@ class StrategyAnalysisInput(InventoryToolInput):
         default=Decimal("3"),
         ge=0,
     )
-
-
-class InventoryToolResponse(BaseModel):
-    """Standard response returned by every Inventory Agent tool."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    tool_call_id: UUIDString
-    tool_name: str
-    status: Literal["ok", "error"]
-    state_type: Literal["actual", "simulated"] | None = None
-    reference_id: str | None = None
-    data: dict[str, Any] = Field(default_factory=dict)
-    error_code: str | None = None
-    error_message: str | None = None
 
 
 INVENTORY_TOOL_INPUTS: dict[

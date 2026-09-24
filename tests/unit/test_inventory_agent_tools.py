@@ -13,10 +13,6 @@ from core.models import (
     SnapshotManifest,
     SnapshotRecord,
 )
-from enterprise_state.database import (
-    create_schema,
-    make_engine,
-)
 from tools.inventory.tools import InventoryAgentTools
 
 SNAPSHOT_ID = "00000000-0000-0000-0000-000000000001"
@@ -47,9 +43,6 @@ class FakeStrategyResult:
             "recommendation": {
                 "recommended_strategy": "demand_aligned",
                 "replenishment_quantity": "43",
-                "recommended_run_id": (
-                    "00000000-0000-0000-0000-000000000099"
-                ),
             },
             "demand_shortages": {
                 "SKU-CRITICAL": "43",
@@ -119,37 +112,22 @@ def build_snapshot() -> SnapshotBundle:
 def build_agent_tools(
     snapshot: SnapshotBundle,
 ) -> InventoryAgentTools:
-    tools = object.__new__(
-        InventoryAgentTools
-    )
-
-    tools.engine = make_engine()
-    create_schema(tools.engine)
-
-    tools.actual = FakeActualState(
-        snapshot
-    )
-
+    tools = object.__new__(InventoryAgentTools)
+    tools.actual = FakeActualState(snapshot)
     return tools
 
 
 def test_lists_and_prioritizes_reorder_candidates() -> None:
     tools = build_agent_tools(build_snapshot())
 
-    response = tools.call(
+    result = tools.call(
         "list_inventory_reorder_candidates",
         {
             "snapshot_id": SNAPSHOT_ID,
             "risk_level": "all",
             "top_n": 1,
         },
-        agent_case_id="inventory-unit",
     )
-
-    assert response.status == "ok"
-    assert response.error_message is None
-
-    result = response.data
 
     assert result["snapshot_id"] == SNAPSHOT_ID
     assert result["snapshot_hash"] == "a" * 64
@@ -199,7 +177,7 @@ def test_compares_replenishment_strategies(
         fake_strategy_analysis,
     )
 
-    response = tools.call(
+    result = tools.call(
         "compare_inventory_replenishment_strategies",
         {
             "snapshot_id": SNAPSHOT_ID,
@@ -207,16 +185,7 @@ def test_compares_replenishment_strategies(
             "random_seed": 99,
             "effective_day": "4",
         },
-        agent_case_id="inventory-unit",
     )
-
-    assert response.status == "ok"
-    assert response.state_type == "simulated"
-    assert response.reference_id == (
-        "00000000-0000-0000-0000-000000000099"
-    )
-
-    result = response.data
 
     assert observed == {
         "snapshot": snapshot,
@@ -230,21 +199,15 @@ def test_compares_replenishment_strategies(
 
 
 def test_rejects_unknown_inventory_tool() -> None:
-    tools = build_agent_tools(
-        build_snapshot()
-    )
+    tools = build_agent_tools(build_snapshot())
 
-    response = tools.call(
-        "unknown_inventory_tool",
-        {
-            "snapshot_id": SNAPSHOT_ID,
-        },
-        agent_case_id="inventory-unit",
-    )
-
-    assert response.status == "error"
-    assert (
-        response.error_code
-        == "NOT_AVAILABLE"
-    )
-    assert response.data == {}
+    with pytest.raises(
+        ValueError,
+        match="inventory tool is not registered",
+    ):
+        tools.call(
+            "unknown_inventory_tool",
+            {
+                "snapshot_id": SNAPSHOT_ID,
+            },
+        )

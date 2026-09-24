@@ -12,35 +12,10 @@ from core.models import (
     SimulationRunResult,
     SnapshotBundle,
 )
-from tools.inventory.reorder import (
-    ReorderCandidate,
-)
 from tools.inventory.snapshot_adapter import (
     InventoryStrategyRows,
 )
 
-
-def reorder_candidate(
-    sku: str,
-    *,
-    needs_reorder: bool,
-    risk_level: str,
-    recommended_quantity: str,
-) -> ReorderCandidate:
-    return ReorderCandidate.model_validate(
-        {
-            "sku": sku,
-            "name": f"Item {sku}",
-            "current_stock": "0",
-            "reorder_point": "3",
-            "target_stock": "6",
-            "needs_reorder": needs_reorder,
-            "risk_level": risk_level,
-            "recommended_quantity": (
-                recommended_quantity
-            ),
-        }
-    )
 
 def metrics(
     *,
@@ -76,24 +51,24 @@ def simulation_result(
 
 def test_replenishment_strategy_filters_events() -> None:
     recommendations = [
-        reorder_candidate(
-            "SKU-A",
-            needs_reorder=True,
-            risk_level="critical",
-            recommended_quantity="5",
-        ),
-        reorder_candidate(
-            "SKU-B",
-            needs_reorder=True,
-            risk_level="medium",
-            recommended_quantity="7",
-        ),
-        reorder_candidate(
-            "SKU-C",
-            needs_reorder=False,
-            risk_level="low",
-            recommended_quantity="0",
-        ),
+        {
+            "sku": "SKU-A",
+            "needs_reorder": "true",
+            "risk_level": "critical",
+            "recommended_quantity": "5",
+        },
+        {
+            "sku": "SKU-B",
+            "needs_reorder": "true",
+            "risk_level": "warning",
+            "recommended_quantity": "7",
+        },
+        {
+            "sku": "SKU-C",
+            "needs_reorder": "false",
+            "risk_level": "normal",
+            "recommended_quantity": "0",
+        },
     ]
 
     critical = tool.create_replenishment_events(
@@ -113,18 +88,18 @@ def test_tool_runs_and_selects_best_strategy(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     recommendations = [
-        reorder_candidate(
-            "SKU-A",
-            needs_reorder=True,
-            risk_level="critical",
-            recommended_quantity="5",
-        ),
-        reorder_candidate(
-            "SKU-B",
-            needs_reorder=True,
-            risk_level="medium",
-            recommended_quantity="7",
-        ),
+        {
+            "sku": "SKU-A",
+            "needs_reorder": "true",
+            "risk_level": "critical",
+            "recommended_quantity": "5",
+        },
+        {
+            "sku": "SKU-B",
+            "needs_reorder": "true",
+            "risk_level": "warning",
+            "recommended_quantity": "7",
+        },
     ]
 
     monkeypatch.setattr(

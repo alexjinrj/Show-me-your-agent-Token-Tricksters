@@ -4,16 +4,10 @@ from typing import Any
 from uuid import uuid4
 
 from agent_runtime import RegisteredTool, RuntimeToolResult, ToolRegistry
-from agent_runtime.inventory_registry import (
-    register_inventory_tools,
-)
 from agent_runtime.sales_registry import (
     EXCEPTION_TOOLS,
     SCENARIO_TOOLS,
     build_sales_tool_registry,
-)
-from tools.inventory import (
-    InventoryAgentTools,
 )
 from tools.sales import SalesAgentTools
 
@@ -70,41 +64,3 @@ def test_sales_registry_groups_and_access_are_consistent(service) -> None:
     definitions = {item["name"]: item for item in registry.catalog()}
     assert definitions["trace_process_bottleneck"]["access"] == "read"
     assert definitions["analyze_sales_backlog_intervention"]["access"] == "simulate"
-
-def test_inventory_registry_groups_and_access_are_consistent(
-    service,
-) -> None:
-    registry = ToolRegistry()
-
-    register_inventory_tools(
-        registry,
-        InventoryAgentTools(
-            service.engine
-        ),
-    )
-
-    assert registry.names(
-        group="inventory"
-    ) == (
-        "list_inventory_reorder_candidates",
-        "compare_inventory_replenishment_strategies",
-    )
-
-    definitions = {
-        item["name"]: item
-        for item in registry.catalog()
-    }
-
-    assert (
-        definitions[
-            "list_inventory_reorder_candidates"
-        ]["access"]
-        == "read"
-    )
-
-    assert (
-        definitions[
-            "compare_inventory_replenishment_strategies"
-        ]["access"]
-        == "simulate"
-    )

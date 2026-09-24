@@ -110,25 +110,10 @@ class BusinessDashboardService:
         recommendations = build_reorder_recommendations(
             list(strategy_rows.item_rows), list(strategy_rows.inventory_rows)
         )
-        candidates = [
-            row
-            for row in recommendations
-            if row.needs_reorder
-        ]
+        candidates = [row for row in recommendations if row["needs_reorder"] == "true"]
         risk_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
-        candidates.sort(
-            key=lambda row: (
-                risk_order.get(
-                    row.risk_level,
-                    99,
-                ),
-                row.sku,
-            )
-        )
-        risk_counts = Counter(
-            row.risk_level
-            for row in recommendations
-        )
+        candidates.sort(key=lambda row: (risk_order.get(row["risk_level"], 99), row["sku"]))
+        risk_counts = Counter(row["risk_level"] for row in recommendations)
 
         return cast(
             dict[str, Any],
