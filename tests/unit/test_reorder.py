@@ -1,25 +1,9 @@
-import csv
-from decimal import Decimal
 from pathlib import Path
 
 from tools.inventory.reorder import (
     build_reorder_recommendations,
+    read_csv,
 )
-
-
-def read_csv(
-    path: Path,
-) -> list[dict[str, str]]:
-    """Test-only CSV reader."""
-
-    with path.open(
-        mode="r",
-        encoding="utf-8-sig",
-        newline="",
-    ) as file:
-        return list(
-            csv.DictReader(file)
-        )
 
 
 def test_reorder_calculation() -> None:
@@ -56,94 +40,38 @@ def test_reorder_calculation() -> None:
         },
     ]
 
-    results = (
-        build_reorder_recommendations(
-            items,
-            inventory,
-        )
+    results = build_reorder_recommendations(
+        items,
+        inventory,
     )
 
-    by_sku = {
-        row.sku: row
-        for row in results
-    }
+    by_sku = {row["sku"]: row for row in results}
 
-    assert (
-        by_sku["SKU-LOW"].needs_reorder
-        is True
-    )
-    assert (
-        by_sku["SKU-LOW"].risk_level
-        == "high"
-    )
-    assert (
-        by_sku[
-            "SKU-LOW"
-        ].recommended_quantity
-        == Decimal("5")
-    )
+    assert by_sku["SKU-LOW"]["needs_reorder"] == "true"
+    assert by_sku["SKU-LOW"]["risk_level"] == "high"
+    assert by_sku["SKU-LOW"]["recommended_quantity"] == "5"
 
-    assert (
-        by_sku["SKU-ZERO"].risk_level
-        == "critical"
-    )
-    assert (
-        by_sku[
-            "SKU-ZERO"
-        ].recommended_quantity
-        == Decimal("6")
-    )
+    assert by_sku["SKU-ZERO"]["risk_level"] == "critical"
+    assert by_sku["SKU-ZERO"]["recommended_quantity"] == "6"
 
-    assert (
-        by_sku["SKU-OK"].needs_reorder
-        is False
-    )
-    assert (
-        by_sku["SKU-OK"].risk_level
-        == "low"
-    )
-    assert (
-        by_sku[
-            "SKU-OK"
-        ].recommended_quantity
-        == Decimal("0")
-    )
+    assert by_sku["SKU-OK"]["needs_reorder"] == "false"
+    assert by_sku["SKU-OK"]["risk_level"] == "low"
+    assert by_sku["SKU-OK"]["recommended_quantity"] == "0"
 
 
 def test_demo_data_has_expected_reorder_skus() -> None:
-    project_root = (
-        Path(__file__)
-        .resolve()
-        .parents[2]
+    project_root = Path(__file__).resolve().parents[2]
+    data_dir = project_root / "data/load_data/adventureworks_demo"
+
+    items = read_csv(data_dir / "items.csv")
+    inventory = read_csv(data_dir / "inventory.csv")
+
+    results = build_reorder_recommendations(
+        items,
+        inventory,
     )
 
-    data_dir = (
-        project_root
-        / "data"
-        / "load_data"
-        / "adventureworks_demo"
-    )
-
-    items = read_csv(
-        data_dir / "items.csv"
-    )
-
-    inventory = read_csv(
-        data_dir / "inventory.csv"
-    )
-
-    results = (
-        build_reorder_recommendations(
-            items,
-            inventory,
-        )
-    )
-
-    reorder_skus = {
-        row.sku
-        for row in results
-        if row.needs_reorder
-    }
+    reorder_skus = {row["sku"] for row in results if row["needs_reorder"] == "true"}
 
     assert reorder_skus == {
         "WB-H098",

@@ -1,7 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -22,24 +21,6 @@ ORDER = (
     "opening_balances",
 )
 
-def call_inventory(
-    tools: InventoryAgentTools,
-    tool_name: str,
-    arguments: dict[str, Any],
-) -> dict[str, Any]:
-    response = tools.call(
-        tool_name,
-        arguments,
-        agent_case_id=(
-            "inventory-integration"
-        ),
-    )
-
-    assert response.status == "ok", (
-        response.error_message
-    )
-
-    return response.data
 
 def test_inventory_tools_from_actual_state_through_strategy(
     service: ActualStateService,
@@ -62,8 +43,7 @@ def test_inventory_tools_from_actual_state_through_strategy(
 
     tools = InventoryAgentTools(service.engine)
 
-    reorder_result = call_inventory(
-        tools,
+    reorder_result = tools.call(
         "list_inventory_reorder_candidates",
         {
             "snapshot_id": manifest.snapshot_id,
@@ -91,8 +71,7 @@ def test_inventory_tools_from_actual_state_through_strategy(
         "SJ-0194-M",
     }
 
-    critical_result = call_inventory(
-        tools,
+    critical_result = tools.call(
         "list_inventory_reorder_candidates",
         {
             "snapshot_id": manifest.snapshot_id,
@@ -108,8 +87,7 @@ def test_inventory_tools_from_actual_state_through_strategy(
         "SJ-0194-M",
     }
 
-    strategy_result = call_inventory(
-        tools,
+    strategy_result = tools.call(
         "compare_inventory_replenishment_strategies",
         {
             "snapshot_id": manifest.snapshot_id,
@@ -179,8 +157,7 @@ def test_reorder_candidates_with_replenished_stock(
 
     tools = InventoryAgentTools(service.engine)
 
-    reorder_result = call_inventory(
-        tools,
+    reorder_result = tools.call(
         "list_inventory_reorder_candidates",
         {
             "snapshot_id": manifest.snapshot_id,
@@ -309,8 +286,7 @@ def test_reorder_recommendations_with_different_data(
 
     tools = InventoryAgentTools(service.engine)
 
-    result = call_inventory(
-        tools,
+    result = tools.call(
         "list_inventory_reorder_candidates",
         {
             "snapshot_id": manifest.snapshot_id,
