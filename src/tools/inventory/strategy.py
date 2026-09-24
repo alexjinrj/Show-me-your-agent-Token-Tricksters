@@ -24,6 +24,7 @@ from tools.inventory.recommendation import (
     select_recommended_strategy,
 )
 from tools.inventory.reorder import (
+    ReorderCandidate,
     build_reorder_recommendations,
 )
 from tools.inventory.snapshot_adapter import (
@@ -52,7 +53,7 @@ class InventoryStrategyToolResult(BaseModel):
     recommendation: StrategyRecommendation
     demand_shortages: dict[str, Decimal]
     reorder_recommendations: tuple[
-        dict[str, str],
+        ReorderCandidate,
         ...,
     ]
     strategy_runs: tuple[
@@ -62,23 +63,24 @@ class InventoryStrategyToolResult(BaseModel):
 
 
 def include_recommendation(
-    row: dict[str, str],
+    row: ReorderCandidate,
     strategy: str,
 ) -> bool:
-    if row["needs_reorder"] != "true":
+    if not row.needs_reorder:
         return False
 
     if strategy == "critical_only":
-        return row["risk_level"] == "critical"
+        return row.risk_level == "critical"
 
     if strategy == "full":
         return True
 
-    raise ValueError(f"unknown strategy: {strategy}")
-
+    raise ValueError(
+        f"unknown strategy: {strategy}"
+    )
 
 def create_replenishment_events(
-    recommendations: list[dict[str, str]],
+    recommendations: list[ReorderCandidate],
     strategy: str,
     *,
     effective_day: Decimal = Decimal("3"),
@@ -92,14 +94,14 @@ def create_replenishment_events(
         ):
             continue
 
-        quantity = Decimal(row["recommended_quantity"])
+        quantity = row.recommended_quantity
 
         if quantity <= 0:
             continue
 
         events.append(
             inventory_replenishment(
-                row["sku"],
+                row.sku,
                 quantity,
                 effective_day=effective_day,
             )

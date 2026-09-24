@@ -1,6 +1,7 @@
 from tools.inventory.contracts import (
     INVENTORY_TOOL_INPUTS,
     InventoryToolInput,
+    InventoryToolResponse,
     ReorderCandidatesInput,
     StrategyAnalysisInput,
 )
@@ -13,9 +14,8 @@ from tools.inventory.recommendation import (
     select_recommended_strategy,
 )
 from tools.inventory.reorder import (
+    ReorderCandidate,
     build_reorder_recommendations,
-    read_csv,
-    write_recommendations,
 )
 from tools.inventory.snapshot_adapter import (
     InventoryStrategyRows,
@@ -33,6 +33,8 @@ __all__ = [
     "InventoryStrategyRows",
     "InventoryStrategyToolResult",
     "InventoryToolInput",
+    "InventoryToolResponse",
+    "ReorderCandidate",
     "ReorderCandidatesInput",
     "StrategyAnalysisInput",
     "StrategyRecommendation",
@@ -40,8 +42,6 @@ __all__ = [
     "calculate_demand_shortages",
     "create_demand_aligned_events",
     "extract_inventory_strategy_rows",
-    "read_csv",
     "run_inventory_strategy_analysis",
     "select_recommended_strategy",
-    "write_recommendations",
 ]

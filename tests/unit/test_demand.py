@@ -1,3 +1,4 @@
+import csv
 from decimal import Decimal
 from pathlib import Path
 
@@ -5,10 +6,21 @@ from tools.inventory.demand import (
     calculate_demand_shortages,
     create_demand_aligned_events,
 )
-from tools.inventory.reorder import (
-    read_csv,
-)
 
+
+def read_csv(
+    path: Path,
+) -> list[dict[str, str]]:
+    """Test-only CSV reader."""
+
+    with path.open(
+        mode="r",
+        encoding="utf-8-sig",
+        newline="",
+    ) as file:
+        return list(
+            csv.DictReader(file)
+        )
 
 def test_shortage_uses_stock_and_open_purchase_orders() -> None:
     inventory = [
