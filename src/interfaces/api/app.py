@@ -58,6 +58,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(assistant_router)
 
+    from interfaces.api.routes_sales_analysis import router as sales_analysis_router
+
+    app.include_router(sales_analysis_router)
+
+    from interfaces.api.routes_agent_controls import router as controls_router
+
+    app.include_router(controls_router)
+
     from interfaces.api.routes_crm import legacy_router as legacy_crm_router
     from interfaces.api.routes_crm import router as crm_router
 

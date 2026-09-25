@@ -7,6 +7,9 @@ from typing import Any, Protocol
 from uuid import uuid4
 
 from agent_runtime.executor import ToolExecutor
+from agent_runtime.guardrails import evaluate_run
+from agent_runtime.human_review import pending_review
+from agent_runtime.observability import summarize_run
 from agent_runtime.openclaw import GatewayError
 
 
@@ -31,6 +34,8 @@ Do not invent CRM capabilities or historical metrics. Explain unavailable eviden
 For general data questions, identify what the user wants: lookup, filtering, ranking,
 aggregation, period comparison, diagnosis or a what-if. Do not force every question into
 order-spike analysis or external search. For a simple fact, query it and answer directly.
+For a vague request, inspect the smallest relevant current evidence first. Ask for a material
+missing intervention, target or time period before a simulation; do not choose one silently.
 For field-driven analysis, first call get_data_catalog; choose datasets/fields from that catalog,
 then call query_snapshot_records and/or compare_snapshot_periods with explicit filters.
 Use sort_by and group_limit for rankings over ALL matches, not just a page of rows.
@@ -99,6 +104,14 @@ Refund exposure is conditional; stock nets pending obligations, not actual reser
 Never invent missing eligibility, credit policy, logistics costs or resolution ETA.
 CRM reply text and resolution recommendations are drafts. A human must create and decide
 any persisted proposal through the review API; never claim contact, refund or shipment occurred.
+Write the final answer like a clear professional assistant. Lead with the direct conclusion, then
+explain enough for the user to understand the reasoning. Match the depth and length to the
+question: answer simple questions briefly and develop complex investigations when needed. Use
+short paragraphs, headings or bullets only when they improve scanning; do not force a fixed
+template or word limit. Synthesize tool results instead of dumping payloads, raw rows, long
+timelines or repeated caveats. Include the key figures, units, comparisons and decision-relevant
+limits, while leaving full tool evidence in the UI disclosure. Clearly separate observed facts,
+interpretation, uncertainty and the useful next action.
 """
 
 
@@ -283,6 +296,8 @@ class RuntimeService:
         self.store.save(run)
         if self.gateway is None:
             run.update(status="disabled", reply="OpenClaw 尚未配置，未执行分析或工具调用。")
+            run["guardrails"] = evaluate_run(run)
+            run["observability"] = summarize_run(run)
             self.store.save(run)
             return run
         messages: list[dict[str, Any]] = [
@@ -436,5 +451,12 @@ class RuntimeService:
             run.update(status="failed", reply=str(exc))
         except Exception:
             run.update(status="failed", reply="Runtime 执行失败；请检查后端配置和运行记录。")
+        run["guardrails"] = evaluate_run(run)
+        if run["guardrails"]["status"] == "blocked":
+            run.update(status="failed", reply="Simulation evidence failed runtime guardrails.")
+        run["observability"] = summarize_run(run)
+        review = pending_review(run)
+        if review is not None:
+            run["human_review"] = review
         self.store.save(run)
         return run

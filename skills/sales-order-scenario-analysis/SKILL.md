@@ -5,7 +5,7 @@ description: Compare warehouse staffing or supplier-delivery scenarios for Order
 
 # Sales Order Scenario Analysis
 
-Establish one actual `snapshot_id`. For an `ORDER_BACKLOG` question that proposes changing warehouse capacity, call `analyze_sales_backlog_intervention`. It is the preferred upper-level flow: it reads current evidence, states an unproven capacity hypothesis, runs a no-change baseline, runs the isolated capacity alternative with the same horizon and seed, and returns a deterministic verdict. Do not manually reproduce its arithmetic or replace its verdict.
+Establish one actual `snapshot_id`. For a vague request, identify the target outcome, proposed change, horizon and comparison basis from the user's wording. Ask for a material missing choice; do not silently invent a historical period. For an `ORDER_BACKLOG` question that proposes changing warehouse capacity, call `analyze_sales_backlog_intervention`. It reads current evidence, states an unproven capacity hypothesis, runs a no-change baseline and isolated alternative with the same horizon and seed, then returns a deterministic verdict. Do not manually reproduce its arithmetic or replace its verdict.
 
 For another supported scenario, use `create_simulation_session` and `run_simulation` to record a baseline. Fork that session once per alternative with `fork_simulation_session`; use at most three explicit assumptions. The low-level event whitelist is `warehouse_capacity_increase` and `expedite_supplier_delivery` through `add_simulation_event`. Run all alternatives with the same `horizon_days` and `random_seed`, then call `compare_simulation_runs` for each.
 
