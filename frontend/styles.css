@@ -500,8 +500,7 @@ tr:hover td {
   gap: 0.7rem;
 }
 
-.assistant-mark,
-.assistant-welcome-mark {
+.assistant-mark {
   display: grid;
   place-items: center;
   flex: 0 0 auto;
@@ -575,13 +574,6 @@ tr:hover td {
   max-width: 720px;
   margin: clamp(1rem, 7vh, 4.5rem) auto 1.4rem;
   text-align: center;
-}
-
-.assistant-welcome-mark {
-  width: 46px;
-  height: 46px;
-  margin: 0 auto 0.75rem;
-  box-shadow: 0 9px 20px rgba(15, 118, 110, 0.16);
 }
 
 .assistant-welcome h3 { margin: 0; color: #203f42; font-size: 1.35rem; letter-spacing: -0.025em; }
