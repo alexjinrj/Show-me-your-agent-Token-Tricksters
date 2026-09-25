@@ -1490,6 +1490,26 @@ summary {
   font-size: 0.76rem;
 }
 
+.module-note-details {
+  margin-top: 0.9rem;
+  color: #587271;
+  font-size: 0.76rem;
+}
+
+.module-note-details > summary {
+  width: fit-content;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.module-note-details .module-note {
+  margin-top: 0.55rem;
+}
+
+.warning-details {
+  color: #775c31;
+}
+
 .warning-note {
   border-left-color: #d5a34c;
   color: #775c31;

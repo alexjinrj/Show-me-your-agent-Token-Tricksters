@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>HomeNest Business Coordinator</title>
-    <link rel="stylesheet" href="/styles.css?v=coordinator-ui-20260925" />
+    <link rel="stylesheet" href="/styles.css?v=module-copy-20260925" />
   </head>
   <body>
     <div class="app-shell">
@@ -41,11 +41,11 @@
 
         <div class="sidebar-note">
           <b>Human control</b>
-          <p>Recommendations and proposals require review before business action.</p>
+          <p>Review recommendations before action.</p>
         </div>
         <div class="sidebar-footer">
           <span class="runtime-dot"></span>
-          <div><b>Unified Runtime</b><small>Actual and simulated states separated</small></div>
+          <div><b>Unified Runtime</b><small>Actual and simulated states</small></div>
         </div>
       </aside>
 
@@ -55,7 +55,7 @@
             <div class="page-copy">
               <p id="page-eyebrow" class="eyebrow">BUSINESS PERFORMANCE</p>
               <h1 id="page-title">Executive Overview</h1>
-              <p id="page-description" class="subtitle">See the most important signals across sales, inventory, finance, operations and customer relationships.</p>
+              <p id="page-description" class="subtitle">Key signals across the business.</p>
             </div>
             <span class="runtime-pill">Unified Agent Runtime</span>
           </div>
@@ -73,32 +73,32 @@
                 <div><p class="module-kicker">ONE CONTROL VIEW</p><h2>Business priorities</h2></div>
                 <span class="badge">Actual State</span>
               </div>
-              <p class="section-lead">Every number below is calculated by deterministic backend tools from the same immutable snapshot.</p>
+              <p class="section-lead">Review priorities from the shared Actual State.</p>
               <div id="overview-kpis" class="module-stats loading-block">Loading module signals…</div>
               <h3>Open a business module</h3>
               <div id="overview-modules" class="module-launch-grid"></div>
-              <div class="module-note">The overview highlights evidence. Any simulated change stays isolated until a person reviews a proposal.</div>
+              <div class="module-note">Simulations stay separate until human review.</div>
             </section>
           </section>
 
           <section class="page-view" data-page="sales" hidden>
             <section class="panel">
-              <div class="panel-heading"><div><p class="module-kicker">ORDER TO CASH</p><h2>Sales Performance</h2></div><span class="badge">Actual State</span></div>
-              <p class="section-lead">Monitor current orders, fulfilment progress, high-value products and unresolved backlog.</p>
+              <div class="panel-heading"><div><p class="module-kicker">ORDER TO CASH</p><h2>Sales</h2></div><span class="badge">Actual</span></div>
+              <p class="section-lead">Track orders, fulfilment and backlog.</p>
               <div id="sales-kpis" class="module-stats loading-block">Loading sales data…</div>
               <div class="module-grid two-column">
                 <div class="module-section"><h3>Order status</h3><div id="sales-status"></div></div>
                 <div class="module-section"><h3>Top SKUs by order value</h3><div id="sales-skus" class="scroll-table"></div></div>
               </div>
-              <div class="module-section"><h3>Backlog investigation queue</h3><div id="sales-backlog" class="scroll-table"></div></div>
-              <div id="sales-note" class="module-note"></div>
+              <div class="module-section"><h3>Backlog</h3><div id="sales-backlog" class="scroll-table"></div></div>
+              <details class="module-note-details"><summary>Data notes</summary><div id="sales-note" class="module-note"></div></details>
             </section>
           </section>
 
           <section class="page-view" data-page="inventory" hidden>
             <section class="panel">
-              <div class="panel-heading"><div><p class="module-kicker">STOCK CONTROL</p><h2>Inventory Management</h2></div><span class="badge">Deterministic rules</span></div>
-              <p class="section-lead">Review stock position and rule-based reorder candidates before creating any replenishment scenario.</p>
+              <div class="panel-heading"><div><p class="module-kicker">STOCK CONTROL</p><h2>Inventory</h2></div><span class="badge">Rules</span></div>
+              <p class="section-lead">Review stock risk and replenishment needs.</p>
               <div id="inventory-kpis" class="module-stats loading-block">Loading inventory data…</div>
               <div class="module-grid two-column inventory-layout">
                 <div class="module-section"><h3>Risk distribution</h3><div id="inventory-risks"></div></div>
@@ -113,10 +113,10 @@
                   <div id="inventory-candidates" class="scroll-table"></div>
                 </div>
               </div>
-              <div id="inventory-note" class="module-note"></div>
+              <details class="module-note-details"><summary>Data notes</summary><div id="inventory-note" class="module-note"></div></details>
               <section class="inventory-strategy-section" aria-labelledby="inventory-strategy-title">
-                <div class="inventory-section-heading"><div><p class="module-kicker">WHAT-IF SIMULATION</p><h3 id="inventory-strategy-title">Replenishment Strategy Analysis</h3></div><span class="badge">Simulated State</span></div>
-                <p class="section-lead">Compare four deterministic replenishment strategies against a copied snapshot. Results are evidence for human review and do not place purchase orders.</p>
+                <div class="inventory-section-heading"><div><p class="module-kicker">WHAT-IF SIMULATION</p><h3 id="inventory-strategy-title">Strategy comparison</h3></div><span class="badge">Simulation</span></div>
+                <p class="section-lead">Compare four strategies. No purchase order is created.</p>
                 <form id="inventory-strategy-form" class="inventory-strategy-controls" aria-describedby="inventory-strategy-status">
                   <label>Horizon days<input id="inventory-horizon-days" type="number" min="1" max="365" value="30" required></label>
                   <label>Effective replenishment day<input id="inventory-effective-day" type="number" min="0" step="0.1" value="3" required></label>
@@ -139,36 +139,36 @@
 
           <section class="page-view" data-page="accounting" hidden>
             <section class="panel">
-              <div class="panel-heading"><div><p class="module-kicker">FINANCIAL ANCHOR</p><h2>Accounting</h2></div><span class="badge warning-badge">Synthetic opening balances</span></div>
-              <p class="section-lead">Inspect labelled demo balances and deterministic indicators without presenting them as audited accounts.</p>
+              <div class="panel-heading"><div><p class="module-kicker">FINANCIAL ANCHOR</p><h2>Accounting</h2></div><span class="badge warning-badge">Demo balances</span></div>
+              <p class="section-lead">Review balances, margin and working capital.</p>
               <div id="accounting-kpis" class="module-stats loading-block">Loading accounting data…</div>
-              <div class="module-section"><h3>Opening balance evidence</h3><div id="accounting-balances" class="scroll-table"></div></div>
-              <div id="accounting-note" class="module-note warning-note"></div>
+              <div class="module-section"><h3>Balances</h3><div id="accounting-balances" class="scroll-table"></div></div>
+              <details class="module-note-details warning-details"><summary>Data notes</summary><div id="accounting-note" class="module-note warning-note"></div></details>
             </section>
           </section>
 
           <section class="page-view" data-page="operations" hidden>
             <section class="panel operations-summary">
-              <div class="panel-heading"><div><p class="module-kicker">PROCESS STATE</p><h2>Operations Control</h2></div><span class="badge">Actual + isolated simulation</span></div>
-              <p class="section-lead">Observe current workload, then test controlled changes in a copied Simulated State.</p>
+              <div class="panel-heading"><div><p class="module-kicker">PROCESS STATE</p><h2>Operations</h2></div><span class="badge">Actual + simulation</span></div>
+              <p class="section-lead">Inspect workload and test isolated scenarios.</p>
               <div id="operations-kpis" class="module-stats loading-block">Loading operations data…</div>
               <div class="module-grid two-column">
                 <div class="module-section"><h3>Objects by current step</h3><div id="operations-nodes" class="scroll-table"></div></div>
                 <div class="module-section"><h3>Configured resources</h3><div id="operations-resources" class="scroll-table"></div></div>
               </div>
-              <div id="operations-note" class="module-note"></div>
+              <details class="module-note-details"><summary>Data notes</summary><div id="operations-note" class="module-note"></div></details>
             </section>
 
             <section class="panel" id="processes-panel">
               <h2>1. Process Flows</h2>
-              <p class="section-lead">Inspect the validated process definitions that drive deterministic simulation.</p>
+              <p class="section-lead">View the process rules used by the simulator.</p>
               <div id="process-flows" class="process-flows"></div>
               <div id="node-detail" class="node-detail muted">Select a node to inspect its YAML-defined details.</div>
             </section>
 
             <section class="panel focused-panel" id="scenario-panel">
               <h2>2. Scenario Builder</h2>
-              <p class="section-lead">Create an isolated session, add controlled events and run a repeatable scenario.</p>
+              <p class="section-lead">Add events and run an isolated scenario.</p>
               <form id="session-form" class="stacked compact-form">
                 <label>Session name <input id="session-name" value="Baseline" required /></label>
                 <button type="submit">Create session</button>
@@ -191,14 +191,14 @@
 
             <section class="panel focused-panel" id="comparison-panel">
               <h2>3. Scenario Comparison</h2>
-              <p class="section-lead">Pin a completed run as the baseline, then compare it with an isolated alternative.</p>
+              <p class="section-lead">Compare an alternative with a pinned baseline.</p>
               <div class="row action-row"><button id="set-baseline" type="button" disabled>Pin current run as baseline</button><button id="run-compare" type="button" disabled>Compare with baseline</button></div>
               <div id="comparison-table" class="comparison"></div>
             </section>
 
             <section class="panel focused-panel" id="playback-panel">
               <h2>4. Process Trace Playback</h2>
-              <p class="section-lead">Replay process events and inspect operational, audit and balanced accounting evidence.</p>
+              <p class="section-lead">Replay events and inspect the audit trail.</p>
               <div class="row playback-controls"><button id="play" type="button" disabled>Play</button><button id="pause" type="button" disabled>Pause</button><button id="step" type="button" disabled>Step</button><input id="scrub" type="range" min="0" max="0" value="0" disabled /><span id="clock" class="mono">hour 0</span></div>
               <div id="utilization" class="utilization"></div>
               <details><summary>Trace and audit evidence</summary><div id="audit-evidence"></div><h3>Ordered process events (first 100)</h3><div id="trace-table" class="scroll-table"></div><h3>Balanced accounting impacts (first 100)</h3><div id="accounting-table" class="scroll-table"></div></details>
@@ -207,21 +207,16 @@
 
           <section class="page-view" data-page="crm" hidden>
       <section class="panel" id="crm-panel">
-        <h2>CRM Service Recovery <span class="badge crm-badge">Unified snapshot</span></h2>
-        <p class="muted">
-          RFM uses observed ordered value. Exception share describes pending orders, not churn probability or credit ratings.
-          Same AdventureWorks snapshot as Sales/Inventory. Cases are derived order exceptions,
-          not imported complaints. Missing reviews, response records and complaint SLA are unavailable.
-          Capacity scenarios are counterfactual tests; improvement does not prove why a delay occurred.
-        </p>
+        <h2>Customer Relationships <span class="badge crm-badge">Shared snapshot</span></h2>
+        <p class="muted">RFM reflects ordered value; risk reflects pending-order exceptions. Simulations test options, not causes.</p>
         <div id="crm-summary" class="crm-summary"></div>
         <div class="crm-grid">
           <div>
-            <h3>Priority order-service case queue</h3>
+            <h3>Service cases</h3>
             <div id="crm-complaints" class="scroll-table"></div>
           </div>
           <div>
-            <h3>Investigation and proposal</h3>
+            <h3>Case review</h3>
             <div id="crm-detail" class="crm-detail muted">Select an order-service case to investigate.</div>
             <form id="crm-proposal-form" class="stacked" hidden>
               <label>
@@ -235,7 +230,7 @@
           </div>
         </div>
         <div class="crm-review">
-          <h3>Human review queue</h3>
+          <h3>Approvals</h3>
           <div class="row">
             <label>Reviewer <input id="crm-reviewer" value="Demo Reviewer" /></label>
             <label>Review note <input id="crm-review-note" placeholder="Optional decision note" /></label>
@@ -243,7 +238,7 @@
           <div id="crm-proposals" class="scroll-table"></div>
         </div>
         <details>
-          <summary>CRM data provenance</summary>
+          <summary>Data provenance</summary>
           <pre id="crm-provenance" class="mono"></pre>
         </details>
       </section>
@@ -293,6 +288,6 @@
         </main>
       </div>
     </div>
-    <script src="/app.js?v=coordinator-ui-20260925"></script>
+    <script src="/app.js?v=module-copy-20260925"></script>
   </body>
 </html>

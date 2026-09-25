@@ -1250,32 +1250,32 @@ const FUNCTION_PAGES = {
   overview: {
     eyebrow: "BUSINESS PERFORMANCE",
     title: "Executive Overview",
-    description: "See the most important signals across sales, inventory, finance, operations and customer relationships.",
+    description: "Key signals across the business.",
   },
   sales: {
     eyebrow: "ORDER TO CASH",
     title: "Sales",
-    description: "Track order value, fulfilment progress and the backlog investigation queue.",
+    description: "Orders, fulfilment and backlog.",
   },
   inventory: {
     eyebrow: "STOCK CONTROL",
     title: "Inventory",
-    description: "Monitor on-hand stock and review deterministic replenishment signals.",
+    description: "Stock risk and replenishment scenarios.",
   },
   accounting: {
     eyebrow: "FINANCIAL ANCHOR",
     title: "Accounting",
-    description: "Review labelled balances, margin and working-capital indicators.",
+    description: "Balances, margin and working capital.",
   },
   operations: {
     eyebrow: "PROCESS STATE AND SIMULATION",
     title: "Operations",
-    description: "Observe workload, test what-if events and inspect simulation evidence.",
+    description: "Workload and what-if simulation.",
   },
   crm: {
     eyebrow: "CUSTOMER OPERATIONS",
     title: "Customer Relationships",
-    description: "Review RFM customer segments and pending-order exception share, then investigate service cases with human approval.",
+    description: "Customer value, service risk and recovery review.",
   },
   assistant: {
     eyebrow: "AGENT COORDINATION",
