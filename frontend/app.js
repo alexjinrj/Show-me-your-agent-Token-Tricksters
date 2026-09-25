@@ -19,6 +19,9 @@ const state = {
   inventoryStrategyRequest: 0,
   inventoryStrategyBusy: false,
   inventoryStrategyHasResult: false,
+  salesAnalysisBusy: false,
+  salesAnalysis: { source: null, result: null, toolCallId: null, agentRunId: null },
+  agentEnabled: false,
   playback: { timer: null, index: 0, trace: [], hours: [] },
 };
 
@@ -943,6 +946,226 @@ function handleAssistantComposerKeydown(event) {
   document.getElementById("chat-form").requestSubmit?.();
 }
 
+// ---- Sales backlog analysis ------------------------------------------------
+
+const SALES_METRIC_LABELS = {
+  ending_backlog: "Ending backlog",
+  average_waiting_hours: "Average waiting hours",
+  fulfilment_rate: "Fulfilment rate",
+  stockout_count: "Stockout count",
+};
+
+const SALES_GUARDRAILS = [
+  ["sales-guardrail-ending-backlog", "ending_backlog"],
+  ["sales-guardrail-fulfilment-rate", "fulfilment_rate"],
+  ["sales-guardrail-stockout-count", "stockout_count"],
+  ["sales-guardrail-average-waiting", "average_waiting_hours"],
+];
+
+function setSalesAnalysisStatus(message, kind = "") {
+  const node = document.getElementById("sales-analysis-status");
+  node.textContent = message;
+  node.className = `sales-analysis-status${kind ? ` ${kind}` : ""}`;
+}
+
+function setSalesAnalysisBusy(busy) {
+  state.salesAnalysisBusy = busy;
+  document.getElementById("run-sales-analysis").disabled = busy;
+  document.getElementById("ask-sales-agent").disabled = busy || !state.agentEnabled;
+}
+
+function syncSalesGuardrails() {
+  const primary = document.getElementById("sales-analysis-primary").value;
+  for (const [id, metric] of SALES_GUARDRAILS) {
+    const checkbox = document.getElementById(id);
+    checkbox.disabled = metric === primary;
+    if (checkbox.disabled) checkbox.checked = false;
+  }
+}
+
+function salesAnalysisArguments() {
+  const primary = document.getElementById("sales-analysis-primary").value;
+  const guardrailMetrics = SALES_GUARDRAILS
+    .filter(([id, metric]) => metric !== primary && document.getElementById(id).checked)
+    .map(([, metric]) => metric);
+  if (!guardrailMetrics.length) throw new Error("Select at least one guardrail metric");
+  return {
+    additional_workers: Number(document.getElementById("sales-analysis-workers").value),
+    horizon_days: Number(document.getElementById("sales-analysis-horizon").value),
+    random_seed: Number(document.getElementById("sales-analysis-seed").value),
+    primary_metric: primary,
+    guardrail_metrics: guardrailMetrics,
+  };
+}
+
+function salesAnalysisContractErrors(result) {
+  const errors = [];
+  const analysis = result?.analysis_case || {};
+  const facts = result?.facts || {};
+  const hypothesis = result?.cause_hypothesis || {};
+  const intervention = result?.intervention || {};
+  const comparison = result?.simulation_comparison || {};
+  const metrics = comparison.metrics || {};
+  if (result?.schema_version !== "sales-analysis-result-v1") errors.push("Unsupported result contract");
+  if (facts.state_type !== "actual") errors.push("Facts are not Actual State evidence");
+  if (facts.completeness !== "current_snapshot_only") errors.push("Fact scope is not current snapshot only");
+  if (hypothesis.status !== "candidate_not_proven") errors.push("Cause hypothesis is presented as proven");
+  if (intervention.owner_domain !== "operations") errors.push("Intervention owner is not Operations");
+  if (comparison.state_type !== "simulated") errors.push("Comparison is not marked simulated");
+  if (result?.actual_state_unchanged !== true) errors.push("Actual State change detected");
+  if (!analysis.baseline_run_id || analysis.baseline_run_id === analysis.alternative_run_id) errors.push("Baseline and alternative runs are not distinct");
+  if (analysis.baseline_run_id !== comparison.baseline_run_id || analysis.alternative_run_id !== comparison.alternative_run_id) errors.push("Run references do not match");
+  if (analysis.snapshot_hash !== facts.snapshot_hash || facts.snapshot_hash !== comparison.snapshot_hash) errors.push("Snapshot hashes do not match");
+  if (analysis.horizon_days !== comparison.horizon_days || analysis.random_seed !== comparison.random_seed) errors.push("Simulation controls do not match");
+  const requiredMetrics = [comparison.primary_metric, ...(comparison.guardrail_metrics || [])];
+  for (const code of requiredMetrics) {
+    const metric = metrics[code];
+    if (!metric) {
+      errors.push(`Missing metric: ${code}`);
+      continue;
+    }
+    for (const field of ["baseline", "alternative", "difference", "direction", "materiality_threshold", "outcome"]) {
+      if (metric[field] === undefined || metric[field] === null) errors.push(`Missing ${code}.${field}`);
+    }
+    const expected = Number(metric.alternative) - Number(metric.baseline);
+    if (Number.isFinite(expected) && Math.abs(expected - Number(metric.difference)) > 0.000001) {
+      errors.push(`Difference mismatch: ${code}`);
+    }
+  }
+  return [...new Set(errors)];
+}
+
+function salesOutcomeLabel(value) {
+  return String(value || "unknown").replaceAll("_", " ").replace(/^./, (char) => char.toUpperCase());
+}
+
+function renderSalesAnalysis(result, metadata = {}) {
+  const container = document.getElementById("sales-analysis-result");
+  container.innerHTML = "";
+  container.hidden = false;
+  document.getElementById("sales-analysis-panel").open = true;
+  const errors = salesAnalysisContractErrors(result);
+  if (errors.length) {
+    const blocked = el("div", "sales-contract-error");
+    blocked.appendChild(el("strong", null, "Result contract validation failed"));
+    const list = el("ul");
+    errors.forEach((message) => list.appendChild(el("li", null, message)));
+    blocked.appendChild(list);
+    container.appendChild(blocked);
+  } else {
+    const comparison = result.simulation_comparison;
+    const top = el("div", "sales-result-heading");
+    top.appendChild(el("h3", null, "Matched simulation comparison"));
+    top.appendChild(el("span", `sales-verdict verdict-${comparison.verdict}`, salesOutcomeLabel(comparison.verdict)));
+    container.appendChild(top);
+
+    const facts = el("div", "sales-facts-grid");
+    [
+      ["Orders", result.facts.sales_order_count],
+      ["Backlog", result.facts.backlog_count],
+      ["Backlog value", `SGD ${result.facts.backlog_amount_sgd}`],
+      ["Scope", "Current snapshot"],
+    ].forEach(([label, value]) => {
+      const card = el("div", "sales-fact");
+      card.appendChild(el("strong", null, String(value)));
+      card.appendChild(el("span", null, label));
+      facts.appendChild(card);
+    });
+    container.appendChild(facts);
+
+    const context = el("div", "sales-context-grid");
+    const hypothesis = el("div", "sales-context-card hypothesis");
+    hypothesis.appendChild(el("span", "sales-card-label", "Hypothesis · Candidate, not proven"));
+    hypothesis.appendChild(el("p", null, result.cause_hypothesis.statement));
+    const intervention = el("div", "sales-context-card intervention");
+    intervention.appendChild(el("span", "sales-card-label", "Simulated intervention · Operations"));
+    intervention.appendChild(el("p", null, `${result.intervention.current_value} → ${result.intervention.proposed_value}`));
+    context.appendChild(hypothesis);
+    context.appendChild(intervention);
+    container.appendChild(context);
+
+    const tableWrap = el("div", "scroll-table sales-comparison-table");
+    const table = el("table");
+    const head = el("tr");
+    ["Metric", "Baseline", "Alternative", "Difference", "Result"].forEach((label) => head.appendChild(el("th", null, label)));
+    table.appendChild(head);
+    for (const [code, metric] of Object.entries(comparison.metrics)) {
+      const row = el("tr");
+      row.appendChild(el("td", null, SALES_METRIC_LABELS[code] || code));
+      row.appendChild(el("td", "mono", String(metric.baseline)));
+      row.appendChild(el("td", "mono", String(metric.alternative)));
+      const difference = Number(metric.difference);
+      row.appendChild(el("td", "mono", `${difference > 0 ? "+" : ""}${metric.difference}`));
+      row.appendChild(el("td", `sales-outcome outcome-${metric.outcome}`, salesOutcomeLabel(metric.outcome)));
+      table.appendChild(row);
+    }
+    tableWrap.appendChild(table);
+    container.appendChild(tableWrap);
+    container.appendChild(el("p", "sales-boundary", "Simulated evidence only. No staff change or business action was executed."));
+  }
+
+  const audit = el("details", "sales-analysis-audit");
+  audit.appendChild(el("summary", null, "Audit and limitations"));
+  audit.appendChild(el("pre", null, JSON.stringify({
+    source: metadata.source || "direct",
+    tool_call_id: metadata.toolCallId || null,
+    agent_run_id: metadata.agentRunId || null,
+    analysis_case_id: result?.analysis_case?.analysis_case_id || null,
+    snapshot_id: result?.analysis_case?.snapshot_id || null,
+    snapshot_hash: result?.analysis_case?.snapshot_hash || null,
+    baseline_run_id: result?.analysis_case?.baseline_run_id || null,
+    alternative_run_id: result?.analysis_case?.alternative_run_id || null,
+    horizon_days: result?.analysis_case?.horizon_days || null,
+    random_seed: result?.analysis_case?.random_seed ?? null,
+    limitations: result?.limitations || [],
+    raw_evidence: result,
+  }, null, 2)));
+  container.appendChild(audit);
+  state.salesAnalysis = { source: metadata.source || "direct", result, toolCallId: metadata.toolCallId || null, agentRunId: metadata.agentRunId || null };
+  return errors;
+}
+
+async function runSalesAnalysis(event) {
+  event.preventDefault();
+  if (state.salesAnalysisBusy) return;
+  setSalesAnalysisBusy(true);
+  setSalesAnalysisStatus("Running matched baseline and alternative…", "loading");
+  try {
+    const response = await api("/api/v1/sales/backlog-analysis", {
+      method: "POST",
+      body: JSON.stringify(salesAnalysisArguments()),
+    });
+    if (response.schema_version !== "sales-analysis-api-v1") throw new Error("Unsupported sales analysis API contract");
+    if (response.status !== "ok") throw new Error(response.error_message || "Sales analysis failed");
+    const errors = renderSalesAnalysis(response.data, { source: "direct", toolCallId: response.tool_call_id });
+    setSalesAnalysisStatus(errors.length ? "Analysis returned inconsistent evidence." : "Analysis completed. Actual State was unchanged.", errors.length ? "error" : "success");
+  } catch (error) {
+    const message = String(error.message || error);
+    setSalesAnalysisStatus(message.includes("409") ? "Another analysis is already running. Try again shortly." : `Analysis failed: ${message}`, "error");
+    throw error;
+  } finally {
+    setSalesAnalysisBusy(false);
+  }
+}
+
+async function askSalesAgent() {
+  if (!state.agentEnabled) {
+    setSalesAnalysisStatus("OpenClaw is not configured. Direct analysis is still available.", "error");
+    return;
+  }
+  const args = salesAnalysisArguments();
+  const metric = SALES_METRIC_LABELS[args.primary_metric];
+  const guardrails = args.guardrail_metrics.map((code) => SALES_METRIC_LABELS[code]).join(", ");
+  fillAssistantPrompt(
+    `Diagnose current sales order backlog. First state the current snapshot facts, then test ` +
+    `warehouse capacity as an unproven hypothesis using analyze_sales_backlog_intervention: ` +
+    `${args.additional_workers} additional workers, ${args.horizon_days} days, random seed ${args.random_seed}, ` +
+    `primary metric ${metric}, guardrails ${guardrails}. Separate facts, hypothesis, intervention and ` +
+    `counterfactual results; include audit IDs; do not claim the workers were actually added.`
+  );
+  await sendChat({ preventDefault() {} });
+}
+
 async function sendChat(event) {
   event.preventDefault();
   const input = document.getElementById("chat-input");
@@ -993,6 +1216,22 @@ async function sendChat(event) {
       tool_calls: reply.evidence,
     }, null, 2)));
     document.getElementById("chat-log").appendChild(trace);
+    const salesEvidence = reply.evidence.find((item) =>
+      item.tool_name === "analyze_sales_backlog_intervention"
+    );
+    if (salesEvidence?.status === "ok") {
+      const errors = renderSalesAnalysis(salesEvidence.data, {
+        source: "agent",
+        toolCallId: salesEvidence.tool_call_id,
+        agentRunId: reply.agent_run_id,
+      });
+      setSalesAnalysisStatus(
+        errors.length ? "Agent evidence failed contract validation." : "Agent analysis completed with structured evidence.",
+        errors.length ? "error" : "success",
+      );
+    } else if (salesEvidence) {
+      setSalesAnalysisStatus(`Agent sales analysis failed: ${salesEvidence.error_message || "unknown error"}`, "error");
+    }
     if (reply.status === "completed") {
       reply.evidence.filter((item) =>
         item.status === "ok" && item.tool_name === "recommend_resolution"
@@ -1361,6 +1600,13 @@ function init() {
     runAction("OpenClaw is analysing…", () => sendChat(event))
   );
   document.getElementById("chat-input").addEventListener("keydown", handleAssistantComposerKeydown);
+  document.getElementById("sales-analysis-form").addEventListener("submit", (event) =>
+    runAction("Running deterministic sales analysis…", () => runSalesAnalysis(event))
+  );
+  document.getElementById("ask-sales-agent").addEventListener("click", () =>
+    runAction("OpenClaw is analysing sales backlog…", askSalesAgent)
+  );
+  document.getElementById("sales-analysis-primary").addEventListener("change", syncSalesGuardrails);
   document.querySelectorAll("[data-assistant-prompt]").forEach((button) =>
     button.addEventListener("click", () => fillAssistantPrompt(button.dataset.assistantPrompt))
   );
@@ -1374,10 +1620,16 @@ function init() {
   );
 
   renderEventFields();
+  syncSalesGuardrails();
+  setSalesAnalysisBusy(false);
   api("/api/assistant/status").then((runtime) => {
+    state.agentEnabled = Boolean(runtime.enabled);
     document.getElementById("assistant-badge").textContent = runtime.enabled ? "OpenClaw" : "not configured";
+    document.getElementById("ask-sales-agent").disabled = !runtime.enabled;
   }).catch(() => {
+    state.agentEnabled = false;
     document.getElementById("assistant-badge").textContent = "unavailable";
+    document.getElementById("ask-sales-agent").disabled = true;
   });
   runAction("Loading Actual State and process configuration…", loadReference);
   runAction("Loading connected business modules…", loadBusinessModules);

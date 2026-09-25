@@ -68,6 +68,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(modules_router)
 
+    from interfaces.api.routes_sales_analysis import router as sales_analysis_router
+
+    app.include_router(sales_analysis_router)
+
     from interfaces.api.routes_workbench import router as workbench_router
 
     app.include_router(workbench_router)

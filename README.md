@@ -144,7 +144,10 @@ Operations, Customer Relationships, AI Coordinator**.
   Decisions are persisted, but do not send messages, issue refunds or ship goods.
 - AI Coordinator: without Gateway configuration it explicitly reports
   **not configured / disabled**. Business pages, deterministic simulations and
-  manual CRM review still work. See the OpenClaw section below to enable real AI.
+  manual CRM review still work. Expand **Sales backlog scenario** to compare a
+  matched baseline and staffing intervention directly; with OpenClaw enabled,
+  **Ask Agent** runs the same audited tool through the conversational workflow.
+  See the OpenClaw section below to enable real AI.
 
 All CRM customer/order/SKU references now come from the same AdventureWorks snapshot.
 Service cases are **derived order exceptions**, not real customer complaints.
@@ -202,6 +205,12 @@ uv run python scripts/seed_demo_data.py --database actual_state.db
 ```
 
 ## Run the sales Agent demo
+
+The browser uses `POST /api/v1/sales/backlog-analysis` for deterministic sales
+analysis. The server selects the authoritative snapshot; callers provide only
+workers, horizon, random seed, primary metric and guardrails. Its structured
+response keeps Actual State facts, an unproven cause hypothesis, the simulated
+intervention, matched metric comparisons and audit IDs separate.
 
 The deterministic sales path can generate an offline report without an LLM:
 

@@ -658,6 +658,195 @@ tr:hover td {
   overflow-wrap: anywhere;
 }
 
+.sales-analysis-panel {
+  max-width: 820px;
+  margin: 0 auto 0.9rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid #dce9e6;
+  background: #fbfdfc;
+}
+
+.sales-analysis-panel > summary {
+  color: #315f5b;
+  font-size: 0.74rem;
+}
+
+.sales-analysis-form {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+  align-items: end;
+  margin-top: 0.75rem;
+}
+
+.sales-analysis-form > label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+  color: #58706f;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.sales-analysis-form input,
+.sales-analysis-form select {
+  min-width: 0;
+  min-height: 38px;
+  padding: 0.45rem 0.55rem;
+}
+
+.sales-analysis-form fieldset {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 1rem;
+  margin: 0;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid #e0ebe8;
+  border-radius: 8px;
+}
+
+.sales-analysis-form legend {
+  padding: 0 0.25rem;
+  color: #58706f;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.sales-analysis-form fieldset label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #456361;
+  font-size: 0.69rem;
+}
+
+.sales-analysis-form input[type="checkbox"] {
+  width: 16px;
+  min-height: 16px;
+  height: 16px;
+  padding: 0;
+}
+
+.sales-analysis-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.sales-analysis-actions button {
+  min-height: 38px;
+  padding: 0.5rem 0.8rem;
+  font-size: 0.71rem;
+}
+
+.sales-analysis-actions .secondary-button {
+  border-color: #b8d7d1;
+  color: #236d66;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.sales-analysis-status {
+  margin: 0.65rem 0 0;
+  color: #667d7b;
+  font-size: 0.69rem;
+}
+
+.sales-analysis-status.success { color: #23745f; }
+.sales-analysis-status.error { color: #a44048; }
+.sales-analysis-status.loading { color: #286f7b; }
+.sales-analysis-result { margin-top: 0.75rem; }
+
+.sales-result-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+
+.sales-result-heading h3 { margin: 0; color: #244e51; font-size: 0.9rem; }
+.sales-verdict,
+.sales-outcome {
+  display: inline-block;
+  padding: 0.24rem 0.45rem;
+  border-radius: 999px;
+  color: #496361;
+  background: #e9f1ef;
+  font-size: 0.64rem;
+  font-weight: 800;
+}
+
+.verdict-improved,
+.outcome-improved { color: #1c6c56; background: #dff3eb; }
+.verdict-worsened,
+.outcome-worsened { color: #9a3741; background: #f9e4e6; }
+.verdict-trade_off { color: #865815; background: #fbefcf; }
+
+.sales-facts-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0.65rem 0;
+}
+
+.sales-fact {
+  padding: 0.55rem;
+  border: 1px solid #e2ecea;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.sales-fact strong,
+.sales-fact span { display: block; }
+.sales-fact strong { color: #214f4b; font-size: 0.84rem; }
+.sales-fact span { margin-top: 0.15rem; color: #718381; font-size: 0.61rem; }
+
+.sales-context-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.sales-context-card {
+  padding: 0.6rem;
+  border-left: 3px solid #6fb7ad;
+  border-radius: 7px;
+  background: #f2f8f6;
+}
+
+.sales-context-card p { margin: 0.25rem 0 0; color: #385a58; font-size: 0.71rem; line-height: 1.45; }
+.sales-card-label { color: #52706e; font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+.sales-comparison-table { max-height: none; }
+.sales-comparison-table table { width: 100%; }
+.sales-boundary { margin: 0.55rem 0 0; color: #765d2c; font-size: 0.68rem; }
+
+.sales-contract-error {
+  padding: 0.65rem;
+  border: 1px solid #edb8bd;
+  border-radius: 8px;
+  color: #8a333b;
+  background: #fff2f3;
+  font-size: 0.71rem;
+}
+
+.sales-contract-error ul { margin: 0.35rem 0 0; padding-left: 1.1rem; }
+.sales-analysis-audit { padding: 0.5rem 0.6rem; border: 1px solid #e1ebe9; background: #ffffff; }
+.sales-analysis-audit summary { font-size: 0.66rem; }
+.sales-analysis-audit pre {
+  max-height: 18rem;
+  overflow: auto;
+  margin: 0.55rem 0 0;
+  padding: 0.6rem;
+  border-radius: 7px;
+  color: #456361;
+  background: #eef5f3;
+  font-size: 0.65rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .assistant-composer-wrap {
   padding: 0.65rem clamp(1rem, 7vw, 5.5rem) 0.75rem;
   border-top: 1px solid #edf2f1;
@@ -1796,6 +1985,11 @@ summary {
   .inventory-recommendation-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .sales-analysis-form,
+  .sales-facts-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 620px) {
@@ -1842,6 +2036,12 @@ summary {
   }
 
   .assistant-starters {
+    grid-template-columns: 1fr;
+  }
+
+  .sales-analysis-form,
+  .sales-facts-grid,
+  .sales-context-grid {
     grid-template-columns: 1fr;
   }
 

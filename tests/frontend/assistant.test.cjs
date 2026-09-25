@@ -7,7 +7,7 @@ const test = require("node:test");
 function harness(fetch) {
   function node() {
     return { children: [], value: "", disabled: false,
-      dataset: {},
+      dataset: {}, checked: false, hidden: false, className: "", textContent: "",
       listeners: {}, addEventListener(event, callback) { this.listeners[event] = callback; },
       appendChild(child) { this.children.push(child); },
       classList: { toggle() {}, remove() {} } };
@@ -26,6 +26,31 @@ function harness(fetch) {
   }});
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../../frontend/app.js"), "utf8"), sandbox);
   return { sandbox, get, send: () => vm.runInContext("sendChat({preventDefault() {}})", sandbox) };
+}
+
+function salesAnalysisResult() {
+  const snapshotHash = "a".repeat(64);
+  return {
+    schema_version: "sales-analysis-result-v1",
+    analysis_case: { analysis_case_id: "case-1", snapshot_id: "snapshot-1", snapshot_hash: snapshotHash,
+      baseline_run_id: "baseline-1", alternative_run_id: "alternative-1", horizon_days: 7, random_seed: 42 },
+    facts: { state_type: "actual", completeness: "current_snapshot_only", snapshot_id: "snapshot-1",
+      snapshot_hash: snapshotHash, sales_order_count: 100, backlog_count: 43, backlog_amount_sgd: "250.00" },
+    cause_hypothesis: { status: "candidate_not_proven", statement: "Warehouse capacity may contribute." },
+    intervention: { owner_domain: "operations", current_value: "0", proposed_value: "2" },
+    simulation_comparison: { state_type: "simulated", baseline_run_id: "baseline-1",
+      alternative_run_id: "alternative-1", snapshot_hash: snapshotHash, horizon_days: 7, random_seed: 42,
+      primary_metric: "average_waiting_hours",
+      guardrail_metrics: ["ending_backlog", "fulfilment_rate", "stockout_count"], verdict: "improved",
+      metrics: {
+        average_waiting_hours: { baseline: "72", alternative: "39", difference: "-33", direction: "lower", materiality_threshold: "1", outcome: "improved" },
+        ending_backlog: { baseline: "43", alternative: "43", difference: "0", direction: "lower", materiality_threshold: "1", outcome: "unchanged" },
+        fulfilment_rate: { baseline: "0.57", alternative: "0.57", difference: "0", direction: "higher", materiality_threshold: "0.01", outcome: "unchanged" },
+        stockout_count: { baseline: "2", alternative: "2", difference: "0", direction: "lower", materiality_threshold: "1", outcome: "unchanged" },
+      } },
+    actual_state_unchanged: true,
+    limitations: ["Current snapshot only"],
+  };
 }
 
 test("assistant sends stable conversation context and safely renders evidence", async () => {
@@ -69,6 +94,46 @@ test("assistant failure unlocks chat and exposes a visible error", async () => {
   assert.equal(app.get("button").disabled, false);
   assert.equal(vm.runInContext("state.chatBusy", app.sandbox), false);
   assert.match(app.get("chat-log").children[1].textContent, /Request failed/);
+});
+
+test("direct sales analysis sends bounded controls and renders validated evidence", async () => {
+  const requests = [];
+  const result = salesAnalysisResult();
+  const app = harness(async (url, options) => {
+    requests.push({ url, body: JSON.parse(options.body) });
+    return { ok: true, json: async () => ({ schema_version: "sales-analysis-api-v1", status: "ok",
+      tool_call_id: "tool-1", data: result }) };
+  });
+  app.get("sales-analysis-workers").value = "2";
+  app.get("sales-analysis-horizon").value = "7";
+  app.get("sales-analysis-seed").value = "42";
+  app.get("sales-analysis-primary").value = "average_waiting_hours";
+  app.get("sales-guardrail-ending-backlog").checked = true;
+  app.get("sales-guardrail-fulfilment-rate").checked = true;
+  app.get("sales-guardrail-stockout-count").checked = true;
+
+  await vm.runInContext("runSalesAnalysis({preventDefault() {}})", app.sandbox);
+
+  assert.equal(requests[0].url, "/api/v1/sales/backlog-analysis");
+  assert.deepEqual(requests[0].body.guardrail_metrics, ["ending_backlog", "fulfilment_rate", "stockout_count"]);
+  assert.equal(app.get("sales-analysis-result").hidden, false);
+  assert.match(app.get("sales-analysis-status").textContent, /Actual State was unchanged/);
+  assert.equal(vm.runInContext("state.salesAnalysis.toolCallId", app.sandbox), "tool-1");
+});
+
+test("sales analysis blocks an inconsistent result contract", async () => {
+  const result = salesAnalysisResult();
+  result.actual_state_unchanged = false;
+  const app = harness(async () => ({ ok: true, json: async () => ({
+    schema_version: "sales-analysis-api-v1", status: "ok", data: result,
+  }) }));
+  app.get("sales-analysis-primary").value = "average_waiting_hours";
+  app.get("sales-guardrail-ending-backlog").checked = true;
+
+  await vm.runInContext("runSalesAnalysis({preventDefault() {}})", app.sandbox);
+
+  assert.match(app.get("sales-analysis-status").textContent, /inconsistent evidence/);
+  assert.match(app.get("sales-analysis-result").children[0].children[0].textContent, /validation failed/);
 });
 
 test("CRM review explicitly carries runtime evidence and resets it for manual selection", async () => {
