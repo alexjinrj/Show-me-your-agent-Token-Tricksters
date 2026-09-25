@@ -1319,6 +1319,166 @@ summary {
   background: #fff8e9;
 }
 
+.inventory-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.inventory-section-heading h3 {
+  margin-top: 0;
+}
+
+.inventory-controls,
+.inventory-strategy-controls {
+  display: grid;
+  align-items: end;
+  gap: 0.65rem;
+  margin-bottom: 0.65rem;
+}
+
+.inventory-controls {
+  grid-template-columns: minmax(120px, 1fr) minmax(105px, 0.65fr) auto;
+}
+
+.inventory-strategy-controls {
+  grid-template-columns: repeat(3, minmax(135px, 1fr)) auto;
+}
+
+.inventory-inline-status {
+  min-height: 1.25rem;
+  margin: 0.45rem 0 0.7rem;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.inventory-inline-status.success { color: var(--good); }
+.inventory-inline-status.error { color: var(--bad); }
+.inventory-inline-status.stale { color: var(--warning); font-weight: 700; }
+.inventory-inline-status.loading { color: var(--accent); }
+
+.inventory-empty-state {
+  margin: 0;
+  padding: 0.85rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.inventory-strategy-section {
+  margin-top: 1.2rem;
+  padding: 1.1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #f8fcfb, #eef7f4);
+}
+
+.inventory-recommendation-card {
+  margin: 0.85rem 0;
+  padding: 1rem;
+  border: 1px solid #a9d6cc;
+  border-left: 5px solid var(--accent);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: var(--shadow-soft);
+}
+
+.inventory-recommendation-card h3 {
+  margin: 0;
+  color: #105e58;
+  font-size: 1.05rem;
+}
+
+.inventory-recommendation-metrics {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(110px, 1fr));
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
+
+.inventory-recommendation-metric {
+  padding: 0.65rem;
+  border: 1px solid #dbeae6;
+  border-radius: 9px;
+  background: #f7fbfa;
+}
+
+.inventory-recommendation-metric strong,
+.inventory-recommendation-metric span {
+  display: block;
+}
+
+.inventory-recommendation-metric strong {
+  color: #174b49;
+  font-size: 0.92rem;
+}
+
+.inventory-recommendation-metric span {
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-size: 0.65rem;
+}
+
+.inventory-comparison-block { margin-top: 0.85rem; }
+.inventory-strategy-table { min-width: 1280px; }
+.inventory-strategy-table .recommended-row td { background: #e8f6f2; }
+.inventory-strategy-table .recommended-row:hover td { background: #def1ec; }
+
+.recommended-label {
+  display: block;
+  width: fit-content;
+  margin-top: 0.25rem;
+  padding: 0.12rem 0.34rem;
+  border-radius: 999px;
+  color: #0f625b;
+  background: #cfece5;
+  font-size: 0.61rem;
+  font-weight: 800;
+}
+
+.inventory-run-details { min-width: 180px; }
+.inventory-run-details summary { font-size: 0.66rem; }
+.run-id-cell { max-width: 170px; overflow-wrap: anywhere; }
+
+.inventory-boundary {
+  margin: 0;
+  padding: 0.8rem;
+  border-left: 3px solid var(--good);
+  border-radius: 0 8px 8px 0;
+  color: #315c58;
+  background: #e8f6f2;
+  font-size: 0.78rem;
+}
+
+.inventory-evidence {
+  padding: 0.8rem;
+  border: 1px solid var(--border);
+  background: #ffffff;
+}
+
+.inventory-evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.inventory-evidence-grid h4 { margin-bottom: 0.4rem; }
+.inventory-evidence-grid ul { margin-top: 0; padding-left: 1.2rem; color: #536e6e; font-size: 0.75rem; }
+
+.inventory-evidence-code {
+  max-height: 16rem;
+  overflow: auto;
+  padding: 0.75rem;
+  border: 1px solid #dce9e6;
+  border-radius: 8px;
+  color: #365255;
+  background: #f4f8f7;
+  font-size: 0.68rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .module-launch-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
@@ -1461,6 +1621,11 @@ summary {
   .module-grid.two-column {
     grid-template-columns: 1fr;
   }
+
+  .inventory-strategy-controls,
+  .inventory-recommendation-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 620px) {
@@ -1482,6 +1647,13 @@ summary {
   }
 
   .module-launch-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .inventory-controls,
+  .inventory-strategy-controls,
+  .inventory-recommendation-metrics,
+  .inventory-evidence-grid {
     grid-template-columns: 1fr;
   }
 }

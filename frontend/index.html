@@ -102,9 +102,38 @@
               <div id="inventory-kpis" class="module-stats loading-block">Loading inventory data…</div>
               <div class="module-grid two-column inventory-layout">
                 <div class="module-section"><h3>Risk distribution</h3><div id="inventory-risks"></div></div>
-                <div class="module-section"><h3>Reorder candidates</h3><div id="inventory-candidates" class="scroll-table"></div></div>
+                <div class="module-section">
+                  <div class="inventory-section-heading"><div><p class="module-kicker">ACTUAL SNAPSHOT</p><h3>Reorder candidates</h3></div><span id="inventory-candidate-source" class="badge">Actual State</span></div>
+                  <form id="inventory-candidate-form" class="inventory-controls" aria-describedby="inventory-candidate-status">
+                    <label>Risk level<select id="inventory-risk-level"><option value="all">All</option><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></label>
+                    <label>Result limit<input id="inventory-top-n" type="number" min="1" max="100" value="10" required></label>
+                    <button id="inventory-refresh-candidates" type="submit">Refresh candidates</button>
+                  </form>
+                  <p id="inventory-candidate-status" class="inventory-inline-status" role="status" aria-live="polite">Loading current candidates…</p>
+                  <div id="inventory-candidates" class="scroll-table"></div>
+                </div>
               </div>
               <div id="inventory-note" class="module-note"></div>
+              <section class="inventory-strategy-section" aria-labelledby="inventory-strategy-title">
+                <div class="inventory-section-heading"><div><p class="module-kicker">WHAT-IF SIMULATION</p><h3 id="inventory-strategy-title">Replenishment Strategy Analysis</h3></div><span class="badge">Simulated State</span></div>
+                <p class="section-lead">Compare four deterministic replenishment strategies against a copied snapshot. Results are evidence for human review and do not place purchase orders.</p>
+                <form id="inventory-strategy-form" class="inventory-strategy-controls" aria-describedby="inventory-strategy-status">
+                  <label>Horizon days<input id="inventory-horizon-days" type="number" min="1" max="365" value="30" required></label>
+                  <label>Effective replenishment day<input id="inventory-effective-day" type="number" min="0" step="0.1" value="3" required></label>
+                  <label>Random seed<input id="inventory-random-seed" type="number" step="1" value="42" required></label>
+                  <button id="inventory-compare-strategies" type="submit">Compare strategies</button>
+                </form>
+                <p id="inventory-strategy-status" class="inventory-inline-status" role="status" aria-live="polite">Choose parameters, then compare strategies.</p>
+                <div id="inventory-strategy-results" hidden>
+                  <div id="inventory-recommendation"></div>
+                  <div class="module-section inventory-comparison-block"><h3>Four-strategy comparison</h3><div id="inventory-strategy-table" class="scroll-table"></div></div>
+                  <div class="module-grid two-column">
+                    <div class="module-section"><h3>Demand shortages</h3><div id="inventory-shortages"></div></div>
+                    <div class="module-section"><h3>Decision boundary</h3><p id="inventory-decision-boundary" class="inventory-boundary"></p></div>
+                  </div>
+                  <details class="inventory-evidence"><summary>Assumptions, limitations and simulation evidence</summary><div id="inventory-evidence-content"></div></details>
+                </div>
+              </section>
             </section>
           </section>
 

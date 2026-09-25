@@ -118,3 +118,64 @@ test("external evidence links are safe and visibly distinct", async () => {
   assert.equal(link.rel, "noopener noreferrer");
   assert.equal(trace.children.length, 3); // summary, safe source, raw audit JSON
 });
+
+test("inventory candidate filters call the structured endpoint and render Actual State evidence", async () => {
+  const requests = [];
+  const app = harness(async (url) => {
+    requests.push(url);
+    return { ok: true, json: async () => ({
+      tool_name: "list_inventory_reorder_candidates", status: "ok", state_type: "actual",
+      data: { snapshot_id: "snapshot-123", candidate_count: 1, total_recommended_quantity: "8",
+        candidates: [{ sku: "SKU-1", name: "Demo", current_stock: "2", reorder_point: "4",
+          target_stock: "10", recommended_quantity: "8", risk_level: "critical" }] },
+    }) };
+  });
+  app.get("inventory-risk-level").value = "critical";
+  app.get("inventory-top-n").value = "5";
+  await vm.runInContext("loadInventoryCandidates({preventDefault() {}})", app.sandbox);
+  assert.equal(requests[0], "/api/v1/modules/inventory/reorder-candidates?risk_level=critical&top_n=5");
+  assert.match(app.get("inventory-candidate-source").textContent, /Actual snapshot/);
+  assert.match(app.get("inventory-candidate-status").textContent, /1 matching candidates/);
+  assert.equal(app.get("inventory-refresh-candidates").disabled, false);
+});
+
+test("inventory strategy comparison disables duplicate submission and exposes the review boundary", async () => {
+  let release;
+  let requestCount = 0;
+  const response = new Promise((resolve) => { release = resolve; });
+  const recommendation = { recommended_strategy: "critical_only", selection_method: "ordered_fallback",
+    replenishment_quantity: "10", backlog_reduction: 2, fulfilment_improvement: "0.1",
+    gross_profit_improvement: "15", cash_improvement: "-5", actual_state_unchanged: true,
+    assumptions: ["Assumption"], limitations: ["Limitation"], baseline_run_id: "base-run",
+    recommended_run_id: "recommended-run" };
+  const metrics = { ending_backlog: 1, fulfilment_rate: "0.9", stockout_count: 0,
+    ending_inventory_quantity: "20", ending_inventory_value: "100", gross_profit: "50",
+    ending_cash: "500", minimum_cash: "450", average_waiting_hours: "1", revenue: "80",
+    cost_of_goods_sold: "30", accounts_receivable: "5", accounts_payable: "3",
+    resource_utilization: {} };
+  const runs = ["baseline", "critical_only", "demand_aligned", "full"].map((strategy, index) => ({
+    strategy, simulation_run_id: `run-${index}`, result_hash: `hash-${index}`, event_count: index,
+    replenishment_quantity: String(index * 10), metrics,
+  }));
+  const app = harness(async (url) => {
+    assert.equal(url, "/api/v1/modules/inventory/strategy-comparison");
+    requestCount += 1;
+    await response;
+    return { ok: true, json: async () => ({ tool_name: "compare_inventory_replenishment_strategies",
+      status: "ok", data: { snapshot_id: "snapshot", snapshot_hash: "hash", recommendation,
+        strategy_runs: runs, demand_shortages: {} } }) };
+  });
+  app.get("inventory-horizon-days").value = "30";
+  app.get("inventory-effective-day").value = "3";
+  app.get("inventory-random-seed").value = "42";
+  const first = vm.runInContext("runInventoryStrategyComparison({preventDefault() {}})", app.sandbox);
+  const second = vm.runInContext("runInventoryStrategyComparison({preventDefault() {}})", app.sandbox);
+  assert.equal(requestCount, 1);
+  assert.equal(app.get("inventory-compare-strategies").disabled, true);
+  release();
+  await Promise.all([first, second]);
+  assert.equal(app.get("inventory-compare-strategies").disabled, false);
+  assert.equal(app.get("inventory-strategy-results").hidden, false);
+  assert.match(app.get("inventory-decision-boundary").textContent, /actual inventory was not changed/i);
+  assert.match(app.get("inventory-strategy-status").textContent, /completed/i);
+});
