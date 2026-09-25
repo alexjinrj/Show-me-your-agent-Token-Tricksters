@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>HomeNest Business Coordinator</title>
-    <link rel="stylesheet" href="/styles.css?v=sales-analysis-20260925" />
+    <link rel="stylesheet" href="/styles.css?v=sales-module-20260925" />
   </head>
   <body>
     <div class="app-shell">
@@ -91,6 +91,28 @@
                 <div class="module-section"><h3>Top SKUs by order value</h3><div id="sales-skus" class="scroll-table"></div></div>
               </div>
               <div class="module-section"><h3>Backlog</h3><div id="sales-backlog" class="scroll-table"></div></div>
+              <details id="sales-analysis-panel" class="sales-analysis-panel">
+                <summary>Backlog staffing scenario</summary>
+                <form id="sales-analysis-form" class="sales-analysis-form">
+                  <label>Additional workers<input id="sales-analysis-workers" type="number" min="1" max="20" value="2" required></label>
+                  <label>Horizon days<input id="sales-analysis-horizon" type="number" min="1" max="365" value="7" required></label>
+                  <label>Random seed<input id="sales-analysis-seed" type="number" value="42" required></label>
+                  <label>Primary metric<select id="sales-analysis-primary"><option value="average_waiting_hours">Average waiting hours</option><option value="ending_backlog">Ending backlog</option><option value="fulfilment_rate">Fulfilment rate</option><option value="stockout_count">Stockout count</option></select></label>
+                  <fieldset>
+                    <legend>Guardrails</legend>
+                    <label><input id="sales-guardrail-ending-backlog" type="checkbox" value="ending_backlog" checked> Ending backlog</label>
+                    <label><input id="sales-guardrail-fulfilment-rate" type="checkbox" value="fulfilment_rate" checked> Fulfilment rate</label>
+                    <label><input id="sales-guardrail-stockout-count" type="checkbox" value="stockout_count" checked> Stockout count</label>
+                    <label><input id="sales-guardrail-average-waiting" type="checkbox" value="average_waiting_hours"> Average waiting hours</label>
+                  </fieldset>
+                  <div class="sales-analysis-actions">
+                    <button id="run-sales-analysis" type="submit">Run analysis</button>
+                    <button id="ask-sales-agent" type="button" class="secondary-button">Ask AI Coordinator</button>
+                  </div>
+                </form>
+                <p id="sales-analysis-status" class="sales-analysis-status" role="status" aria-live="polite">Compare a matched baseline and staffing scenario.</p>
+                <div id="sales-analysis-result" class="sales-analysis-result" hidden></div>
+              </details>
               <details class="module-note-details"><summary>Data notes</summary><div id="sales-note" class="module-note"></div></details>
             </section>
           </section>
@@ -265,28 +287,6 @@
               </header>
 
               <div class="assistant-conversation">
-                <details id="sales-analysis-panel" class="sales-analysis-panel">
-                  <summary>Sales backlog scenario</summary>
-                  <form id="sales-analysis-form" class="sales-analysis-form">
-                    <label>Additional workers<input id="sales-analysis-workers" type="number" min="1" max="20" value="2" required></label>
-                    <label>Horizon days<input id="sales-analysis-horizon" type="number" min="1" max="365" value="7" required></label>
-                    <label>Random seed<input id="sales-analysis-seed" type="number" value="42" required></label>
-                    <label>Primary metric<select id="sales-analysis-primary"><option value="average_waiting_hours">Average waiting hours</option><option value="ending_backlog">Ending backlog</option><option value="fulfilment_rate">Fulfilment rate</option><option value="stockout_count">Stockout count</option></select></label>
-                    <fieldset>
-                      <legend>Guardrails</legend>
-                      <label><input id="sales-guardrail-ending-backlog" type="checkbox" value="ending_backlog" checked> Ending backlog</label>
-                      <label><input id="sales-guardrail-fulfilment-rate" type="checkbox" value="fulfilment_rate" checked> Fulfilment rate</label>
-                      <label><input id="sales-guardrail-stockout-count" type="checkbox" value="stockout_count" checked> Stockout count</label>
-                      <label><input id="sales-guardrail-average-waiting" type="checkbox" value="average_waiting_hours"> Average waiting hours</label>
-                    </fieldset>
-                    <div class="sales-analysis-actions">
-                      <button id="run-sales-analysis" type="submit">Run analysis</button>
-                      <button id="ask-sales-agent" type="button" class="secondary-button">Ask Agent</button>
-                    </div>
-                  </form>
-                  <p id="sales-analysis-status" class="sales-analysis-status" role="status" aria-live="polite">Choose parameters or ask the Agent.</p>
-                  <div id="sales-analysis-result" class="sales-analysis-result" hidden></div>
-                </details>
                 <div id="assistant-welcome" class="assistant-welcome">
                   <h3>How can I help?</h3>
                   <div class="assistant-starters" aria-label="Suggested questions">
@@ -310,6 +310,6 @@
         </main>
       </div>
     </div>
-    <script src="/app.js?v=sales-analysis-20260925"></script>
+    <script src="/app.js?v=sales-module-20260925"></script>
   </body>
 </html>

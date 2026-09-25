@@ -1163,6 +1163,7 @@ async function askSalesAgent() {
     `primary metric ${metric}, guardrails ${guardrails}. Separate facts, hypothesis, intervention and ` +
     `counterfactual results; include audit IDs; do not claim the workers were actually added.`
   );
+  showPage("assistant");
   await sendChat({ preventDefault() {} });
 }
 

@@ -142,12 +142,12 @@ Operations, Customer Relationships, AI Coordinator**.
 - CRM: select a derived order-service case → inspect customer rating, order,
   inventory and available options → submit a proposal → approve or reject it.
   Decisions are persisted, but do not send messages, issue refunds or ship goods.
+- Sales: expand **Backlog staffing scenario** to compare a matched baseline and
+  staffing intervention directly. With OpenClaw enabled, **Ask AI Coordinator**
+  runs the same audited tool through the conversational workflow.
 - AI Coordinator: without Gateway configuration it explicitly reports
   **not configured / disabled**. Business pages, deterministic simulations and
-  manual CRM review still work. Expand **Sales backlog scenario** to compare a
-  matched baseline and staffing intervention directly; with OpenClaw enabled,
-  **Ask Agent** runs the same audited tool through the conversational workflow.
-  See the OpenClaw section below to enable real AI.
+  manual CRM review still work. See the OpenClaw section below to enable real AI.
 
 All CRM customer/order/SKU references now come from the same AdventureWorks snapshot.
 Service cases are **derived order exceptions**, not real customer complaints.
