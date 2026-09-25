@@ -2,16 +2,12 @@
 
 ## Objective
 
-The AI Coordinator page now uses a focused, single-column conversation layout inspired by modern chat assistants. The redesign reduces explanatory clutter while preserving the information needed to judge an Agent response.
+The AI Coordinator page now uses a focused, single-column conversation layout inspired by modern chat assistants. The page-specific banner and repeated explanatory copy are hidden so the workspace starts directly with the conversation.
 
 ## Information retained
 
 - Runtime availability status.
-- Actual State evidence boundary.
-- Deterministic tool boundary.
-- Separation of simulation from Actual State.
-- Human-review requirement.
-- Optional public-event search limitation.
+- Actual State, deterministic-tool, simulation and human-review boundaries in a compact About disclosure.
 - Conversation history and response status.
 - Tool-call count, Agent run ID and raw evidence.
 - Safe external evidence links.
@@ -26,6 +22,7 @@ The AI Coordinator page now uses a focused, single-column conversation layout in
 - The empty welcome state disappears after the first message.
 - The composer remains visually anchored below the conversation.
 - The layout collapses to one column on small screens.
+- Final Agent answers lead with the conclusion, default to no more than four short bullets and roughly 120 words, and keep raw evidence in the disclosure.
 
 ## Safety boundary
 

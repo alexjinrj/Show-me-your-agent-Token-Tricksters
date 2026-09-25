@@ -7,6 +7,7 @@ const test = require("node:test");
 function harness(fetch) {
   function node() {
     return { children: [], value: "", disabled: false,
+      dataset: {},
       listeners: {}, addEventListener(event, callback) { this.listeners[event] = callback; },
       appendChild(child) { this.children.push(child); },
       classList: { toggle() {}, remove() {} } };
@@ -48,7 +49,8 @@ test("assistant sends stable conversation context and safely renders evidence", 
   assert.equal(bodies[0].session_id, null);
   assert.equal(app.get("assistant-welcome").hidden, true);
   const children = app.get("chat-log").children;
-  assert.equal(children[1].textContent, "<script>not executable</script> [completed]");
+  assert.equal(children[1].textContent, "<script>not executable</script>");
+  assert.equal(children[1].dataset.status, "completed");
   assert.match(children[2].children[1].textContent, /evidence-1/);
 });
 

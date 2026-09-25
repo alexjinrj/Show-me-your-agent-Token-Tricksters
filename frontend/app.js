@@ -928,6 +928,7 @@ function appendChat(role, text) {
   msg.setAttribute?.("aria-label", role === "user" ? "You" : "Business Coordinator");
   log.appendChild(msg);
   document.querySelector(".assistant-conversation")?.scrollTo?.({ top: log.scrollHeight, behavior: "smooth" });
+  return msg;
 }
 
 function fillAssistantPrompt(prompt) {
@@ -963,11 +964,11 @@ async function sendChat(event) {
         run_id: state.lastRun ? state.lastRun.simulation_run_id : null,
       }),
     });
-    appendChat("assistant", `${reply.reply} [${reply.status}]`);
+    const responseMessage = appendChat("assistant", reply.reply);
+    responseMessage.dataset.status = reply.status;
     state.conversationId = reply.conversation_id;
     const trace = el("details", "chat-evidence");
-    trace.appendChild(el("summary", null,
-      `Evidence: ${reply.evidence.length} tool calls · Run ${reply.agent_run_id}`));
+    trace.appendChild(el("summary", null, `Evidence · ${reply.evidence.length} tool calls`));
     for (const item of reply.evidence) {
       if (item.tool_name !== "search_public_events") continue;
       if (item.status === "error") {
@@ -987,7 +988,10 @@ async function sendChat(event) {
         trace.appendChild(row);
       }
     }
-    trace.appendChild(el("pre", null, JSON.stringify(reply.evidence, null, 2)));
+    trace.appendChild(el("pre", null, JSON.stringify({
+      agent_run_id: reply.agent_run_id,
+      tool_calls: reply.evidence,
+    }, null, 2)));
     document.getElementById("chat-log").appendChild(trace);
     if (reply.status === "completed") {
       reply.evidence.filter((item) =>
@@ -1297,6 +1301,7 @@ function showFunctionPage(pageId, updateHash = true) {
   document.getElementById("page-eyebrow").textContent = config.eyebrow;
   document.getElementById("page-title").textContent = config.title;
   document.getElementById("page-description").textContent = config.description;
+  document.querySelector(".app-main")?.classList.toggle("assistant-mode", resolvedId === "assistant");
   document.title = `${config.title} · HomeNest`;
   if (updateHash && window.location.hash !== `#${resolvedId}`) {
     window.history.replaceState(null, "", `#${resolvedId}`);

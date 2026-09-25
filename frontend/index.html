@@ -254,33 +254,30 @@
               <header class="assistant-toolbar">
                 <div class="assistant-identity">
                   <span class="assistant-mark" aria-hidden="true">AI</span>
-                  <div><h2>Business Coordinator</h2><p>Grounded analysis across your business data</p></div>
+                  <h2>AI Coordinator</h2>
                 </div>
-                <span class="assistant-status"><i aria-hidden="true"></i><span id="assistant-badge">Checking runtime…</span></span>
-              </header>
-
-              <div class="assistant-scope" aria-label="Agent safeguards">
-                <span>Actual State evidence</span><span>Deterministic tools</span><span>Simulation separated</span><span>Human review</span>
-                <details>
-                  <summary>How it works</summary>
+                <div class="assistant-toolbar-actions">
+                  <details class="assistant-about">
+                    <summary>About</summary>
                   <div class="assistant-boundary-copy">
-                    <p>The LLM selects relevant tools and explains their results. Business numbers, scoring, inventory rules and simulations come from deterministic services.</p>
-                    <p>Recommendations are drafts for review. The Agent does not send messages, issue refunds, place purchase orders or modify Actual State.</p>
-                    <p>Public-event search is optional and only works when a search provider is configured.</p>
+                      <b>Evidence first</b>
+                      <p>Numbers come from business tools. Simulations stay separate from Actual State.</p>
+                      <p>Recommendations require human review. External search is optional.</p>
                   </div>
                 </details>
-              </div>
+                  <span class="assistant-status"><i aria-hidden="true"></i><span id="assistant-badge">Checking…</span></span>
+                </div>
+              </header>
 
               <div class="assistant-conversation">
                 <div id="assistant-welcome" class="assistant-welcome">
                   <span class="assistant-welcome-mark" aria-hidden="true">AI</span>
-                  <h3>What would you like to investigate?</h3>
-                  <p>Ask a question in plain English. The Coordinator will choose the relevant data and tools, then show its evidence.</p>
+                  <h3>Ask your business</h3>
                   <div class="assistant-starters" aria-label="Suggested questions">
-                    <button type="button" data-assistant-prompt="Which customers have the highest order value and service risk?">Customer value and risk</button>
+                    <button type="button" data-assistant-prompt="Which customers have the highest order value and service risk?">Customer risk</button>
                     <button type="button" data-assistant-prompt="Which SKUs have the most pending demand and need replenishment review?">Inventory pressure</button>
-                    <button type="button" data-assistant-prompt="Why did orders rise this month? Separate internal evidence from external hypotheses.">Explain an order change</button>
-                    <button type="button" data-assistant-prompt="Compare the latest simulation with the Actual State and explain the main trade-offs.">Review a simulation</button>
+                    <button type="button" data-assistant-prompt="Why did orders rise this month? Separate internal evidence from external hypotheses.">Explain a change</button>
+                    <button type="button" data-assistant-prompt="Compare the latest simulation with the Actual State and explain the main trade-offs.">Compare scenarios</button>
                   </div>
                 </div>
                 <div id="chat-log" class="chat-log" aria-live="polite" aria-label="Conversation"></div>
@@ -291,7 +288,6 @@
                   <textarea id="chat-input" rows="1" maxlength="8000" aria-label="Message the Business Coordinator" placeholder="Ask about customers, orders, inventory or a simulation…"></textarea>
                   <button type="submit" aria-label="Send message"><span>Send</span><b aria-hidden="true">↑</b></button>
                 </form>
-                <p>Responses cite tool evidence. Verify recommendations before taking business action.</p>
               </div>
             </section>
           </section>
