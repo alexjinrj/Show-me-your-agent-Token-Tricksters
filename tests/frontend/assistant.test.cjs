@@ -46,9 +46,18 @@ test("assistant sends stable conversation context and safely renders evidence", 
   assert.equal(bodies[0].conversation_id, null);
   assert.equal(bodies[1].conversation_id, "conversation-1");
   assert.equal(bodies[0].session_id, null);
+  assert.equal(app.get("assistant-welcome").hidden, true);
   const children = app.get("chat-log").children;
   assert.equal(children[1].textContent, "<script>not executable</script> [completed]");
   assert.match(children[2].children[1].textContent, /evidence-1/);
+});
+
+test("assistant starter fills the composer without submitting a request", () => {
+  let requestCount = 0;
+  const app = harness(async () => { requestCount += 1; });
+  vm.runInContext("fillAssistantPrompt('Which inventory items need review?')", app.sandbox);
+  assert.equal(app.get("chat-input").value, "Which inventory items need review?");
+  assert.equal(requestCount, 0);
 });
 
 test("assistant failure unlocks chat and exposes a visible error", async () => {

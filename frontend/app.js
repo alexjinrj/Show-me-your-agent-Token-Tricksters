@@ -922,10 +922,24 @@ async function loadBusinessModules() {
 // ---- Assistant chat (Task 10) -----------------------------------------------
 
 function appendChat(role, text) {
+  document.getElementById("assistant-welcome").hidden = true;
   const log = document.getElementById("chat-log");
   const msg = el("div", `chat-message ${role}`, text);
+  msg.setAttribute?.("aria-label", role === "user" ? "You" : "Business Coordinator");
   log.appendChild(msg);
-  log.scrollTop = log.scrollHeight;
+  document.querySelector(".assistant-conversation")?.scrollTo?.({ top: log.scrollHeight, behavior: "smooth" });
+}
+
+function fillAssistantPrompt(prompt) {
+  const input = document.getElementById("chat-input");
+  input.value = prompt;
+  input.focus?.();
+}
+
+function handleAssistantComposerKeydown(event) {
+  if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+  event.preventDefault();
+  document.getElementById("chat-form").requestSubmit?.();
 }
 
 async function sendChat(event) {
@@ -938,6 +952,7 @@ async function sendChat(event) {
   state.chatBusy = true;
   const button = document.querySelector("#chat-form button");
   button.disabled = true;
+  button.setAttribute?.("aria-label", "Coordinator is working");
   try {
     const reply = await api("/api/assistant", {
       method: "POST",
@@ -993,6 +1008,7 @@ async function sendChat(event) {
   } finally {
     state.chatBusy = false;
     button.disabled = false;
+    button.setAttribute?.("aria-label", "Send message");
   }
 }
 
@@ -1338,6 +1354,10 @@ function init() {
     .addEventListener("input", (e) => applyPlaybackFrame(Number(e.target.value)));
   document.getElementById("chat-form").addEventListener("submit", (event) =>
     runAction("OpenClaw is analysing…", () => sendChat(event))
+  );
+  document.getElementById("chat-input").addEventListener("keydown", handleAssistantComposerKeydown);
+  document.querySelectorAll("[data-assistant-prompt]").forEach((button) =>
+    button.addEventListener("click", () => fillAssistantPrompt(button.dataset.assistantPrompt))
   );
   document.getElementById("crm-proposal-form").addEventListener("submit", (event) =>
     runAction("Submitting a review-only proposal…", () => submitCrmProposal(event))
