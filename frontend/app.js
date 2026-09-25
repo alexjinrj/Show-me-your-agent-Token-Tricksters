@@ -15,6 +15,10 @@ const state = {
   crmComplaintId: null,
   crmComplaint: null,
   crmSource: null,
+  inventoryCandidateRequest: 0,
+  inventoryStrategyRequest: 0,
+  inventoryStrategyBusy: false,
+  inventoryStrategyHasResult: false,
   playback: { timer: null, index: 0, trace: [], hours: [] },
 };
 
@@ -609,6 +613,244 @@ function renderInventory(data) {
   document.getElementById("inventory-note").textContent = data.measurement_note;
 }
 
+function inventoryToolData(envelope, expectedTool) {
+  if (!envelope || envelope.tool_name !== expectedTool) {
+    throw new Error("Unsupported inventory tool response contract");
+  }
+  if (envelope.status !== "ok") {
+    throw new Error(envelope.error_message || "Inventory tool execution failed");
+  }
+  return envelope.data;
+}
+
+function setInventoryStatus(id, message, tone = "") {
+  const status = document.getElementById(id);
+  status.textContent = message;
+  status.className = `inventory-inline-status ${tone}`.trim();
+}
+
+function renderInventoryCandidates(data) {
+  document.getElementById("inventory-candidate-source").textContent =
+    `Actual snapshot · ${String(data.snapshot_id).slice(0, 8)}`;
+  setInventoryStatus(
+    "inventory-candidate-status",
+    `${formatNumber(data.candidate_count)} matching candidates · ${formatNumber(data.total_recommended_quantity)} total recommended units`,
+    data.candidate_count ? "success" : "empty"
+  );
+  renderTable(
+    "inventory-candidates",
+    ["SKU", "Item", "Stock", "Reorder point", "Target stock", "Recommended", "Risk"],
+    (data.candidates || []).map((row) => [
+      row.sku,
+      row.name,
+      formatNumber(row.current_stock),
+      formatNumber(row.reorder_point),
+      formatNumber(row.target_stock),
+      formatNumber(row.recommended_quantity),
+      humanize(row.risk_level),
+    ])
+  );
+  if (!data.candidates?.length) {
+    document.getElementById("inventory-candidates").appendChild(
+      el("p", "inventory-empty-state", "No reorder candidate matched this filter.")
+    );
+  }
+}
+
+async function loadInventoryCandidates(event) {
+  event?.preventDefault?.();
+  const requestId = ++state.inventoryCandidateRequest;
+  const button = document.getElementById("inventory-refresh-candidates");
+  const riskLevel = document.getElementById("inventory-risk-level").value;
+  const topN = Number(document.getElementById("inventory-top-n").value);
+  button.disabled = true;
+  setInventoryStatus("inventory-candidate-status", "Loading candidates from the Actual State…", "loading");
+  try {
+    const envelope = await api(
+      `/api/v1/modules/inventory/reorder-candidates?risk_level=${encodeURIComponent(riskLevel)}&top_n=${encodeURIComponent(topN)}`
+    );
+    if (requestId !== state.inventoryCandidateRequest) return;
+    renderInventoryCandidates(inventoryToolData(envelope, "list_inventory_reorder_candidates"));
+  } catch (error) {
+    if (requestId !== state.inventoryCandidateRequest) return;
+    setInventoryStatus("inventory-candidate-status", `Could not load candidates: ${error.message}`, "error");
+  } finally {
+    if (requestId === state.inventoryCandidateRequest) button.disabled = false;
+  }
+}
+
+function renderInventoryRecommendation(recommendation) {
+  const container = document.getElementById("inventory-recommendation");
+  container.innerHTML = "";
+  const card = el("section", "inventory-recommendation-card");
+  const heading = el("div", "inventory-section-heading");
+  const copy = el("div");
+  copy.appendChild(el("p", "module-kicker", "RECOMMENDED FOR HUMAN REVIEW"));
+  copy.appendChild(el("h3", null, humanize(recommendation.recommended_strategy)));
+  heading.appendChild(copy);
+  heading.appendChild(el("span", "badge", humanize(recommendation.selection_method)));
+  card.appendChild(heading);
+  const metrics = el("div", "inventory-recommendation-metrics");
+  [
+    ["Replenishment qty", formatNumber(recommendation.replenishment_quantity)],
+    ["Backlog reduction", formatNumber(recommendation.backlog_reduction)],
+    ["Fulfilment improvement", formatPercent(recommendation.fulfilment_improvement)],
+    ["Gross profit improvement", formatSgd(recommendation.gross_profit_improvement)],
+    ["Cash improvement", formatSgd(recommendation.cash_improvement)],
+  ].forEach(([label, value]) => {
+    const metric = el("div", "inventory-recommendation-metric");
+    metric.appendChild(el("strong", null, value));
+    metric.appendChild(el("span", null, label));
+    metrics.appendChild(metric);
+  });
+  card.appendChild(metrics);
+  container.appendChild(card);
+}
+
+function appendMetricDetails(cell, run) {
+  const details = el("details", "inventory-run-details");
+  details.appendChild(el("summary", null, "More metrics and evidence"));
+  const m = run.metrics;
+  const lines = [
+    `Average waiting: ${formatNumber(m.average_waiting_hours, 2)} hours`,
+    `Revenue: ${formatSgd(m.revenue)}`,
+    `Cost of goods sold: ${formatSgd(m.cost_of_goods_sold)}`,
+    `Accounts receivable: ${formatSgd(m.accounts_receivable)}`,
+    `Accounts payable: ${formatSgd(m.accounts_payable)}`,
+    `Resource utilization: ${Object.entries(m.resource_utilization || {}).map(([key, value]) => `${humanize(key)} ${formatPercent(value)}`).join(", ") || "Not available"}`,
+    `Result hash: ${run.result_hash}`,
+  ];
+  details.appendChild(el("pre", "inventory-evidence-code", lines.join("\n")));
+  cell.appendChild(details);
+}
+
+function renderInventoryStrategyRuns(data) {
+  const container = document.getElementById("inventory-strategy-table");
+  container.innerHTML = "";
+  const table = el("table", "inventory-strategy-table");
+  const head = el("thead");
+  const headerRow = el("tr");
+  ["Strategy", "Events", "Replenishment qty", "Ending backlog", "Fulfilment", "Stockouts", "Ending inventory", "Inventory value", "Gross profit", "Ending cash", "Minimum cash", "Run ID"].forEach((label) => headerRow.appendChild(el("th", null, label)));
+  head.appendChild(headerRow);
+  table.appendChild(head);
+  const body = el("tbody");
+  (data.strategy_runs || []).forEach((run) => {
+    const row = el("tr", run.strategy === data.recommendation.recommended_strategy ? "recommended-row" : "");
+    const strategyCell = el("td");
+    strategyCell.appendChild(el("strong", null, humanize(run.strategy)));
+    if (run.strategy === data.recommendation.recommended_strategy) strategyCell.appendChild(el("span", "recommended-label", "Recommended"));
+    appendMetricDetails(strategyCell, run);
+    row.appendChild(strategyCell);
+    const m = run.metrics;
+    [
+      run.event_count,
+      formatNumber(run.replenishment_quantity),
+      formatNumber(m.ending_backlog),
+      formatPercent(m.fulfilment_rate),
+      formatNumber(m.stockout_count),
+      formatNumber(m.ending_inventory_quantity),
+      formatSgd(m.ending_inventory_value),
+      formatSgd(m.gross_profit),
+      formatSgd(m.ending_cash),
+      formatSgd(m.minimum_cash),
+      run.simulation_run_id,
+    ].forEach((value, index) => row.appendChild(el("td", index === 10 ? "mono run-id-cell" : "mono", String(value))));
+    body.appendChild(row);
+  });
+  table.appendChild(body);
+  container.appendChild(table);
+}
+
+function renderInventoryShortages(shortages) {
+  const rows = Object.entries(shortages || {});
+  const container = document.getElementById("inventory-shortages");
+  if (!rows.length) {
+    container.innerHTML = "";
+    container.appendChild(el("p", "inventory-empty-state", "No demand shortage was found for the current snapshot."));
+    return;
+  }
+  renderTable("inventory-shortages", ["SKU", "Shortage quantity"], rows.map(([sku, value]) => [sku, formatNumber(value)]));
+}
+
+function renderInventoryEvidence(data) {
+  const recommendation = data.recommendation;
+  const container = document.getElementById("inventory-evidence-content");
+  container.innerHTML = "";
+  const columns = el("div", "inventory-evidence-grid");
+  const assumptions = el("div");
+  assumptions.appendChild(el("h4", null, "Assumptions"));
+  const assumptionList = el("ul");
+  recommendation.assumptions.forEach((item) => assumptionList.appendChild(el("li", null, item)));
+  assumptions.appendChild(assumptionList);
+  const limitations = el("div");
+  limitations.appendChild(el("h4", null, "Limitations"));
+  const limitationList = el("ul");
+  recommendation.limitations.forEach((item) => limitationList.appendChild(el("li", null, item)));
+  limitations.appendChild(limitationList);
+  columns.appendChild(assumptions);
+  columns.appendChild(limitations);
+  container.appendChild(columns);
+  const evidenceLines = [
+    `Snapshot ID: ${data.snapshot_id}`,
+    `Snapshot hash: ${data.snapshot_hash}`,
+    `Baseline run ID: ${recommendation.baseline_run_id}`,
+    `Recommended run ID: ${recommendation.recommended_run_id}`,
+    ...(data.strategy_runs || []).map((run) => `${humanize(run.strategy)}: run ${run.simulation_run_id} · hash ${run.result_hash}`),
+  ];
+  container.appendChild(el("pre", "inventory-evidence-code", evidenceLines.join("\n")));
+}
+
+function renderInventoryStrategyResult(data) {
+  renderInventoryRecommendation(data.recommendation);
+  renderInventoryStrategyRuns(data);
+  renderInventoryShortages(data.demand_shortages);
+  document.getElementById("inventory-decision-boundary").textContent = data.recommendation.actual_state_unchanged
+    ? "Simulation only — actual inventory was not changed. No purchase order was created. A human must review any action."
+    : "Actual-state protection could not be confirmed. Do not act on this result.";
+  renderInventoryEvidence(data);
+  document.getElementById("inventory-strategy-results").hidden = false;
+  state.inventoryStrategyHasResult = true;
+}
+
+function markInventoryStrategyStale() {
+  if (!state.inventoryStrategyHasResult || state.inventoryStrategyBusy) return;
+  setInventoryStatus("inventory-strategy-status", "Parameters changed — the displayed result is stale. Run the comparison again.", "stale");
+}
+
+async function runInventoryStrategyComparison(event) {
+  event.preventDefault();
+  if (state.inventoryStrategyBusy) return;
+  state.inventoryStrategyBusy = true;
+  const requestId = ++state.inventoryStrategyRequest;
+  const button = document.getElementById("inventory-compare-strategies");
+  button.disabled = true;
+  button.textContent = "Comparing…";
+  setInventoryStatus("inventory-strategy-status", "Running four isolated simulation strategies…", "loading");
+  try {
+    const envelope = await api("/api/v1/modules/inventory/strategy-comparison", {
+      method: "POST",
+      body: JSON.stringify({
+        horizon_days: Number(document.getElementById("inventory-horizon-days").value),
+        effective_day: document.getElementById("inventory-effective-day").value,
+        random_seed: Number(document.getElementById("inventory-random-seed").value),
+      }),
+    });
+    if (requestId !== state.inventoryStrategyRequest) return;
+    const data = inventoryToolData(envelope, "compare_inventory_replenishment_strategies");
+    renderInventoryStrategyResult(data);
+    setInventoryStatus("inventory-strategy-status", "Comparison completed. Review the recommendation and evidence below.", "success");
+  } catch (error) {
+    if (requestId !== state.inventoryStrategyRequest) return;
+    setInventoryStatus("inventory-strategy-status", `Comparison failed: ${error.message}`, "error");
+  } finally {
+    if (requestId === state.inventoryStrategyRequest) {
+      state.inventoryStrategyBusy = false;
+      button.disabled = false;
+      button.textContent = "Compare strategies";
+    }
+  }
+}
+
 function renderAccounting(data) {
   const s = data.summary;
   renderModuleStats("accounting-kpis", [
@@ -674,15 +916,31 @@ async function loadBusinessModules() {
   renderInventory(moduleData(inventory));
   renderAccounting(moduleData(accounting));
   renderOperations(moduleData(operations));
+  await loadInventoryCandidates();
 }
 
 // ---- Assistant chat (Task 10) -----------------------------------------------
 
 function appendChat(role, text) {
+  document.getElementById("assistant-welcome").hidden = true;
   const log = document.getElementById("chat-log");
   const msg = el("div", `chat-message ${role}`, text);
+  msg.setAttribute?.("aria-label", role === "user" ? "You" : "Business Coordinator");
   log.appendChild(msg);
-  log.scrollTop = log.scrollHeight;
+  document.querySelector(".assistant-conversation")?.scrollTo?.({ top: log.scrollHeight, behavior: "smooth" });
+  return msg;
+}
+
+function fillAssistantPrompt(prompt) {
+  const input = document.getElementById("chat-input");
+  input.value = prompt;
+  input.focus?.();
+}
+
+function handleAssistantComposerKeydown(event) {
+  if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+  event.preventDefault();
+  document.getElementById("chat-form").requestSubmit?.();
 }
 
 async function sendChat(event) {
@@ -695,6 +953,7 @@ async function sendChat(event) {
   state.chatBusy = true;
   const button = document.querySelector("#chat-form button");
   button.disabled = true;
+  button.setAttribute?.("aria-label", "Coordinator is working");
   try {
     const reply = await api("/api/assistant", {
       method: "POST",
@@ -705,11 +964,11 @@ async function sendChat(event) {
         run_id: state.lastRun ? state.lastRun.simulation_run_id : null,
       }),
     });
-    appendChat("assistant", `${reply.reply} [${reply.status}]`);
+    const responseMessage = appendChat("assistant", reply.reply);
+    responseMessage.dataset.status = reply.status;
     state.conversationId = reply.conversation_id;
     const trace = el("details", "chat-evidence");
-    trace.appendChild(el("summary", null,
-      `Evidence: ${reply.evidence.length} tool calls · Run ${reply.agent_run_id}`));
+    trace.appendChild(el("summary", null, `Evidence · ${reply.evidence.length} tool calls`));
     for (const item of reply.evidence) {
       if (item.tool_name !== "search_public_events") continue;
       if (item.status === "error") {
@@ -729,7 +988,10 @@ async function sendChat(event) {
         trace.appendChild(row);
       }
     }
-    trace.appendChild(el("pre", null, JSON.stringify(reply.evidence, null, 2)));
+    trace.appendChild(el("pre", null, JSON.stringify({
+      agent_run_id: reply.agent_run_id,
+      tool_calls: reply.evidence,
+    }, null, 2)));
     document.getElementById("chat-log").appendChild(trace);
     if (reply.status === "completed") {
       reply.evidence.filter((item) =>
@@ -750,6 +1012,7 @@ async function sendChat(event) {
   } finally {
     state.chatBusy = false;
     button.disabled = false;
+    button.setAttribute?.("aria-label", "Send message");
   }
 }
 
@@ -987,32 +1250,32 @@ const FUNCTION_PAGES = {
   overview: {
     eyebrow: "BUSINESS PERFORMANCE",
     title: "Executive Overview",
-    description: "See the most important signals across sales, inventory, finance, operations and customer relationships.",
+    description: "Key signals across the business.",
   },
   sales: {
     eyebrow: "ORDER TO CASH",
     title: "Sales",
-    description: "Track order value, fulfilment progress and the backlog investigation queue.",
+    description: "Orders, fulfilment and backlog.",
   },
   inventory: {
     eyebrow: "STOCK CONTROL",
     title: "Inventory",
-    description: "Monitor on-hand stock and review deterministic replenishment signals.",
+    description: "Stock risk and replenishment scenarios.",
   },
   accounting: {
     eyebrow: "FINANCIAL ANCHOR",
     title: "Accounting",
-    description: "Review labelled balances, margin and working-capital indicators.",
+    description: "Balances, margin and working capital.",
   },
   operations: {
     eyebrow: "PROCESS STATE AND SIMULATION",
     title: "Operations",
-    description: "Observe workload, test what-if events and inspect simulation evidence.",
+    description: "Workload and what-if simulation.",
   },
   crm: {
     eyebrow: "CUSTOMER OPERATIONS",
     title: "Customer Relationships",
-    description: "Review RFM customer segments and pending-order exception share, then investigate service cases with human approval.",
+    description: "Customer value, service risk and recovery review.",
   },
   assistant: {
     eyebrow: "AGENT COORDINATION",
@@ -1038,6 +1301,7 @@ function showFunctionPage(pageId, updateHash = true) {
   document.getElementById("page-eyebrow").textContent = config.eyebrow;
   document.getElementById("page-title").textContent = config.title;
   document.getElementById("page-description").textContent = config.description;
+  document.querySelector(".app-main")?.classList.toggle("assistant-mode", resolvedId === "assistant");
   document.title = `${config.title} · HomeNest`;
   if (updateHash && window.location.hash !== `#${resolvedId}`) {
     window.history.replaceState(null, "", `#${resolvedId}`);
@@ -1096,8 +1360,17 @@ function init() {
   document.getElementById("chat-form").addEventListener("submit", (event) =>
     runAction("OpenClaw is analysing…", () => sendChat(event))
   );
+  document.getElementById("chat-input").addEventListener("keydown", handleAssistantComposerKeydown);
+  document.querySelectorAll("[data-assistant-prompt]").forEach((button) =>
+    button.addEventListener("click", () => fillAssistantPrompt(button.dataset.assistantPrompt))
+  );
   document.getElementById("crm-proposal-form").addEventListener("submit", (event) =>
     runAction("Submitting a review-only proposal…", () => submitCrmProposal(event))
+  );
+  document.getElementById("inventory-candidate-form").addEventListener("submit", loadInventoryCandidates);
+  document.getElementById("inventory-strategy-form").addEventListener("submit", runInventoryStrategyComparison);
+  ["inventory-horizon-days", "inventory-effective-day", "inventory-random-seed"].forEach((id) =>
+    document.getElementById(id).addEventListener("input", markInventoryStrategyStale)
   );
 
   renderEventFields();
