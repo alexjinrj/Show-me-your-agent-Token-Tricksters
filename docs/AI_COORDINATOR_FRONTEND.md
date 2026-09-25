@@ -22,7 +22,7 @@ The AI Coordinator page now uses a focused, single-column conversation layout in
 - The empty welcome state disappears after the first message.
 - The composer remains visually anchored below the conversation.
 - The layout collapses to one column on small screens.
-- Final Agent answers lead with the conclusion, default to no more than four short bullets and roughly 120 words, and keep raw evidence in the disclosure.
+- Final Agent answers lead with the conclusion and adapt their depth to the question. They explain complex findings when needed, synthesize key figures and keep raw payloads in the evidence disclosure.
 
 ## Safety boundary
 
