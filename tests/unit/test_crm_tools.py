@@ -53,8 +53,10 @@ def test_crm_tools_use_common_envelope_and_strict_inputs(crm: CRMService) -> Non
             {"complaint_id": "CASE-SO74695", "sql": "select *"},
             agent_case_id="test",
         )
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValueError, match="not found in the request snapshot"):
         tools.call("get_customer_360", {"customer_id": "CUS-001"}, agent_case_id="test")
+    with pytest.raises(ValidationError):
+        tools.call("get_customer_360", {"customer_id": "CUS 001"}, agent_case_id="test")
 
 
 def test_crm_order_inventory_and_money_match_canonical_snapshot(crm: CRMService) -> None:

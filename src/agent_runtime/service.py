@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from threading import Lock
 from time import monotonic
 from typing import Any, Protocol
@@ -119,10 +120,17 @@ interpretation, uncertainty and the useful next action.
 """
 
 
+CASE_REFERENCE = re.compile(r"\bCASE-[A-Za-z0-9][A-Za-z0-9_-]*\b", re.IGNORECASE)
+
+
+def _mentions_crm_case(message: str) -> bool:
+    return CASE_REFERENCE.search(message) is not None
+
+
 def _runtime_catalog_for(message: str, catalog: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Keep a single-case CRM investigation focused on its bounded tool surface."""
     lowered = message.casefold()
-    crm_case = "case-so" in lowered
+    crm_case = _mentions_crm_case(message)
     action_plan = any(
         marker in lowered for marker in ("action plan", "service-recovery", "行动计划", "处理计划")
     )
@@ -154,7 +162,7 @@ def _runtime_catalog_for(message: str, catalog: list[dict[str, Any]]) -> list[di
 
 def _requires_crm_action_plan(message: str) -> bool:
     lowered = message.casefold()
-    return "case-so" in lowered and any(
+    return _mentions_crm_case(message) and any(
         marker in lowered for marker in ("action plan", "service-recovery", "行动计划", "处理计划")
     )
 

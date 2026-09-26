@@ -4,6 +4,9 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+CASE_ID_PATTERN = r"^CASE-[A-Za-z0-9][A-Za-z0-9_-]*$"
+CUSTOMER_ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9_-]*$"
+
 
 class CRMToolInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -18,11 +21,11 @@ class ComplaintListInput(CRMToolInput):
 
 
 class CustomerInput(CRMToolInput):
-    customer_id: str = Field(pattern=r"^AW\d{8}$")
+    customer_id: str = Field(min_length=1, max_length=80, pattern=CUSTOMER_ID_PATTERN)
 
 
 class ComplaintInput(CRMToolInput):
-    complaint_id: str = Field(pattern=r"^CASE-SO\d{1,12}$")
+    complaint_id: str = Field(min_length=6, max_length=100, pattern=CASE_ID_PATTERN)
 
 
 class DraftReplyInput(ComplaintInput):

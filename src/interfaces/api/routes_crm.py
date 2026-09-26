@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from interfaces.api.context import DemoContext
+from tools.crm.contracts import CASE_ID_PATTERN
 
 router = APIRouter(prefix="/api/v1/crm", tags=["crm"])
 legacy_router = APIRouter(prefix="/api/crm", tags=["crm-compat"])
@@ -17,7 +18,9 @@ class CRMRequest(BaseModel):
 
 
 class ProposalCreate(CRMRequest):
-    complaint_id: str = Field(alias="complaintId", pattern=r"^CASE-SO\d{1,12}$")
+    complaint_id: str = Field(
+        alias="complaintId", min_length=6, max_length=100, pattern=CASE_ID_PATTERN
+    )
     resolution_id: Literal["refund", "reship", "credit", "monitor"] = Field(alias="resolutionId")
     reply_draft: str = Field(default="", alias="replyDraft", max_length=4000)
     internal_draft: str = Field(default="", alias="internalDraft", max_length=4000)
