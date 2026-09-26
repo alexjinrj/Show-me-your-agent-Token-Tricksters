@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>HomeNest Business Coordinator</title>
-    <link rel="stylesheet" href="/styles.css?v=module-copy-20260925" />
+    <link rel="stylesheet" href="/styles.css?v=workspace-20260926" />
   </head>
   <body>
     <div class="app-shell">
@@ -14,28 +14,16 @@
           <div><strong>HomeNest</strong><small>Business Coordinator</small></div>
         </div>
 
-        <p class="nav-label">BUSINESS MODULES</p>
+        <p class="nav-label">WORKSPACE</p>
         <nav class="function-nav">
-          <button type="button" data-page-target="overview" aria-label="Executive Overview" title="Executive Overview" class="active" aria-current="page">
-            <span class="nav-icon">01</span><span><b>Executive Overview</b><small>Cross-module priorities</small></span>
-          </button>
-          <button type="button" data-page-target="sales" aria-label="Sales" title="Sales">
-            <span class="nav-icon">02</span><span><b>Sales</b><small>Orders and backlog</small></span>
-          </button>
-          <button type="button" data-page-target="inventory" aria-label="Inventory" title="Inventory">
-            <span class="nav-icon">03</span><span><b>Inventory</b><small>Stock and replenishment</small></span>
-          </button>
-          <button type="button" data-page-target="accounting" aria-label="Accounting" title="Accounting">
-            <span class="nav-icon">04</span><span><b>Accounting</b><small>Balances and margin</small></span>
+          <button type="button" data-page-target="overview" aria-label="Overview" title="Overview" class="active" aria-current="page">
+            <span class="nav-icon">01</span><span><b>Overview</b><small>Business health and drill-downs</small></span>
           </button>
           <button type="button" data-page-target="operations" aria-label="Operations" title="Operations">
-            <span class="nav-icon">05</span><span><b>Operations</b><small>Processes and simulation</small></span>
+            <span class="nav-icon">02</span><span><b>Operations</b><small>Processes and simulation</small></span>
           </button>
-          <button type="button" data-page-target="crm" aria-label="Customer Relationships" title="Customer Relationships">
-            <span class="nav-icon">06</span><span><b>Customer Relationships</b><small>Ratings and service cases</small></span>
-          </button>
-          <button type="button" data-page-target="assistant" aria-label="AI Coordinator" title="AI Coordinator">
-            <span class="nav-icon">07</span><span><b>AI Coordinator</b><small>Grounded tool calls</small></span>
+          <button type="button" data-page-target="assistant" aria-label="AI Insights" title="AI Insights">
+            <span class="nav-icon">03</span><span><b>AI Insights</b><small>Grounded analysis and evidence</small></span>
           </button>
         </nav>
 
@@ -57,7 +45,10 @@
               <h1 id="page-title">Executive Overview</h1>
               <p id="page-description" class="subtitle">Key signals across the business.</p>
             </div>
-            <span class="runtime-pill">Unified Agent Runtime</span>
+            <div class="header-actions">
+              <button id="open-data-upload" class="secondary-button" type="button">Upload data</button>
+              <span class="runtime-pill">Unified Agent Runtime</span>
+            </div>
           </div>
           <details class="snapshot-details">
             <summary>Actual State snapshot and provenance</summary>
@@ -75,7 +66,25 @@
               </div>
               <p class="section-lead">Review priorities from the shared Actual State.</p>
               <div id="overview-kpis" class="module-stats loading-block">Loading module signals…</div>
-              <h3>Open a business module</h3>
+              <div class="overview-visual-grid" aria-label="Business performance charts">
+                <section class="overview-chart-card">
+                  <div class="chart-heading"><h3>Order pipeline</h3><span>Current snapshot</span></div>
+                  <div id="overview-order-status" class="overview-chart"></div>
+                </section>
+                <section class="overview-chart-card">
+                  <div class="chart-heading"><h3>Inventory risk</h3><span>Rule-based</span></div>
+                  <div id="overview-inventory-risk" class="overview-chart"></div>
+                </section>
+                <section class="overview-chart-card">
+                  <div class="chart-heading"><h3>Financial position</h3><span>SGD</span></div>
+                  <div id="overview-financial-position" class="overview-chart"></div>
+                </section>
+                <section class="overview-chart-card">
+                  <div class="chart-heading"><h3>Process workload</h3><span>Active objects</span></div>
+                  <div id="overview-process-workload" class="overview-chart"></div>
+                </section>
+              </div>
+              <h3>Business areas</h3>
               <div id="overview-modules" class="module-launch-grid"></div>
               <div class="module-note">Simulations stay separate until human review.</div>
             </section>
@@ -249,7 +258,7 @@
               <header class="assistant-toolbar">
                 <div class="assistant-identity">
                   <span class="assistant-mark" aria-hidden="true">AI</span>
-                  <h2>AI Coordinator</h2>
+                  <h2>AI Insights</h2>
                 </div>
                 <div class="assistant-toolbar-actions">
                   <details class="assistant-about">
@@ -288,6 +297,40 @@
         </main>
       </div>
     </div>
-    <script src="/app.js?v=module-copy-20260925"></script>
+    <dialog id="data-upload-dialog" class="data-upload-dialog" aria-labelledby="data-upload-title">
+      <div class="dialog-heading">
+        <div><p class="module-kicker">ACTUAL STATE INTAKE</p><h2 id="data-upload-title">Upload CSV data</h2></div>
+        <button id="close-data-upload" class="icon-button" type="button" aria-label="Close upload dialog">×</button>
+      </div>
+      <p class="section-lead">Inspect the file first. Import creates a new immutable snapshot and refreshes the dashboards.</p>
+      <form id="data-upload-form" class="data-upload-form">
+        <label>Data type
+          <select id="data-upload-type">
+            <option value="">Auto-detect</option>
+            <option value="customers">Customers</option>
+            <option value="suppliers">Suppliers</option>
+            <option value="items">Items</option>
+            <option value="inventory">Inventory</option>
+            <option value="sales_orders">Sales orders</option>
+            <option value="purchase_orders">Purchase orders</option>
+            <option value="resources">Resources</option>
+            <option value="opening_balances">Opening balances</option>
+          </select>
+        </label>
+        <label>CSV file<input id="data-upload-file" type="file" accept=".csv,text/csv" required></label>
+        <label>Data origin
+          <select id="data-upload-origin"><option value="source">Source</option><option value="synthetic">Synthetic</option></select>
+        </label>
+        <label>Upload authorization<input id="data-upload-token" type="password" autocomplete="off" placeholder="Required for import"></label>
+        <div class="dialog-actions">
+          <button id="inspect-data-upload" type="submit">Inspect file</button>
+          <button id="commit-data-upload" type="button" disabled>Import to Actual State</button>
+        </div>
+      </form>
+      <div id="data-upload-status" class="upload-status" role="status" aria-live="polite">Choose a canonical CSV file to begin.</div>
+      <div id="data-upload-preview" class="upload-preview" hidden></div>
+      <p class="upload-boundary">Imports are actual data changes. Simulations remain separate and no external business action is triggered.</p>
+    </dialog>
+    <script src="/app.js?v=workspace-20260926"></script>
   </body>
 </html>

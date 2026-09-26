@@ -51,5 +51,36 @@ result = actual_state_service.import_csv(
 ```
 
 The result exposes the resolved source type, applied field mapping, ignored columns, validation
-report, ingestion run ID, and commit/idempotency status. This is currently a Python service API;
-an authenticated HTTP upload endpoint is not part of this change.
+report, ingestion run ID, and commit/idempotency status.
+
+## Browser and HTTP workflow
+
+The web interface uses the same importer through two endpoints:
+
+```text
+GET  /api/v1/data/uploads/status
+POST /api/v1/data/uploads/inspect
+POST /api/v1/data/uploads/commit
+```
+
+`inspect` accepts the CSV content but writes it only to a temporary file for deterministic
+inspection. It never changes Actual State. `commit` runs whole-file validation and requires the
+`X-Upload-Token` header to match the backend-only `BC_UPLOAD_TOKEN` environment variable. If the
+variable is absent, commit is disabled. Do not place this token in source code, `.env.example`,
+browser storage or Git.
+
+Both POST endpoints accept this JSON shape:
+
+```json
+{
+  "filename": "customers.csv",
+  "csv_text": "customer_number,name,active\nC-100,Example Ltd,true\n",
+  "source_type": "customers",
+  "mapping_version": "browser-upload-v1",
+  "data_origin": "source"
+}
+```
+
+`source_type` may be omitted for inspection when the filename and columns are sufficient for
+detection. A successful committed import publishes a refreshed immutable snapshot and rebuilds
+the Agent Runtime so subsequent module and tool calls use the new Actual State.

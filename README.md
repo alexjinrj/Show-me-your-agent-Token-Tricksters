@@ -24,6 +24,10 @@ back to Actual State.
 - Field discovery, bounded snapshot filtering/grouping and exact period comparisons.
 - CRM derived service-case triage, service-recovery comparison,
   persisted proposals and explicit human approval records.
+- A two-stage browser CSV workflow: inspect first, then explicitly import with
+  a backend-configured authorization token.
+- Runtime prompt-injection checks for user prompts and instruction-like text
+  returned inside untrusted tool data.
 
 Arbitrary database-query tools, ERP submission, authentication, and production
 deployment are not included yet.
@@ -93,7 +97,7 @@ src/interfaces/reports/           Offline deterministic report renderers
 data/load_data/adventureworks_demo/  Versioned demo input and provenance manifest
 data/expected/                    Versioned expected demo assertions
 runtime_data/                     Generated databases and outputs; Git ignored
-frontend/                         English green SPA with seven functional pages
+frontend/                         English green SPA with three top-level workspaces
 migrations/                       Alembic database migrations
 scripts/                          Data build, seeding, and demo entry points
 tests/                            Unit, integration, simulation, and API tests
@@ -133,18 +137,48 @@ The `.venv/` and `runtime_data/` directories are generated locally and must not 
 
 ### What to try
 
-Use the left navigation to open **Executive Overview, Sales, Inventory, Accounting,
-Operations, Customer Relationships, AI Coordinator**.
+Use the left navigation to open **Overview, Operations, AI Insights**. Overview
+contains the Sales, Inventory, Accounting and Customer Relationships drill-downs,
+so the main navigation stays compact without removing those business modules.
 
-- Overview and the four operational modules read the same Actual State snapshot.
+- Overview and its four business drill-downs read the same Actual State snapshot.
 - Operations: create a session → run a baseline → pin it → add an alternative
   event → run again → compare. Simulation does not overwrite Actual State.
 - CRM: select a derived order-service case → inspect customer rating, order,
   inventory and available options → submit a proposal → approve or reject it.
   Decisions are persisted, but do not send messages, issue refunds or ship goods.
-- AI Coordinator: without Gateway configuration it explicitly reports
+- AI Insights: without Gateway configuration it explicitly reports
   **not configured / disabled**. Business pages, deterministic simulations and
   manual CRM review still work. See the OpenClaw section below to enable real AI.
+
+### Browser CSV upload
+
+Set a private upload token in the same terminal that starts the server:
+
+```bash
+export BC_UPLOAD_TOKEN="choose-a-long-random-value"
+uv run uvicorn interfaces.api.main:app --app-dir src --host 127.0.0.1 --port 8000
+```
+
+Choose **Upload data** in the header. The browser first inspects the CSV and
+shows detected type, columns and validation issues without changing Actual State.
+Import becomes available only after inspection. Enter the same token to authorize
+the explicit import. The token is sent to the same-origin backend for that request
+and is not saved in browser storage or committed to Git.
+
+The supported source types are customers, suppliers, items, inventory, sales
+orders, purchase orders, resources and opening balances. Validation remains
+all-or-nothing and repeated valid uploads are idempotent. See
+[CSV data import contract](docs/DATA_IMPORT.md) for the fields and API contract.
+
+### Agent input safety
+
+The Runtime rejects explicit attempts to replace its instructions, reveal hidden
+prompts, bypass safety controls or extract credentials. Text returned by tools is
+treated as untrusted evidence: instruction-like content is quarantined before the
+LLM sees it, while the original tool evidence remains available for audit. These
+controls reduce prompt-injection risk; deterministic tool bounds and human review
+remain the authority for business actions.
 
 All CRM customer/order/SKU references now come from the same AdventureWorks snapshot.
 Service cases are **derived order exceptions**, not real customer complaints.

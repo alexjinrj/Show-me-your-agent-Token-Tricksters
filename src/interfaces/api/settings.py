@@ -27,6 +27,7 @@ class Settings:
     demo_data_dir: Path
     config_dir: Path = Path(DEFAULT_CONFIG_DIR)
     web_dir: Path = Path(DEFAULT_WEB_DIR)
+    upload_token: str | None = None
 
     @property
     def database_url(self) -> str:
@@ -52,6 +53,7 @@ def load_settings(environ: dict[str, str] | None = None) -> Settings:
     demo_dir = env.get("BC_DEMO_DATA_DIR", DEFAULT_DEMO_DATA_DIR).strip() or DEFAULT_DEMO_DATA_DIR
     config_dir = env.get("BC_CONFIG_DIR", DEFAULT_CONFIG_DIR).strip() or DEFAULT_CONFIG_DIR
     web_dir = env.get("BC_WEB_DIR", DEFAULT_WEB_DIR).strip() or DEFAULT_WEB_DIR
+    upload_token = env.get("BC_UPLOAD_TOKEN", "").strip() or None
     return Settings(
         db_path=Path(db_path),
         host=host,
@@ -59,4 +61,5 @@ def load_settings(environ: dict[str, str] | None = None) -> Settings:
         demo_data_dir=Path(demo_dir),
         config_dir=Path(config_dir),
         web_dir=Path(web_dir),
+        upload_token=upload_token,
     )

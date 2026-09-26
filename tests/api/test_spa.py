@@ -36,6 +36,7 @@ def test_spa_references_endpoints_and_controls() -> None:
         assert control in app_js
     assert "resource_utilization" in app_js
     assert "event.node_id" in app_js
+    assert 'chain.closest("details.process-flow")' in app_js
     assert "actual_state_unchanged" in app_js
     assert "/fork" in app_js
     assert 'timeZone: "Asia/Singapore"' in app_js
@@ -54,3 +55,10 @@ def test_index_has_playback_and_chat_panels() -> None:
     assert 'id="comparison-table"' in index
     assert 'id="crm-panel"' in index
     assert 'id="crm-proposal-form"' in index
+    assert index.count("data-page-target=") == 3
+    assert 'data-page-target="overview"' in index
+    assert 'data-page-target="operations"' in index
+    assert 'data-page-target="assistant"' in index
+    assert 'id="data-upload-dialog"' in index
+    assert 'id="overview-order-status"' in index
+    assert 'id="overview-inventory-risk"' in index

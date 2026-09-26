@@ -92,6 +92,17 @@ class DemoContext:
     def base_manifest(self) -> SnapshotManifest:
         return self.base_snapshot().manifest
 
+    def refresh_base_snapshot(self) -> SnapshotManifest:
+        """Publish newly imported rows as one fresh immutable Actual State snapshot."""
+
+        manifest = self.actual_state.create_snapshot(
+            datetime.fromisoformat(BASE_SNAPSHOT_AS_OF), company_id=COMPANY_ID
+        )
+        self.base_snapshot_id = manifest.snapshot_id
+        self.crm = CRMService(self.actual_state.load_snapshot(manifest.snapshot_id))
+        self.crm_proposals = CRMProposalStore(self.engine, self.crm)
+        return manifest
+
     def enterprise_state(self) -> EnterpriseState:
         """Return the canonical actual state document used by tools and APIs."""
 

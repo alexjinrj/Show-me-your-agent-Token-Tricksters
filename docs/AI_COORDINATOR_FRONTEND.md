@@ -1,8 +1,8 @@
-# AI Coordinator frontend update
+# AI Insights frontend update
 
 ## Objective
 
-The AI Coordinator page now uses a focused, single-column conversation layout inspired by modern chat assistants. The page-specific banner and repeated explanatory copy are hidden so the workspace starts directly with the conversation.
+The AI Insights page uses a focused, single-column conversation layout inspired by modern chat assistants. The page-specific banner and repeated explanatory copy are hidden so the workspace starts directly with the conversation.
 
 ## Information retained
 
@@ -27,3 +27,9 @@ The AI Coordinator page now uses a focused, single-column conversation layout in
 ## Safety boundary
 
 The frontend does not parse an LLM response into business records and does not execute recommendations. Existing API requests and CRM human-review behavior are unchanged.
+
+The backend also checks every user prompt before any Gateway or tool call. Explicit instruction
+replacement, hidden-prompt disclosure, guardrail bypass and credential-exfiltration patterns are
+blocked and recorded as a security event. Tool output, uploaded business data and external text
+are treated as untrusted evidence. Instruction-like strings inside that evidence are quarantined
+before being sent to the model, while the original tool record remains available for audit.

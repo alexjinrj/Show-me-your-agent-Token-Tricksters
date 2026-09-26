@@ -19,13 +19,17 @@ const state = {
   inventoryStrategyRequest: 0,
   inventoryStrategyBusy: false,
   inventoryStrategyHasResult: false,
+  uploadCsvText: null,
+  uploadInspection: null,
+  uploadCommitEnabled: false,
   playback: { timer: null, index: 0, trace: [], hours: [] },
 };
 
 async function api(path, options) {
+  const requestOptions = options || {};
   const response = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
+    ...requestOptions,
+    headers: { "Content-Type": "application/json", ...(requestOptions.headers || {}) },
   });
   if (!response.ok) {
     const detail = await response.text();
@@ -64,11 +68,17 @@ function renderProcesses(data) {
   const container = document.getElementById("process-flows");
   container.innerHTML = "";
   for (const process of data.processes) {
-    const wrap = el("div", "process-flow");
-    wrap.appendChild(el("h3", null, `${process.label} (${process.process_id})`));
+    const wrap = el("details", "process-flow process-flow-compact");
+    const activities = process.activities || process.nodes;
+    const summary = el("summary", "process-summary");
+    const summaryCopy = el("span");
+    summaryCopy.appendChild(el("b", null, process.label));
+    summaryCopy.appendChild(el("small", null, process.process_id));
+    summary.appendChild(summaryCopy);
+    summary.appendChild(el("span", "process-count", `${activities.length} steps`));
+    wrap.appendChild(summary);
     const chain = el("div", "node-chain");
     chain.dataset.processId = process.process_id;
-    const activities = process.activities || process.nodes;
     activities.forEach((node, index) => {
       const nodeEl = el("button", "node");
       nodeEl.type = "button";
@@ -370,6 +380,8 @@ function applyPlaybackFrame(index) {
   if (nodeId) {
     const chain = document.querySelector(`.node-chain[data-process-id="${event.process_id}"]`);
     if (chain) {
+      const processDetails = chain.closest("details.process-flow");
+      if (processDetails) processDetails.open = true;
       const node = chain.querySelector(`.node[data-node-id="${nodeId}"]`);
       if (node) node.classList.add("active");
     }
@@ -526,7 +538,26 @@ function renderDistribution(containerId, rows, total) {
   });
 }
 
-function renderOverview(data) {
+function renderValueBars(containerId, rows, formatter = (value) => String(value)) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = "";
+  const maximum = Math.max(...rows.map(([, value]) => Math.abs(Number(value))), 1);
+  rows.forEach(([label, value, tone = ""]) => {
+    const row = el("div", "value-bar-row");
+    const copy = el("div", "value-bar-copy");
+    copy.appendChild(el("span", null, label));
+    copy.appendChild(el("b", null, formatter(value)));
+    row.appendChild(copy);
+    const track = el("div", "value-bar-track");
+    const fill = el("div", `value-bar-fill ${tone}`.trim());
+    fill.style.width = `${Math.max(4, Math.abs(Number(value)) / maximum * 100)}%`;
+    track.appendChild(fill);
+    row.appendChild(track);
+    container.appendChild(row);
+  });
+}
+
+function renderOverview(data, sales, inventory, accounting, operations) {
   const h = data.headline;
   renderModuleStats("overview-kpis", [
     ["Current order value", formatSgd(h.current_order_value)],
@@ -550,6 +581,30 @@ function renderOverview(data) {
     button.addEventListener("click", () => showFunctionPage(item.id));
     container.appendChild(button);
   });
+  renderDistribution(
+    "overview-order-status",
+    Object.entries(sales.status_counts),
+    sales.summary.order_count,
+  );
+  const riskOrder = ["critical", "high", "medium", "low"];
+  renderDistribution(
+    "overview-inventory-risk",
+    riskOrder
+      .filter((risk) => Object.hasOwn(inventory.risk_counts, risk))
+      .map((risk) => [risk, inventory.risk_counts[risk], risk]),
+    inventory.summary.sku_count,
+  );
+  renderValueBars("overview-financial-position", [
+    ["Cash", accounting.summary.cash],
+    ["Receivables", accounting.summary.accounts_receivable],
+    ["Payables", accounting.summary.accounts_payable, "attention"],
+    ["Working capital", accounting.summary.working_capital],
+  ], formatSgd);
+  renderValueBars(
+    "overview-process-workload",
+    Object.entries(operations.process_counts).map(([label, value]) => [humanize(label), value]),
+    (value) => formatNumber(value),
+  );
 }
 
 function renderSales(data) {
@@ -911,11 +966,16 @@ async function loadBusinessModules() {
     api("/api/v1/modules/accounting"),
     api("/api/v1/modules/operations"),
   ]);
-  renderOverview(moduleData(overview));
-  renderSales(moduleData(sales));
-  renderInventory(moduleData(inventory));
-  renderAccounting(moduleData(accounting));
-  renderOperations(moduleData(operations));
+  const overviewData = moduleData(overview);
+  const salesData = moduleData(sales);
+  const inventoryData = moduleData(inventory);
+  const accountingData = moduleData(accounting);
+  const operationsData = moduleData(operations);
+  renderOverview(overviewData, salesData, inventoryData, accountingData, operationsData);
+  renderSales(salesData);
+  renderInventory(inventoryData);
+  renderAccounting(accountingData);
+  renderOperations(operationsData);
   await loadInventoryCandidates();
 }
 
@@ -1278,10 +1338,20 @@ const FUNCTION_PAGES = {
     description: "Customer value, service risk and recovery review.",
   },
   assistant: {
-    eyebrow: "AGENT COORDINATION",
-    title: "AI Coordinator",
-    description: "Ask the shared Runtime to select grounded tools across sales, inventory, CRM and simulation.",
+    eyebrow: "GROUNDED ANALYSIS",
+    title: "AI Insights",
+    description: "Ask the shared Runtime to investigate evidence across the business.",
   },
+};
+
+const OUTER_PAGE = {
+  overview: "overview",
+  sales: "overview",
+  inventory: "overview",
+  accounting: "overview",
+  crm: "overview",
+  operations: "operations",
+  assistant: "assistant",
 };
 
 function showFunctionPage(pageId, updateHash = true) {
@@ -1293,7 +1363,7 @@ function showFunctionPage(pageId, updateHash = true) {
     view.classList.toggle("active", active);
   });
   document.querySelectorAll("[data-page-target]").forEach((button) => {
-    const active = button.dataset.pageTarget === resolvedId;
+    const active = button.dataset.pageTarget === OUTER_PAGE[resolvedId];
     button.classList.toggle("active", active);
     if (active) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
@@ -1307,6 +1377,113 @@ function showFunctionPage(pageId, updateHash = true) {
     window.history.replaceState(null, "", `#${resolvedId}`);
   }
   document.querySelector(".app-main")?.scrollTo?.({ top: 0, behavior: "smooth" });
+}
+
+// ---- Data upload ------------------------------------------------------------
+
+function setUploadStatus(message, tone = "") {
+  const status = document.getElementById("data-upload-status");
+  status.textContent = message;
+  status.dataset.tone = tone;
+}
+
+function uploadPayload() {
+  const file = document.getElementById("data-upload-file").files?.[0];
+  if (!file || state.uploadCsvText === null) throw new Error("Choose and inspect a CSV first");
+  return {
+    filename: file.name,
+    csv_text: state.uploadCsvText,
+    source_type: document.getElementById("data-upload-type").value || null,
+    data_origin: document.getElementById("data-upload-origin").value,
+    mapping_version: "browser-upload-v1",
+  };
+}
+
+function renderUploadInspection(inspection) {
+  const preview = document.getElementById("data-upload-preview");
+  preview.hidden = false;
+  preview.innerHTML = "";
+  const summary = el("div", "upload-summary");
+  summary.appendChild(el("strong", null, `${inspection.row_count} rows`));
+  summary.appendChild(el("span", null, inspection.probable_source_type
+    ? `Detected: ${humanize(inspection.probable_source_type)}`
+    : "Data type could not be detected"));
+  summary.appendChild(el("span", null, `${inspection.columns.length} columns`));
+  preview.appendChild(summary);
+  if (inspection.warnings.length) {
+    preview.appendChild(el("p", "upload-warning", inspection.warnings.join(" ")));
+  }
+  const columns = el("p", "upload-columns", `Columns: ${inspection.columns.join(", ")}`);
+  preview.appendChild(columns);
+}
+
+async function inspectDataUpload(event) {
+  event.preventDefault();
+  const file = document.getElementById("data-upload-file").files?.[0];
+  if (!file) throw new Error("Choose a CSV file");
+  if (!file.name.toLowerCase().endsWith(".csv")) throw new Error("Only CSV files are accepted");
+  if (file.size > 2_000_000) throw new Error("CSV must be smaller than 2 MB");
+  state.uploadCsvText = await file.text();
+  setUploadStatus("Inspecting headers and rows…", "loading");
+  const response = await api("/api/v1/data/uploads/inspect", {
+    method: "POST",
+    body: JSON.stringify(uploadPayload()),
+  });
+  state.uploadInspection = response.inspection;
+  if (!document.getElementById("data-upload-type").value && response.inspection.probable_source_type) {
+    document.getElementById("data-upload-type").value = response.inspection.probable_source_type;
+  }
+  renderUploadInspection(response.inspection);
+  document.getElementById("commit-data-upload").disabled = !state.uploadCommitEnabled;
+  setUploadStatus(
+    state.uploadCommitEnabled
+      ? "Inspection complete. Review the result, then import to Actual State."
+      : "Inspection complete. Backend import is disabled until BC_UPLOAD_TOKEN is configured.",
+    state.uploadCommitEnabled ? "success" : "warning",
+  );
+}
+
+async function commitDataUpload() {
+  if (!state.uploadInspection) throw new Error("Inspect the CSV before importing it");
+  const token = document.getElementById("data-upload-token").value;
+  if (!token) throw new Error("Enter the upload authorization token");
+  setUploadStatus("Validating all rows and creating a new snapshot…", "loading");
+  const response = await api("/api/v1/data/uploads/commit", {
+    method: "POST",
+    headers: { "X-Upload-Token": token },
+    body: JSON.stringify(uploadPayload()),
+  });
+  const result = response.result;
+  if (!result.validation.valid) {
+    const firstIssue = result.validation.issues?.[0];
+    setUploadStatus(`Import rejected: ${firstIssue?.message || "validation failed"}`, "error");
+    return;
+  }
+  setUploadStatus(
+    result.duplicate
+      ? "This exact file was already imported; no duplicate rows were added."
+      : `${result.row_count} rows imported. Dashboards now use the new snapshot.`,
+    "success",
+  );
+  document.getElementById("commit-data-upload").disabled = true;
+  await Promise.all([loadReference(), loadBusinessModules(), loadCrm()]);
+}
+
+async function openDataUpload() {
+  const dialog = document.getElementById("data-upload-dialog");
+  dialog.showModal();
+  try {
+    const status = await api("/api/v1/data/uploads/status");
+    state.uploadCommitEnabled = status.commit_enabled;
+    setUploadStatus(
+      status.commit_enabled
+        ? "Choose a canonical CSV file to inspect."
+        : "Preview is available. Import requires BC_UPLOAD_TOKEN on the backend.",
+      status.commit_enabled ? "" : "warning",
+    );
+  } catch (error) {
+    setUploadStatus(`Upload service unavailable: ${error.message}`, "error");
+  }
 }
 
 function initFunctionNavigation() {
@@ -1372,6 +1549,23 @@ function init() {
   ["inventory-horizon-days", "inventory-effective-day", "inventory-random-seed"].forEach((id) =>
     document.getElementById(id).addEventListener("input", markInventoryStrategyStale)
   );
+  document.getElementById("open-data-upload").addEventListener("click", openDataUpload);
+  document.getElementById("close-data-upload").addEventListener("click", () =>
+    document.getElementById("data-upload-dialog").close()
+  );
+  document.getElementById("data-upload-form").addEventListener("submit", (event) =>
+    runAction("Inspecting upload…", () => inspectDataUpload(event))
+  );
+  document.getElementById("commit-data-upload").addEventListener("click", () =>
+    runAction("Importing validated data…", commitDataUpload)
+  );
+  document.getElementById("data-upload-file").addEventListener("change", () => {
+    state.uploadCsvText = null;
+    state.uploadInspection = null;
+    document.getElementById("commit-data-upload").disabled = true;
+    document.getElementById("data-upload-preview").hidden = true;
+    setUploadStatus("File selected. Inspect it before import.");
+  });
 
   renderEventFields();
   api("/api/assistant/status").then((runtime) => {
