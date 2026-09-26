@@ -54,3 +54,10 @@ def test_index_has_playback_and_chat_panels() -> None:
     assert 'id="comparison-table"' in index
     assert 'id="crm-panel"' in index
     assert 'id="crm-proposal-form"' in index
+    assert index.count("data-page-target=") == 3
+    assert 'data-page-target="overview"' in index
+    assert 'data-page-target="operations"' in index
+    assert 'data-page-target="assistant"' in index
+    assert 'id="data-upload-dialog"' in index
+    assert 'id="overview-order-status"' in index
+    assert 'id="overview-inventory-risk"' in index

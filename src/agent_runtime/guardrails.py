@@ -6,6 +6,16 @@ from typing import Any
 def evaluate_run(run: dict[str, Any]) -> dict[str, Any]:
     """Check machine-verifiable runtime and sales-simulation invariants."""
     checks: list[dict[str, str]] = []
+    prompt_security = run.get("prompt_security") or {}
+    if prompt_security:
+        checks.append(
+            {
+                "name": "prompt_injection",
+                "status": "blocked" if prompt_security.get("status") == "blocked" else "passed",
+            }
+        )
+    if run.get("security_events"):
+        checks.append({"name": "indirect_prompt_injection", "status": "passed"})
     for evidence in run.get("evidence", []):
         if evidence.get("tool_name") != "analyze_sales_backlog_intervention":
             continue

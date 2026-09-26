@@ -13,6 +13,7 @@ def test_defaults_bind_to_localhost() -> None:
     assert settings.demo_data_dir == Path("data/load_data/adventureworks_demo")
     assert settings.config_dir == Path("src/core/process_definitions")
     assert settings.web_dir == Path("frontend")
+    assert settings.upload_token is None
 
 
 def test_env_overrides_applied(tmp_path: Path) -> None:
@@ -24,6 +25,7 @@ def test_env_overrides_applied(tmp_path: Path) -> None:
             "BC_DEMO_DATA_DIR": "/data/raw",
             "BC_CONFIG_DIR": "/src/core/process_definitions",
             "BC_WEB_DIR": "/web",
+            "BC_UPLOAD_TOKEN": "upload-secret",
         }
     )
     assert settings.db_path == tmp_path / "custom.db"
@@ -32,4 +34,5 @@ def test_env_overrides_applied(tmp_path: Path) -> None:
     assert settings.demo_data_dir == Path("/data/raw")
     assert settings.config_dir == Path("/src/core/process_definitions")
     assert settings.web_dir == Path("/web")
+    assert settings.upload_token == "upload-secret"
     assert settings.database_url.startswith("sqlite+pysqlite:///")

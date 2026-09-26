@@ -80,6 +80,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(workbench_router)
 
+    from interfaces.api.routes_uploads import router as uploads_router
+
+    app.include_router(uploads_router)
+
     _mount_static(app, resolved.web_dir)
 
     return app
