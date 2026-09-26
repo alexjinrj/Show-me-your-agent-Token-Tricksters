@@ -36,6 +36,7 @@ def test_spa_references_endpoints_and_controls() -> None:
         assert control in app_js
     assert "resource_utilization" in app_js
     assert "event.node_id" in app_js
+    assert 'chain.closest("details.process-flow")' in app_js
     assert "actual_state_unchanged" in app_js
     assert "/fork" in app_js
     assert 'timeZone: "Asia/Singapore"' in app_js

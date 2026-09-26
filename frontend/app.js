@@ -380,6 +380,8 @@ function applyPlaybackFrame(index) {
   if (nodeId) {
     const chain = document.querySelector(`.node-chain[data-process-id="${event.process_id}"]`);
     if (chain) {
+      const processDetails = chain.closest("details.process-flow");
+      if (processDetails) processDetails.open = true;
       const node = chain.querySelector(`.node[data-node-id="${nodeId}"]`);
       if (node) node.classList.add("active");
     }
