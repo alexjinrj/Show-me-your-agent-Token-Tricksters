@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from load_data.csv_ingestion import inspect_csv, parse_and_validate, resolve_field_mapping
+from infra.csv_ingestion import inspect_csv, parse_and_validate, resolve_field_mapping
 
 
 def test_inspection_detects_fixed_mapping(demo_path: Path) -> None:

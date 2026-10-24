@@ -4,10 +4,10 @@ from collections import Counter, defaultdict
 from decimal import Decimal
 from typing import Any, cast
 
-from core.models import SnapshotBundle, SnapshotRecord
-from core.serialization import canonical_data
-from tools.inventory.reorder import build_reorder_recommendations
-from tools.inventory.snapshot_adapter import extract_inventory_strategy_rows
+from domain.models import SnapshotBundle, SnapshotRecord
+from domain.serialization import canonical_data
+from tools.inventory_tool.reorder import build_reorder_recommendations
+from tools.inventory_tool.snapshot_adapter import extract_inventory_strategy_rows
 
 
 class BusinessDashboardService:

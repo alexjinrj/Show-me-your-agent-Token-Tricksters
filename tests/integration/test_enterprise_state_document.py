@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
-from core.simulation import run_simulation
-from enterprise_state.service import ActualStateService, commit_demo_files
+from infra.service import ActualStateService, commit_demo_files
+from tools.simulation import run_simulation
 
 ORDER = (
     "customers",

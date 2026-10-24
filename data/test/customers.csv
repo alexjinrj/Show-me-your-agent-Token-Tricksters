@@ -1,0 +1,6 @@
+customer_id,name,type,credit_limit,region
+cust-001,ABC Electronics,wholesale,50000,south
+cust-002,XYZ Retail,retail,20000,east
+cust-003,Great Wall Supplies,wholesale,80000,central
+cust-004,Bright Future Ltd,retail,15000,north
+cust-005,Ocean Trading Co,wholesale,60000,south

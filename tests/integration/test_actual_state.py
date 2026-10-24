@@ -8,8 +8,8 @@ from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from enterprise_state.models import BusinessEventRow, CustomerRow
-from enterprise_state.service import ActualStateService, commit_demo_files
+from infra.models import BusinessEventRow, CustomerRow
+from infra.service import ActualStateService, commit_demo_files
 
 ORDER = (
     "customers",

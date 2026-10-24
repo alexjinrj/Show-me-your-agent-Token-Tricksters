@@ -30,12 +30,12 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = [
-  "src/core",
-  "src/load_data",
-  "src/enterprise_state",
+  "src/domain",
   "src/tools",
-  "src/agent_runtime",
-  "src/interfaces",
+  "src/runtime",
+  "src/infra",
+  "src/api",
+  "src/skill",
 ]
 
 [tool.pytest.ini_options]

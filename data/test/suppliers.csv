@@ -1,0 +1,4 @@
+supplier_id,name,lead_time_days,reliability
+sup-001,Shenzhen Components Co,7,0.92
+sup-002,Dongguan Electronics Ltd,5,0.88
+sup-003,Ningbo Parts Inc,10,0.95

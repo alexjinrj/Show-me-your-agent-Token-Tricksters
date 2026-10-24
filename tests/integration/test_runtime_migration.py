@@ -6,8 +6,8 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import inspect
 
-from enterprise_state.database import make_engine, sqlite_url
-from enterprise_state.models import AgentRunRow
+from infra.database import make_engine, sqlite_url
+from infra.models import AgentRunRow
 
 
 def test_agent_runs_migration_on_pre_runtime_database(tmp_path: Path) -> None:

@@ -6,9 +6,9 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 
-from agent_runtime.service import _requires_crm_action_plan, _runtime_catalog_for
-from interfaces.api.app import create_app
-from interfaces.api.settings import Settings
+from api.app import create_app
+from api.settings import Settings
+from runtime.service import _requires_crm_action_plan, _runtime_catalog_for
 
 CUSTOMERS = (
     "customer_number,name,active,data_origin,source_record_id\n"

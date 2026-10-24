@@ -1,9 +1,9 @@
 from decimal import Decimal
 
-from core.models import (
+from domain.models import (
     SimulationMetrics,
 )
-from tools.inventory.recommendation import (
+from tools.inventory_tool.recommendation import (
     select_recommended_strategy,
 )
 

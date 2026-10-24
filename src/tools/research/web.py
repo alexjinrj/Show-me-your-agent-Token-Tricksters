@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from agent_runtime.contracts import RuntimeToolResult
+from runtime.contracts import RuntimeToolResult
 
 
 class PublicEventSearch(BaseModel):

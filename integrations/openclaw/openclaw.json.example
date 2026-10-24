@@ -7,7 +7,7 @@
           "run",
           "python",
           "-m",
-          "interfaces.mcp.server"
+          "api.mcp_server"
         ],
         "cwd": "REPLACE_WITH_ABSOLUTE_REPOSITORY_PATH",
         "env": {

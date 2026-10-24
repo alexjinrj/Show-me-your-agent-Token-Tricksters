@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from enterprise_state.database import create_schema, make_engine
-from enterprise_state.service import ActualStateService
+from infra.database import create_schema, make_engine
+from infra.service import ActualStateService
 
 
 @pytest.fixture

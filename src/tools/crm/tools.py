@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 from uuid import uuid4
 
-from agent_runtime.contracts import RuntimeToolResult
+from runtime.contracts import RuntimeToolResult
 from tools.crm.contracts import (
     CRM_TOOL_INPUTS,
     ComplaintInput,

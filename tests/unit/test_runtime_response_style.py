@@ -1,4 +1,4 @@
-from agent_runtime.service import SYSTEM_RULES
+from runtime.service import SYSTEM_RULES
 
 
 def test_runtime_requests_clear_adaptive_final_answers() -> None:

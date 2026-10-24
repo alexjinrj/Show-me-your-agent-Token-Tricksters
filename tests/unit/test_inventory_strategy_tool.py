@@ -5,17 +5,17 @@ from typing import cast
 
 import pytest
 
-import tools.inventory.strategy as tool
-from core.models import (
+import tools.inventory_tool.strategy as tool
+from domain.models import (
     ScenarioEvent,
     SimulationMetrics,
     SimulationRunResult,
     SnapshotBundle,
 )
-from tools.inventory.reorder import (
+from tools.inventory_tool.reorder import (
     ReorderCandidate,
 )
-from tools.inventory.snapshot_adapter import (
+from tools.inventory_tool.snapshot_adapter import (
     InventoryStrategyRows,
 )
 

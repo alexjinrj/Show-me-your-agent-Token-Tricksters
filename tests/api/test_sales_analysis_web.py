@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from enterprise_state.models import SimulationRunRow, ToolCallAuditRow
+from infra.models import SimulationRunRow, ToolCallAuditRow
 
 
 def test_web_sales_analysis_is_matched_audited_and_read_only(client: TestClient) -> None:

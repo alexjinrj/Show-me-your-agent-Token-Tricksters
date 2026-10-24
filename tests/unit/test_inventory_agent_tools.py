@@ -5,19 +5,19 @@ from typing import Any
 
 import pytest
 
-import tools.inventory.tools as inventory_tools_module
-from core.models import (
+import tools.inventory_tool.tools as inventory_tools_module
+from domain.models import (
     ScenarioEvent,
     SimulationRunResult,
     SnapshotBundle,
     SnapshotManifest,
     SnapshotRecord,
 )
-from enterprise_state.database import (
+from infra.database import (
     create_schema,
     make_engine,
 )
-from tools.inventory.tools import InventoryAgentTools
+from tools.inventory_tool.tools import InventoryAgentTools
 
 SNAPSHOT_ID = "00000000-0000-0000-0000-000000000001"
 NOW = datetime(2026, 9, 12, tzinfo=UTC)

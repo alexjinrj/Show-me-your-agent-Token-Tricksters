@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from agent_runtime.executor import ToolExecutor
-from agent_runtime.registry import RegisteredTool, ToolRegistry
+from runtime.executor import ToolExecutor
+from runtime.registry import RegisteredTool, ToolRegistry
 
 
 def test_write_policy_is_enforced_before_handler() -> None:

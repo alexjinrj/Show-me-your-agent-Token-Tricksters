@@ -7,16 +7,16 @@ from typing import Any
 import pytest
 import yaml
 
-from core.process_config import (
+from domain.process_config import (
     ProcessConfigurationError,
     hash_process_catalog,
     hash_process_definition,
     load_process_definition,
     load_process_definitions,
 )
-from core.simulation.process_runtime import load_runtime_process_catalog
+from tools.simulation.process_runtime import load_runtime_process_catalog
 
-CONFIG_DIRECTORY = Path(__file__).parents[2] / "src" / "core" / "process_definitions"
+CONFIG_DIRECTORY = Path(__file__).parents[2] / "src" / "domain" / "process_definitions"
 
 
 def test_process_catalog_loads_with_executable_activity_contracts() -> None:

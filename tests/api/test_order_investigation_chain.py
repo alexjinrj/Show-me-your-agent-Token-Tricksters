@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from interfaces.runtime import build_runtime
+from runtime.runtime import build_runtime
 
 
 class InvestigationGateway:
@@ -81,7 +81,7 @@ def test_runtime_internal_then_external_audited_chain(
 
     monkeypatch.setenv("BC_ENABLE_WEB_SEARCH", "1" if search_enabled else "0")
     monkeypatch.setenv("TAVILY_API_KEY", "test-placeholder-never-sent")
-    monkeypatch.setattr("interfaces.runtime.TavilySearch", lambda key: FakeProvider())
+    monkeypatch.setattr("runtime.runtime.TavilySearch", lambda key: FakeProvider())
     context = client.app.state.context
     fingerprint = context.base_manifest().content_hash
     runtime = build_runtime(context, use_gateway=False)

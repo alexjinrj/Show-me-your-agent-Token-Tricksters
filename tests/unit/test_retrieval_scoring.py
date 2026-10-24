@@ -8,12 +8,12 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from interfaces.api.context import DemoContext
-from interfaces.api.settings import Settings
+from api.context import DemoContext
+from api.settings import Settings
 from tools.crm.scoring import ScoringPolicy, midrank
 from tools.crm.service import CRMService
-from tools.retrieval.contracts import Compare, Query
-from tools.retrieval.tools import RetrievalTools
+from tools.data_query_tool.contracts import Compare, Query
+from tools.data_query_tool.tools import RetrievalTools
 
 
 @pytest.fixture

@@ -3,7 +3,7 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from tools.inventory.contracts import (
+from tools.inventory_tool.contracts import (
     INVENTORY_TOOL_INPUTS,
     ReorderCandidatesInput,
     StrategyAnalysisInput,

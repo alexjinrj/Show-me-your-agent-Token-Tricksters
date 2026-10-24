@@ -3,19 +3,19 @@ from __future__ import annotations
 from typing import Any
 from uuid import uuid4
 
-from agent_runtime import RegisteredTool, RuntimeToolResult, ToolRegistry
-from agent_runtime.inventory_registry import (
+from runtime import RegisteredTool, RuntimeToolResult, ToolRegistry
+from runtime.inventory_registry import (
     register_inventory_tools,
 )
-from agent_runtime.sales_registry import (
+from runtime.sales_registry import (
     EXCEPTION_TOOLS,
     SCENARIO_TOOLS,
     build_sales_tool_registry,
 )
-from tools.inventory import (
+from tools.analysis_tool import SalesAgentTools
+from tools.inventory_tool import (
     InventoryAgentTools,
 )
-from tools.sales import SalesAgentTools
 
 
 def test_registry_catalog_groups_and_dispatch() -> None:

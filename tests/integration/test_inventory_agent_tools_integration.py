@@ -5,11 +5,11 @@ from typing import Any
 
 import pytest
 
-from enterprise_state.service import (
+from infra.service import (
     ActualStateService,
     commit_demo_files,
 )
-from tools.inventory import InventoryAgentTools
+from tools.inventory_tool import InventoryAgentTools
 
 ORDER = (
     "customers",

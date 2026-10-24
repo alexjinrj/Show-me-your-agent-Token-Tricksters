@@ -2,12 +2,12 @@ from datetime import UTC, datetime
 
 import pytest
 
-from core.models import (
+from domain.models import (
     SnapshotBundle,
     SnapshotManifest,
     SnapshotRecord,
 )
-from tools.inventory.snapshot_adapter import (
+from tools.inventory_tool.snapshot_adapter import (
     extract_inventory_strategy_rows,
 )
 

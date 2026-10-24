@@ -2,7 +2,7 @@ import csv
 from decimal import Decimal
 from pathlib import Path
 
-from tools.inventory.demand import (
+from tools.inventory_tool.demand import (
     calculate_demand_shortages,
     create_demand_aligned_events,
 )

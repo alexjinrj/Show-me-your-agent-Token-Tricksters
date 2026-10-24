@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from interfaces.api.app import create_app
-from interfaces.api.settings import Settings
+from api.app import create_app
+from api.settings import Settings
 
 DEMO_DATA_DIR = Path(__file__).parents[2] / "data/load_data/adventureworks_demo"
 

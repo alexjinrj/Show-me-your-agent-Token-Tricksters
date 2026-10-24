@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from interfaces.api.context import DemoContext
-from interfaces.api.settings import Settings
+from api.context import DemoContext
+from api.settings import Settings
 
 
 def test_bootstrap_seeds_expected_counts(settings: Settings) -> None:

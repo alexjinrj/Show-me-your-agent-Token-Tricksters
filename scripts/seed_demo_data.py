@@ -5,8 +5,8 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
-from enterprise_state.database import create_schema, make_engine, sqlite_url
-from enterprise_state.service import ActualStateService, commit_demo_files
+from infra.database import create_schema, make_engine, sqlite_url
+from infra.service import ActualStateService, commit_demo_files
 
 ORDER = (
     "customers",

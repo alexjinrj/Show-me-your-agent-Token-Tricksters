@@ -1,0 +1,28 @@
+object_type: purchase_order
+schema_version: 1
+identity: [object_number]
+attributes:
+  id: {type: string, required: true, mutable: false}
+  object_number: {type: string, required: true, mutable: false}
+  object_type: {type: string, required: true, mutable: false, allowed_values: [purchase_order]}
+  process_id: {type: string, required: true, mutable: false, allowed_values: [procure_to_pay]}
+  current_node_id: {type: string}
+  current_activity_id: {type: string, required: true}
+  status: {type: string, required: true}
+  entered_node_at: {type: datetime, required: true}
+  amount: {type: decimal, required: true, minimum: 0}
+  quantity: {type: decimal, required: true, minimum: 0}
+  priority: {type: integer, required: true, minimum: 0}
+  sku: {type: string, required: true, mutable: false}
+  due_at: {type: datetime, required: true}
+  delivery_adjustment_hours: {type: decimal}
+  details: {type: json}
+  source_system: {type: string, mutable: false}
+  source_file_id: {type: string, mutable: false}
+  source_record_id: {type: string, mutable: false}
+  ingestion_run_id: {type: string, mutable: false}
+  business_timestamp: {type: datetime, mutable: false}
+  mapping_version: {type: string, mutable: false}
+  validation_status: {type: string, mutable: false}
+  data_origin: {type: string, mutable: false}
+  state_type: {type: string, mutable: false}

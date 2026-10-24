@@ -11,9 +11,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from agent_runtime.openclaw import GatewayError, OpenClawGateway
-from enterprise_state.models import SimulationResultRow, ToolCallAuditRow
-from interfaces.runtime import build_runtime
+from infra.models import SimulationResultRow, ToolCallAuditRow
+from runtime.openclaw import GatewayError, OpenClawGateway
+from runtime.runtime import build_runtime
 
 
 def tool_call(name: str, arguments: dict[str, Any], call_id: str = "call_1") -> dict[str, Any]:

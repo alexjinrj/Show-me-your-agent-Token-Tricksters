@@ -1,0 +1,27 @@
+{
+  "version": "1.0",
+  "company_id": "company-001",
+  "company_name": "HomeNest Manufacturing",
+  "snapshot_as_of": "2024-01-15T00:00:00+08:00",
+  "total_employees": 85,
+  "total_assets": 5000000,
+  "currency": "CNY",
+  "balance": {
+    "cash": 1200000,
+    "accounts_receivable": 850000,
+    "inventory_value": 1500000,
+    "accounts_payable": 650000,
+    "equity": 2500000
+  },
+  "state_records": [
+    {"id": "sr-001", "object_type": "enterprise_state", "key": "total_revenue_ytd", "value": 3200000, "unit": "CNY"},
+    {"id": "sr-002", "object_type": "enterprise_state", "key": "total_cost_ytd", "value": 2400000, "unit": "CNY"},
+    {"id": "sr-003", "object_type": "enterprise_state", "key": "order_fulfillment_rate", "value": 0.78, "unit": "percent"},
+    {"id": "sr-004", "object_type": "enterprise_state", "key": "inventory_turnover", "value": 4.2, "unit": "times/year"}
+  ],
+  "snapshot_manifest": {
+    "source": "test_dataset",
+    "generated_by": "test_dataset_gen",
+    "hash": "test-hash-placeholder"
+  }
+}

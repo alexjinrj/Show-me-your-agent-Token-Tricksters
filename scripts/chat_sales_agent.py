@@ -11,14 +11,14 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from agent_runtime.llm_runner import (
+from runtime.llm_runner import (
     ChatCompletionsClient,
     choose_mode,
     render_trace,
     run_sales_agent,
 )
-from enterprise_state.database import make_engine, sqlite_url
-from enterprise_state.models import StateSnapshotRow
+from infra.database import make_engine, sqlite_url
+from infra.models import StateSnapshotRow
 from tools.sales import SalesAgentTools
 
 

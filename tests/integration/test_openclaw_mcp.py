@@ -8,7 +8,7 @@ from pathlib import Path
 from mcp import Client
 from mcp.client.stdio import StdioServerParameters
 
-from interfaces.mcp.server import mcp
+from api.mcp_server import mcp
 
 
 def test_openclaw_mcp_discovers_context_and_audited_sales_tools() -> None:
@@ -90,7 +90,7 @@ def test_openclaw_can_launch_the_server_over_stdio() -> None:
         project_root = Path(__file__).parents[2]
         parameters = StdioServerParameters(
             command=sys.executable,
-            args=["-m", "interfaces.mcp.server"],
+            args=["-m", "api.mcp_server"],
             cwd=str(project_root),
             env={**os.environ, "PYTHONPATH": str(project_root / "src")},
         )

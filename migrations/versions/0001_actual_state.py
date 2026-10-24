@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from alembic import op
 
-from enterprise_state.models import Base
+from infra.models import Base
 
 revision = "0001_actual_state"
 down_revision = None

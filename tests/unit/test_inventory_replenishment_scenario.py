@@ -3,7 +3,7 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from core.simulation import inventory_replenishment
+from tools.simulation import inventory_replenishment
 
 
 def test_creates_inventory_replenishment_event() -> None:

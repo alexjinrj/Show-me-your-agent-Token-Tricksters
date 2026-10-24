@@ -1,0 +1,4 @@
+resource_id,type,capacity,availability
+resource-1,warehouse_space,10000,0.85
+resource-2,production_line,500,0.90
+resource-3,quality_check,200,0.95

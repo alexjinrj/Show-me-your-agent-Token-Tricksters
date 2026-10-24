@@ -1,0 +1,11 @@
+order_id,customer_id,item_id,quantity,status,order_date
+ord-001,cust-001,item-001,200,completed,2024-01-02
+ord-002,cust-002,item-003,1000,completed,2024-01-03
+ord-003,cust-003,item-005,50,shipped,2024-01-05
+ord-004,cust-001,item-004,300,pending,2024-01-08
+ord-005,cust-004,item-002,500,pending,2024-01-10
+ord-006,cust-002,item-007,100,overdue,2024-01-04
+ord-007,cust-005,item-006,400,shipped,2024-01-06
+ord-008,cust-003,item-008,50,pending,2024-01-12
+ord-009,cust-001,item-001,150,overdue,2024-01-01
+ord-010,cust-004,item-003,2000,pending,2024-01-13

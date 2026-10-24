@@ -9,8 +9,8 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import inspect, text
 
-from enterprise_state.database import make_engine, sqlite_url
-from enterprise_state.models import CRMProposalRow
+from infra.database import make_engine, sqlite_url
+from infra.models import CRMProposalRow
 
 
 def test_crm_migrations_preserve_legacy_review_records(tmp_path: Path) -> None:

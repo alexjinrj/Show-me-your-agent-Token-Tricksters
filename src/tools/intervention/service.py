@@ -6,10 +6,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from core.models import SnapshotBundle
-from core.simulation import warehouse_capacity_increase
-from enterprise_state.service import ActualStateService
+from domain.models import SnapshotBundle
+from infra.service import ActualStateService
 from tools.crm.service import CRMService
+from tools.simulation import warehouse_capacity_increase
 from tools.simulation.service import SimulationService
 
 

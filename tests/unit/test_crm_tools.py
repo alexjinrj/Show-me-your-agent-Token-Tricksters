@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from interfaces.api.context import DemoContext
-from interfaces.api.settings import Settings
+from api.context import DemoContext
+from api.settings import Settings
 from tools.crm.service import CRMService
 from tools.crm.tools import CRMAgentTools
 

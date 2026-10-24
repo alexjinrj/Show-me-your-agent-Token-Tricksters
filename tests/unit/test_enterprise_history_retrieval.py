@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from core.models import EnterpriseState, StateRecord
-from tools.retrieval.contracts import History
-from tools.retrieval.history import query_enterprise_history
+from domain.models import EnterpriseState, StateRecord
+from tools.data_query_tool.contracts import History
+from tools.data_query_tool.history import query_enterprise_history
 
 
 def _state(*, reversible: bool = True) -> EnterpriseState:

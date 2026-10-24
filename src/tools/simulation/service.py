@@ -8,15 +8,14 @@ from typing import cast
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
-from core.models import (
+from domain.models import (
     ScenarioEvent,
     ScenarioEventType,
     SimulationRunResult,
     SimulationSession,
     SnapshotBundle,
 )
-from core.simulation.engine import run_simulation
-from enterprise_state.models import (
+from infra.models import (
     AccountingImpactRow,
     SimulationEventRow,
     SimulationResultRow,
@@ -24,6 +23,7 @@ from enterprise_state.models import (
     SimulationSessionRow,
     StateSnapshotRow,
 )
+from tools.simulation.engine import run_simulation
 
 
 def _utcnow() -> datetime:

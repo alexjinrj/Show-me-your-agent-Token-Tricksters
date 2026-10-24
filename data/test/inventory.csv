@@ -1,0 +1,9 @@
+item_id,warehouse,quantity,in_transit
+item-001,warehouse-A,450,100
+item-002,warehouse-A,1800,500
+item-003,warehouse-A,4200,800
+item-004,warehouse-B,350,100
+item-005,warehouse-B,280,50
+item-006,warehouse-A,1200,300
+item-007,warehouse-B,180,50
+item-008,warehouse-B,150,30

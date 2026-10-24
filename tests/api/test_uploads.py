@@ -4,8 +4,8 @@ from dataclasses import replace
 
 from fastapi.testclient import TestClient
 
-from interfaces.api.app import create_app
-from interfaces.api.settings import Settings
+from api.app import create_app
+from api.settings import Settings
 
 CUSTOMER_CSV = (
     "customer_number,name,active\n"

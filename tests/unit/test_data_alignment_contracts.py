@@ -6,12 +6,11 @@ from pathlib import Path
 
 import yaml
 
-from core.models import EnterpriseState, StateRecord
-from core.object_schema import load_object_schema_registry, validate_process_object_contract
-from core.process_config import load_process_definitions
-from core.simulation.process_runtime import load_runtime_process_catalog
-from enterprise_state.history_replay import HistoryReplayExecutor
-from load_data.mapping import (
+from domain.models import EnterpriseState, StateRecord
+from domain.object_schema import load_object_schema_registry, validate_process_object_contract
+from domain.process_config import load_process_definitions
+from infra.history_replay import HistoryReplayExecutor
+from infra.mapping import (
     ActivityMappingSpec,
     BindingMapping,
     FieldMapping,
@@ -19,9 +18,10 @@ from load_data.mapping import (
     ObjectMappingSpec,
     load_mapping_spec,
 )
-from load_data.mapping_assistant import NoOpMappingAssistant, SourceProfile
+from infra.mapping_assistant import NoOpMappingAssistant, SourceProfile
+from tools.simulation.process_runtime import load_runtime_process_catalog
 
-PROCESS_DIRECTORY = Path(__file__).parents[2] / "src" / "core" / "process_definitions"
+PROCESS_DIRECTORY = Path(__file__).parents[2] / "src" / "domain" / "process_definitions"
 
 
 def sales_order_state(*, process_hash: str) -> EnterpriseState:

@@ -11,9 +11,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from agent_runtime.openclaw import OpenClawGateway
-from enterprise_state.models import CRMProposalRow, ToolCallAuditRow
-from interfaces.api.app import create_app
+from api.app import create_app
+from infra.models import CRMProposalRow, ToolCallAuditRow
+from runtime.openclaw import OpenClawGateway
 
 
 def test_http_gateway_three_domains_to_crm_review_and_restart(client: TestClient) -> None:

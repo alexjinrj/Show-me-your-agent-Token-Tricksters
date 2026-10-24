@@ -33,7 +33,7 @@ def main() -> None:
                     sys.executable,
                     "-m",
                     "uvicorn",
-                    "interfaces.api.main:app",
+                    "api.main:app",
                     "--app-dir",
                     "src",
                     "--host",

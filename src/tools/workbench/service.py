@@ -8,7 +8,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validato
 from sqlalchemy import JSON, Column, MetaData, String, Table, select
 from sqlalchemy.engine import Engine
 
-from enterprise_state.runtime_store import SQLRuntimeStore
+from infra.runtime_store import SQLRuntimeStore
 
 metadata = MetaData()
 items = Table(

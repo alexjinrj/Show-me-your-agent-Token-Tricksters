@@ -5,8 +5,8 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from tools.sales.analysis import evaluate_sales_metrics
-from tools.sales.contracts import AnalyzeBacklogInput
+from tools.analysis_tool.analysis import evaluate_sales_metrics
+from tools.analysis_tool.contracts import AnalyzeBacklogInput
 
 
 def metric(baseline: str, alternative: str) -> dict[str, Decimal]:

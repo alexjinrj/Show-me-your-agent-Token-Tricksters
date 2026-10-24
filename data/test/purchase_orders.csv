@@ -1,0 +1,6 @@
+purchase_id,supplier_id,item_id,quantity,status,purchase_date
+po-001,sup-001,item-002,3000,completed,2024-01-05
+po-002,sup-002,item-003,10000,completed,2024-01-03
+po-003,sup-001,item-004,500,pending,2024-01-10
+po-004,sup-003,item-005,200,shipped,2024-01-08
+po-005,sup-002,item-007,300,pending,2024-01-11

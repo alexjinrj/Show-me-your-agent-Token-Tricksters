@@ -5,9 +5,9 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
-from core.models import SnapshotBundle
-from interfaces.api.context import DemoContext
-from interfaces.api.settings import Settings
+from api.context import DemoContext
+from api.settings import Settings
+from domain.models import SnapshotBundle
 
 
 def test_full_demo_flow(client: TestClient) -> None:

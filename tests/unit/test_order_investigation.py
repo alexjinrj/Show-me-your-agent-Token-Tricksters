@@ -9,9 +9,9 @@ from urllib.error import HTTPError
 import pytest
 from pydantic import ValidationError
 
+from tools.data_query_tool.contracts import SpikeAnalysis
+from tools.data_query_tool.spikes import analyze_days
 from tools.research.web import PublicEventTools, SearchUnavailable, TavilySearch
-from tools.retrieval.contracts import SpikeAnalysis
-from tools.retrieval.spikes import analyze_days
 
 
 def june_rows() -> tuple[list[dict[str, str]], dict[str, Any]]:

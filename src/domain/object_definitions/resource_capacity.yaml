@@ -1,0 +1,17 @@
+object_type: resource_capacity
+schema_version: 1
+identity: [resource_type, process_id, node_id]
+attributes:
+  resource_type: {type: string, required: true, mutable: false}
+  process_id: {type: string, required: true, mutable: false}
+  node_id: {type: string, required: true, mutable: false}
+  capacity_units: {type: decimal, required: true, minimum: 0}
+  effective_at: {type: datetime, required: true}
+  source_system: {type: string, mutable: false}
+  source_file_id: {type: string, mutable: false}
+  source_record_id: {type: string, mutable: false}
+  ingestion_run_id: {type: string, mutable: false}
+  business_timestamp: {type: datetime, mutable: false}
+  mapping_version: {type: string, mutable: false}
+  validation_status: {type: string, mutable: false}
+  data_origin: {type: string, mutable: false}

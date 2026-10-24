@@ -1,4 +1,4 @@
-from agent_runtime.prompt_security import (
+from runtime.prompt_security import (
     QUARANTINED_TEXT,
     assess_prompt,
     quarantine_untrusted_payload,

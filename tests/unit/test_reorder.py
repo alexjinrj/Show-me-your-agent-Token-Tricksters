@@ -2,7 +2,7 @@ import csv
 from decimal import Decimal
 from pathlib import Path
 
-from tools.inventory.reorder import (
+from tools.inventory_tool.reorder import (
     build_reorder_recommendations,
 )
 

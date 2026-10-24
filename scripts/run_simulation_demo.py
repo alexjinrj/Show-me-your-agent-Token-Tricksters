@@ -15,8 +15,8 @@ from core.simulation import (
     warehouse_capacity_increase,
 )
 from core.simulation.process_runtime import load_runtime_process_catalog
-from enterprise_state.database import create_schema, make_engine
-from enterprise_state.service import ActualStateService, commit_demo_files
+from infra.database import create_schema, make_engine
+from infra.service import ActualStateService, commit_demo_files
 from tools.simulation.service import SimulationService
 
 INGESTION_ORDER = (

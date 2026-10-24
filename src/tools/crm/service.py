@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
-from core.models import SnapshotBundle
-from core.serialization import canonical_data
+from domain.models import SnapshotBundle
+from domain.serialization import canonical_data
 from tools.crm.scoring import ScoringPolicy, midrank
 
 
