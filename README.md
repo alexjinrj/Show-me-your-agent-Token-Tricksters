@@ -60,17 +60,15 @@ enterprise_state database -- immutable SnapshotBundle --> core simulation
 
 The dependency direction is intentional:
 
-- `core` owns enterprise objects, events, process YAML, and the generic SimPy
-  interpreter. It does not import databases, Agent code, or interfaces.
-- `load_data` adapts heterogeneous sources into validated rows. It does not run
-  simulations or contain business recommendations.
-- `enterprise_state` owns SQL persistence, Actual State, immutable snapshots,
-  simulation records, and audit records.
+- `domain` owns enterprise objects, events, object/process schemas and their
+  YAML. It does not import databases, Agent code, or transport layers.
+- `infra` owns CSV ingestion, mapping specs, SQL persistence, Actual State,
+  immutable snapshots, simulation records, and audit records.
 - `tools` owns business logic and the callable wrappers for sales, inventory,
-  CRM, and simulation operations.
-- `agent_runtime` selects only registered tools and must not read the database
+  CRM, and simulation operations, including the generic SimPy interpreter.
+- `runtime` selects only registered tools and must not read the database
   or calculate authoritative numbers directly.
-- `interfaces` and `frontend` expose the system without duplicating business
+- `api`, `skill`, and `frontend` expose the system without duplicating business
   rules.
 
 User CSV ingestion uses `ActualStateService.import_csv(...)`: it performs deterministic field
@@ -82,18 +80,17 @@ The two configured processes meet at `inventory_position`. Sales allocation and
 shipping decrease its available, reserved, and on-hand quantities; purchasing
 receipts increase the same object. Python implements generic execution
 primitives, while activity bindings, durations, resources, operations, events,
-financial effects, and transitions are defined under `src/core/process_definitions/`.
+financial effects, and transitions are defined under `src/domain/process_definitions/`.
 
 ## Repository layout
 
 ```text
-src/core/                         Models, process contracts/YAML, SimPy engine
-src/load_data/                    Modular source inspection and validation
-src/enterprise_state/             SQL models, repositories, Actual State, snapshots
-src/tools/                        Business logic and Agent-callable tool wrappers
-src/agent_runtime/                Shared LLM tool-calling runtime
-src/interfaces/api/               FastAPI transport and response schemas
-src/interfaces/reports/           Offline deterministic report renderers
+src/domain/                       Models, object/process contracts and YAML
+src/infra/                        CSV ingestion, mapping, SQL Actual State, snapshots
+src/tools/                        Business logic, SimPy engine, Agent-callable wrappers
+src/runtime/                      Shared LLM tool-calling runtime
+src/api/                          FastAPI transport, MCP server, report renderers
+src/skill/                        Agent skill definitions (markdown)
 data/load_data/adventureworks_demo/  Versioned demo input and provenance manifest
 data/expected/                    Versioned expected demo assertions
 runtime_data/                     Generated databases and outputs; Git ignored
@@ -120,7 +117,7 @@ With Python already installed, `python -m pip install uv` is another option
 ```bash
 uv python install 3.12
 uv sync --locked --all-groups
-uv run uvicorn interfaces.api.main:app --app-dir src --host 127.0.0.1 --port 8000
+uv run uvicorn api.main:app --app-dir src --host 127.0.0.1 --port 8000
 ```
 
 Open **http://127.0.0.1:8000** in your browser. Keep this terminal open; use Ctrl+C
@@ -157,7 +154,7 @@ Set a private upload token in the same terminal that starts the server:
 
 ```bash
 export BC_UPLOAD_TOKEN="choose-a-long-random-value"
-uv run uvicorn interfaces.api.main:app --app-dir src --host 127.0.0.1 --port 8000
+uv run uvicorn api.main:app --app-dir src --host 127.0.0.1 --port 8000
 ```
 
 Choose **Upload data** in the header. The browser first inspects the CSV and
@@ -277,7 +274,7 @@ snapshot projection, derived order-service cases, shared tools and human-review 
 The same tools remain available through a standalone local MCP server:
 
 ```bash
-uv run python -m interfaces.mcp.server
+uv run python -m api.mcp_server
 ```
 
 See `docs/OPENCLAW_INTEGRATION.md` for OpenClaw registration, probing, skill

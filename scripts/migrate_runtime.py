@@ -8,8 +8,8 @@ from pathlib import Path
 from alembic import command
 from alembic.config import Config
 
-from infra.database import sqlite_url
 from api.settings import load_settings
+from infra.database import sqlite_url
 
 
 def main() -> None:

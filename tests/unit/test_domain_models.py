@@ -6,7 +6,7 @@ from decimal import Decimal
 import pytest
 from pydantic import ValidationError
 
-from core import (
+from domain.models import (
     BusinessObject,
     Customer,
     ScenarioEvent,
@@ -14,6 +14,8 @@ from core import (
     SnapshotBundle,
     SnapshotManifest,
     SnapshotRecord,
+)
+from domain.serialization import (
     canonical_data,
     canonical_hash,
     canonical_json,

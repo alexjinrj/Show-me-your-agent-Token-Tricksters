@@ -44,4 +44,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     sys.exit(0 if urllib.request.urlopen(f'http://127.0.0.1:{port}/healthz').status==200 else 1)"
 
 # Bind 0.0.0.0:${BC_HOST_PORT:-8000} for Lightsail compatibility.
-CMD ["sh", "-c", "uv run uvicorn interfaces.api.main:app --host 0.0.0.0 --port ${BC_HOST_PORT:-8000}"]
+CMD ["sh", "-c", "uv run uvicorn api.main:app --host 0.0.0.0 --port ${BC_HOST_PORT:-8000}"]

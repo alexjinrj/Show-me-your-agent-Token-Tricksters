@@ -18,11 +18,12 @@ def imported_roots(package: str) -> set[str]:
     return roots
 
 
-def test_core_does_not_depend_on_outer_layers() -> None:
-    forbidden = {"load_data", "enterprise_state", "tools", "agent_runtime", "interfaces"}
-    assert imported_roots("core").isdisjoint(forbidden)
+def test_domain_does_not_depend_on_outer_layers() -> None:
+    forbidden = {"infra", "tools", "runtime", "api", "skill"}
+    assert imported_roots("domain").isdisjoint(forbidden)
 
 
-def test_agent_runtime_reaches_business_capabilities_through_tools() -> None:
-    forbidden = {"core", "load_data", "enterprise_state", "interfaces"}
-    assert imported_roots("agent_runtime").isdisjoint(forbidden)
+def test_legacy_flat_packages_are_gone() -> None:
+    # The pre-refactor top-level packages must not come back as compat shims.
+    for name in ("core", "load_data", "enterprise_state", "agent_runtime", "interfaces"):
+        assert not (SOURCE_ROOT / name).exists(), name

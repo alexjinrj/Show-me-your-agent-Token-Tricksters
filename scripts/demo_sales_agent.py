@@ -9,11 +9,11 @@ from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from tools.sales import SalesAgentTools
 
+from api.sales_report import render_sales_report
 from infra.database import make_engine, sqlite_url
 from infra.models import StateSnapshotRow
-from api.sales_report import render_sales_report
-from tools.sales import SalesAgentTools
 
 
 def main() -> None:

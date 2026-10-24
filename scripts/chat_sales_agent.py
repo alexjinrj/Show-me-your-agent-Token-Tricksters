@@ -10,16 +10,16 @@ from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from tools.sales import SalesAgentTools
 
+from infra.database import make_engine, sqlite_url
+from infra.models import StateSnapshotRow
 from runtime.llm_runner import (
     ChatCompletionsClient,
     choose_mode,
     render_trace,
     run_sales_agent,
 )
-from infra.database import make_engine, sqlite_url
-from infra.models import StateSnapshotRow
-from tools.sales import SalesAgentTools
 
 
 def main() -> None:
